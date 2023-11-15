@@ -660,40 +660,18 @@ private:
     // https://vulkan-tutorial.com/Vertex_buffers/Vertex_buffer_creation
     // Vulkan 中的缓冲区是用于存储显卡可读取的任意数据的内存区域。它们可以用于多种目的，例如存储顶点数据，存储索引数据，存储一致性数据等。
     void createVertexBuffer() {
-        // 创建缓冲区
-        VkBufferCreateInfo bufferInfo{};
-        bufferInfo.sType = VK_STRUCTURE_TYPE_BUFFER_CREATE_INFO;
-        bufferInfo.size = sizeof(vertices[0]) * vertices.size();
-        bufferInfo.usage = VK_BUFFER_USAGE_VERTEX_BUFFER_BIT;
-        bufferInfo.sharingMode = VK_SHARING_MODE_EXCLUSIVE;
-
-        if (vkCreateBuffer(device, &bufferInfo, nullptr, &vertexBuffer) != VK_SUCCESS) {
-            throw std::runtime_error("failed to create vertex buffer!");
-        }
-
-        // 获取缓冲区内存需求
-        VkMemoryRequirements memRequirements;
-        vkGetBufferMemoryRequirements(device, vertexBuffer, &memRequirements);
-
-        // 为缓冲区分配内存
-        VkMemoryAllocateInfo allocInfo{};
-        allocInfo.sType = VK_STRUCTURE_TYPE_MEMORY_ALLOCATE_INFO;
-        allocInfo.allocationSize = memRequirements.size;
-        // findMemoryType的第二个参数用于定义内存的特殊功能，例如可以映射内存，这样我们就可以从 CPU 向内存写入数据，而 GPU 就可以访问它了。
-        // VK_MEMORY_PROPERTY_HOST_COHERENT_BIT表示使用与主机一致的内存堆，确保映射到GPU的内存始终与分配内存的内容相匹配。
-        allocInfo.memoryTypeIndex = findMemoryType(memRequirements.memoryTypeBits, VK_MEMORY_PROPERTY_HOST_VISIBLE_BIT | VK_MEMORY_PROPERTY_HOST_COHERENT_BIT);
-
-        if (vkAllocateMemory(device, &allocInfo, nullptr, &vertexBufferMemory) != VK_SUCCESS) {
-            throw std::runtime_error("failed to allocate vertex buffer memory!");
-        }
-
-        // 将内存与缓冲区关联。第四个参数是内存区域内的偏移量。由于该内存是专门为顶点缓冲区分配的，因此偏移量仅为 0。
-        vkBindBufferMemory(device, vertexBuffer, vertexBufferMemory, 0);
+        VkDeviceSize bufferSize = sizeof(vertices[0]) * vertices.size();
+        createBuffer(
+            bufferSize,
+            VK_BUFFER_USAGE_VERTEX_BUFFER_BIT,
+            VK_MEMORY_PROPERTY_HOST_VISIBLE_BIT | VK_MEMORY_PROPERTY_HOST_COHERENT_BIT,
+            vertexBuffer,
+            vertexBufferMemory);
 
         // 将数据复制到缓冲区
         void* data;
-        vkMapMemory(device, vertexBufferMemory, 0, bufferInfo.size, 0, &data);
-        memcpy(data, vertices.data(), (size_t)bufferInfo.size);
+        vkMapMemory(device, vertexBufferMemory, 0, bufferSize, 0, &data);
+        memcpy(data, vertices.data(), (size_t)bufferSize);
         vkUnmapMemory(device, vertexBufferMemory);
     }
 
@@ -711,6 +689,44 @@ private:
         }
 
         throw std::runtime_error("failed to find suitable memory type!");
+    }
+
+    // https://vulkan-tutorial.com/Vertex_buffers/Staging_buffer#page_Abstracting-buffer-creation
+    void createBuffer(
+        VkDeviceSize size,
+        VkBufferUsageFlags usage,
+        VkMemoryPropertyFlags properties,
+        VkBuffer& buffer,
+        VkDeviceMemory& bufferMemory) {
+        // 创建缓冲区
+        VkBufferCreateInfo bufferInfo{};
+        bufferInfo.sType = VK_STRUCTURE_TYPE_BUFFER_CREATE_INFO;
+        bufferInfo.size = size; // 缓冲区大小
+        bufferInfo.usage = usage; // 缓冲区用途
+        bufferInfo.sharingMode = VK_SHARING_MODE_EXCLUSIVE; // 缓冲区共享模式
+
+        if (vkCreateBuffer(device, &bufferInfo, nullptr, &buffer) != VK_SUCCESS) {
+            throw std::runtime_error("failed to create buffer!");
+        }
+
+        // 获取缓冲区内存需求
+        VkMemoryRequirements memRequirements;
+        vkGetBufferMemoryRequirements(device, buffer, &memRequirements);
+
+        // 为缓冲区分配内存
+        VkMemoryAllocateInfo allocInfo{};
+        allocInfo.sType = VK_STRUCTURE_TYPE_MEMORY_ALLOCATE_INFO;
+        allocInfo.allocationSize = memRequirements.size; // 内存大小
+        // findMemoryType的第二个参数用于定义内存的特殊功能，例如可以映射内存，这样我们就可以从 CPU 向内存写入数据，而 GPU 就可以访问它了。
+        // VK_MEMORY_PROPERTY_HOST_COHERENT_BIT表示使用与主机一致的内存堆，确保映射到GPU的内存始终与分配内存的内容相匹配。
+        allocInfo.memoryTypeIndex = findMemoryType(memRequirements.memoryTypeBits, properties); // 内存类型
+
+        if (vkAllocateMemory(device, &allocInfo, nullptr, &bufferMemory) != VK_SUCCESS) {
+            throw std::runtime_error("failed to allocate buffer memory!");
+        }
+
+        // 将内存与缓冲区关联。第四个参数是内存区域内的偏移量。由于该内存是专门为顶点缓冲区分配的，因此偏移量仅为 0。
+        vkBindBufferMemory(device, buffer, bufferMemory, 0);
     }
 
     void createCommandBuffers() {
