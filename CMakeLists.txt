@@ -48,12 +48,13 @@ add_subdirectory(shader)
 
 add_subdirectory(library)
 
-# 链接依赖库
+# begin glfw
 target_link_libraries(${PROJECT_NAME} PUBLIC glfw)
 link_libraries(glfw)
-target_link_libraries(${PROJECT_NAME} PUBLIC ${vulkan_lib})
+# end glfw
 
 # begin Vulkan
+target_link_libraries(${PROJECT_NAME} PUBLIC ${vulkan_lib})
 target_include_directories(
   ${PROJECT_NAME}
   PUBLIC $<BUILD_INTERFACE:${vulkan_include}>)
@@ -101,6 +102,10 @@ configure_file(${DCMTK_DIR}/bin/oflog.dll ${CMAKE_CURRENT_BINARY_DIR}/oflog.dll 
 configure_file(${DCMTK_DIR}/bin/dcmdata.dll ${CMAKE_CURRENT_BINARY_DIR}/dcmdata.dll COPYONLY)
 
 # end DCMTK
+
+# begin glm
+target_include_directories(${PROJECT_NAME} PUBLIC ${LIBRARY_DIR}/glm)
+# end glm
 
 # 将目录包含到对应目标里，不写这句话可就找不到.h文件了
 target_include_directories(

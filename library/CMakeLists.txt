@@ -11,3 +11,9 @@ if(NOT TARGET glfw)  # 判断 target-name 是否存在
     set_target_properties(glfw PROPERTIES FOLDER ${library_folder}/glfw) # 导入外部库，设置外部库文件路径
     set_target_properties(update_mappings PROPERTIES FOLDER ${library_folder}/glfw)
 endif()
+
+if(NOT TARGET glm)  # 判断 target-name 是否存在
+    add_subdirectory(glm)
+    set_target_properties(glm PROPERTIES FOLDER ${library_folder}/glm) # 导入外部库，设置外部库文件路径
+    set_target_properties(update_mappings PROPERTIES FOLDER ${library_folder}/glm)
+endif()
