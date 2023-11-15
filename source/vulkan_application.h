@@ -661,18 +661,40 @@ private:
     // Vulkan 中的缓冲区是用于存储显卡可读取的任意数据的内存区域。它们可以用于多种目的，例如存储顶点数据，存储索引数据，存储一致性数据等。
     void createVertexBuffer() {
         VkDeviceSize bufferSize = sizeof(vertices[0]) * vertices.size();
+
+        // 现在，我们将更改 createVertexBuffer，使其仅使用主机可见缓冲区作为临时缓冲区，而使用设备本地缓冲区作为实际顶点缓冲区。
+        // https://vulkan-tutorial.com/Vertex_buffers/Staging_buffer#page_Using-a-staging-buffer
+        VkBuffer stagingBuffer;
+        VkDeviceMemory stagingBufferMemory;
+        // 创建临时缓冲区
         createBuffer(
             bufferSize,
-            VK_BUFFER_USAGE_VERTEX_BUFFER_BIT,
+            VK_BUFFER_USAGE_TRANSFER_SRC_BIT,
             VK_MEMORY_PROPERTY_HOST_VISIBLE_BIT | VK_MEMORY_PROPERTY_HOST_COHERENT_BIT,
+            stagingBuffer,
+            stagingBufferMemory);
+
+        
+        // 将数据复制到临时缓冲区
+        void* data;
+        vkMapMemory(device, stagingBufferMemory, 0, bufferSize, 0, &data);
+        memcpy(data, vertices.data(), (size_t)bufferSize);
+        vkUnmapMemory(device, stagingBufferMemory);
+
+        // 创建顶点缓冲区
+        createBuffer(
+            bufferSize,
+            VK_BUFFER_USAGE_TRANSFER_DST_BIT | VK_BUFFER_USAGE_VERTEX_BUFFER_BIT,
+            VK_MEMORY_PROPERTY_DEVICE_LOCAL_BIT,
             vertexBuffer,
             vertexBufferMemory);
 
-        // 将数据复制到缓冲区
-        void* data;
-        vkMapMemory(device, vertexBufferMemory, 0, bufferSize, 0, &data);
-        memcpy(data, vertices.data(), (size_t)bufferSize);
-        vkUnmapMemory(device, vertexBufferMemory);
+        // 将数据从临时缓冲区复制到顶点缓冲区
+        copyBuffer(stagingBuffer, vertexBuffer, bufferSize);
+
+        // 销毁临时缓冲区
+        vkDestroyBuffer(device, stagingBuffer, nullptr);
+        vkFreeMemory(device, stagingBufferMemory, nullptr);
     }
 
     // 结合缓冲区的要求和自己应用程序的要求，找到合适的内存类型
@@ -727,6 +749,56 @@ private:
 
         // 将内存与缓冲区关联。第四个参数是内存区域内的偏移量。由于该内存是专门为顶点缓冲区分配的，因此偏移量仅为 0。
         vkBindBufferMemory(device, buffer, bufferMemory, 0);
+    }
+
+    void copyBuffer(VkBuffer srcBuffer, VkBuffer dstBuffer, VkDeviceSize size) {
+        VkCommandBufferAllocateInfo allocInfo{};
+        allocInfo.sType = VK_STRUCTURE_TYPE_COMMAND_BUFFER_ALLOCATE_INFO;
+        // commandPool是用于分配命令缓冲区的命令池
+        allocInfo.commandPool = commandPool;
+        // level参数指定分配的命令缓冲区是否是主要或辅助缓冲区。主要缓冲区可以被提交到队列中，但不能从其他命令缓冲区调用。
+        // 辅助缓冲区可以从主缓冲区和其他辅助缓冲区调用。我们将使用主缓冲区来执行实际的数据传输操作。
+        allocInfo.level = VK_COMMAND_BUFFER_LEVEL_PRIMARY;
+        allocInfo.commandBufferCount = 1;
+
+        // 分配命令缓冲区
+        VkCommandBuffer commandBuffer;
+        vkAllocateCommandBuffers(device, &allocInfo, &commandBuffer);
+
+        // 开始记录命令缓冲区
+        VkCommandBufferBeginInfo beginInfo{};
+        beginInfo.sType = VK_STRUCTURE_TYPE_COMMAND_BUFFER_BEGIN_INFO;
+        // flags参数指定如何使用命令缓冲区。我们希望使用它一次并在使用后立即返回。
+        beginInfo.flags = VK_COMMAND_BUFFER_USAGE_ONE_TIME_SUBMIT_BIT;
+
+        vkBeginCommandBuffer(commandBuffer, &beginInfo);
+
+        // 复制缓冲区
+        VkBufferCopy copyRegion{};
+        copyRegion.size = size;
+        // srcOffset和dstOffset参数指定要复制的字节偏移量。我们将从缓冲区的起始位置开始复制。
+        vkCmdCopyBuffer(commandBuffer, srcBuffer, dstBuffer, 1, &copyRegion);
+
+        // 结束记录命令缓冲区
+        vkEndCommandBuffer(commandBuffer);
+
+        // 执行命令缓冲区
+        VkSubmitInfo submitInfo{};
+        submitInfo.sType = VK_STRUCTURE_TYPE_SUBMIT_INFO;
+        // commandBufferCount和pCommandBuffers参数指定要提交的命令缓冲区数量和指针。
+        submitInfo.commandBufferCount = 1;
+        submitInfo.pCommandBuffers = &commandBuffer;
+
+        // 我们在这里使用了 vkQueueSubmit，而不是 vkQueueWaitIdle，因为后者是同步的，而前者是异步的。
+        // 这意味着 vkQueueSubmit 可以立即返回，而不是等待复制操作完成。
+        // 我们将在稍后使用信号量来同步操作，以便在复制操作完成之前不会使用缓冲区。
+        vkQueueSubmit(graphicsQueue, 1, &submitInfo, VK_NULL_HANDLE);
+        // 等待命令缓冲区执行完成
+        vkQueueWaitIdle(graphicsQueue);
+
+        // 释放命令缓冲区
+        vkFreeCommandBuffers(device, commandPool, 1, &commandBuffer);
+
     }
 
     void createCommandBuffers() {
