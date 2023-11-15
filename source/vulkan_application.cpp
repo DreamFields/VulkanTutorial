@@ -6,9 +6,9 @@ void VulkanApplication::initVolumeRender() {
 }
 
 void VulkanApplication::run() {
-        initWindow();
-        initVulkan();
-        initVolumeRender();
-        mainLoop();
-        cleanup();
-    }
+    initWindow();
+    initVulkan();
+    initVolumeRender();
+    mainLoop();
+    cleanup();
+}
