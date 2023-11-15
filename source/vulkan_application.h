@@ -1,5 +1,5 @@
 #pragma once 
-
+#include "volume_render.h"
 #include <debugdraw_vert.h> // 通过库文件的形式来引入着色器文件
 #include <debugdraw_frag.h>
 
@@ -57,12 +57,9 @@ struct SwapChainSupportDetails {
 
 class VulkanApplication {
 public:
-    void run() {
-        initWindow();
-        initVulkan();
-        mainLoop();
-        cleanup();
-    }
+    void run();
+    void initVolumeRender();
+    std::shared_ptr<VolumeRender> volumeRender;
 
 private:
     GLFWwindow* window;
@@ -790,7 +787,7 @@ private:
     }
 
     VkExtent2D chooseSwapExtent(const VkSurfaceCapabilitiesKHR& capabilities) {
-        if (capabilities.currentExtent.width != std::numeric_limits<uint32_t>::max()) {
+        if (capabilities.currentExtent.width != (std::numeric_limits<uint32_t>::max)()) {
             return capabilities.currentExtent;
         }
         else {
