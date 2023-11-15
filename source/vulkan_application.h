@@ -166,6 +166,8 @@ private:
 
     bool framebufferResized = false;
 
+    void createTextureImage();
+
     void initWindow() {
         glfwInit();
 
@@ -211,6 +213,7 @@ private:
         createGraphicsPipeline();
         createFramebuffers();
         createCommandPool();
+        createTextureImage();
         createVertexBuffer();
         createIndexBuffer();
         createUniformBuffers();

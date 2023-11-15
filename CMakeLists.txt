@@ -7,7 +7,7 @@ set(CMAKE_CXX_STANDARD_REQUIRED ON) # 设置指定的C++编译器版本是必须
 set(BUILD_SHARED_LIBS OFF) # 不构建共享库
 
 # 收集对应目录的文件到对应变量
-file(GLOB HEADERS CONFIGURE_DEPENDS ${CMAKE_CURRENT_SOURCE_DIR}/include/*.h)
+file(GLOB HEADERS CONFIGURE_DEPENDS ${CMAKE_CURRENT_SOURCE_DIR}/source/*.h)
 file(GLOB SOURCES CONFIGURE_DEPENDS ${CMAKE_CURRENT_SOURCE_DIR}/source/*.cpp)
 
 # 在IDE里面给编译需要的文件归类
@@ -52,6 +52,10 @@ add_subdirectory(library)
 target_link_libraries(${PROJECT_NAME} PUBLIC glfw)
 link_libraries(glfw)
 # end glfw
+
+# begin stb
+target_include_directories(${PROJECT_NAME} PUBLIC ${LIBRARY_DIR}/stb)
+# end stb
 
 # begin Vulkan
 target_link_libraries(${PROJECT_NAME} PUBLIC ${vulkan_lib})
