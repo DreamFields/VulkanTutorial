@@ -141,6 +141,8 @@ private:
     VkRenderPass renderPass;
 
     VkDescriptorSetLayout descriptorSetLayout;
+    VkDescriptorPool descriptorPool;
+    std::vector<VkDescriptorSet> descriptorSets;
     VkPipelineLayout pipelineLayout;
     VkPipeline graphicsPipeline;
 
@@ -212,6 +214,8 @@ private:
         createVertexBuffer();
         createIndexBuffer();
         createUniformBuffers();
+        createDescriptorPool();
+        createDescriptorSets();
         createCommandBuffers();
         createSyncObjects();
     }
@@ -245,7 +249,7 @@ private:
             vkDestroyBuffer(device, uniformBuffers[i], nullptr);
             vkFreeMemory(device, uniformBuffersMemory[i], nullptr);
         }
-        
+        vkDestroyDescriptorPool(device, descriptorPool, nullptr);
         vkDestroyDescriptorSetLayout(device, descriptorSetLayout, nullptr);
 
         vkDestroyBuffer(device, vertexBuffer, nullptr);
@@ -620,7 +624,8 @@ private:
         rasterizer.polygonMode = VK_POLYGON_MODE_FILL;
         rasterizer.lineWidth = 1.0f;
         rasterizer.cullMode = VK_CULL_MODE_BACK_BIT;
-        rasterizer.frontFace = VK_FRONT_FACE_CLOCKWISE;
+        // rasterizer.frontFace = VK_FRONT_FACE_CLOCKWISE; // 由于我们在投影矩阵中进行了 Y 翻转，顶点现在是按逆时针顺序而不是顺时针顺序绘制的。这导致反面剔除启动，无法绘制任何几何体。
+        rasterizer.frontFace = VK_FRONT_FACE_COUNTER_CLOCKWISE; // 通过将顶点顺序更改为顺时针顺序，我们可以解决这个问题，或者我们可以通过将 frontFace 设置为 VK_FRONT_FACE_COUNTER_CLOCKWISE 来保持顶点顺序不变。
         rasterizer.depthBiasEnable = VK_FALSE;
 
         VkPipelineMultisampleStateCreateInfo multisampling{};
@@ -923,6 +928,61 @@ private:
         }
     }
 
+    void createDescriptorPool() {
+        // 创建描述符池
+        VkDescriptorPoolSize poolSize{};
+        poolSize.type = VK_DESCRIPTOR_TYPE_UNIFORM_BUFFER; // 描述符类型
+        poolSize.descriptorCount = static_cast<uint32_t>(MAX_FRAMES_IN_FLIGHT); // 描述符数量
+
+        // 描述符池信息
+        VkDescriptorPoolCreateInfo poolInfo{};
+        poolInfo.sType = VK_STRUCTURE_TYPE_DESCRIPTOR_POOL_CREATE_INFO;
+        poolInfo.poolSizeCount = 1; // 描述符池大小
+        poolInfo.pPoolSizes = &poolSize;
+        poolInfo.maxSets = static_cast<uint32_t>(MAX_FRAMES_IN_FLIGHT); // 描述符集数量
+
+        if (vkCreateDescriptorPool(device, &poolInfo, nullptr, &descriptorPool) != VK_SUCCESS) {
+            throw std::runtime_error("failed to create descriptor pool!");
+        }
+    }
+
+    // https://vulkan-tutorial.com/Uniform_buffers/Descriptor_pool_and_sets#page_Descriptor-set
+    void createDescriptorSets() {
+        // 创建描述符集布局
+        std::vector<VkDescriptorSetLayout> layouts(MAX_FRAMES_IN_FLIGHT, descriptorSetLayout);
+        VkDescriptorSetAllocateInfo allocInfo{};
+        allocInfo.sType = VK_STRUCTURE_TYPE_DESCRIPTOR_SET_ALLOCATE_INFO;
+        allocInfo.descriptorPool = descriptorPool; // 描述符池
+        allocInfo.descriptorSetCount = static_cast<uint32_t>(MAX_FRAMES_IN_FLIGHT); // 描述符集数量
+        allocInfo.pSetLayouts = layouts.data();
+
+        descriptorSets.resize(MAX_FRAMES_IN_FLIGHT);
+        if (vkAllocateDescriptorSets(device, &allocInfo, descriptorSets.data()) != VK_SUCCESS) {
+            throw std::runtime_error("failed to allocate descriptor sets!");
+        }
+
+        // 更新描述符集
+        for (size_t i = 0; i < MAX_FRAMES_IN_FLIGHT; i++) {
+            VkDescriptorBufferInfo bufferInfo{};
+            bufferInfo.buffer = uniformBuffers[i]; // 缓冲区
+            bufferInfo.offset = 0; // 偏移量
+            bufferInfo.range = sizeof(UniformBufferObject); // 范围
+
+            VkWriteDescriptorSet descriptorWrite{};
+            descriptorWrite.sType = VK_STRUCTURE_TYPE_WRITE_DESCRIPTOR_SET;
+            descriptorWrite.dstSet = descriptorSets[i]; // 描述符集
+            descriptorWrite.dstBinding = 0; // 描述符绑定
+            descriptorWrite.dstArrayElement = 0; // 描述符数组元素
+            descriptorWrite.descriptorType = VK_DESCRIPTOR_TYPE_UNIFORM_BUFFER; // 描述符类型
+            descriptorWrite.descriptorCount = 1; // 描述符数量
+            descriptorWrite.pBufferInfo = &bufferInfo;
+            descriptorWrite.pImageInfo = nullptr; // 图像信息
+            descriptorWrite.pTexelBufferView = nullptr; // 缓冲区视图
+
+            vkUpdateDescriptorSets(device, 1, &descriptorWrite, 0, nullptr);
+        }
+    }
+
     void createCommandBuffers() {
         commandBuffers.resize(MAX_FRAMES_IN_FLIGHT);
 
@@ -980,6 +1040,16 @@ private:
         vkCmdBindVertexBuffers(commandBuffer, 0, 1, vertexBuffers, offsets);
 
         vkCmdBindIndexBuffer(commandBuffer, indexBuffer, 0, VK_INDEX_TYPE_UINT16);
+
+        vkCmdBindDescriptorSets(
+            commandBuffer, // 命令缓冲区
+            VK_PIPELINE_BIND_POINT_GRAPHICS, // 管线绑定点
+            pipelineLayout, // 管线布局
+            0, // 第一个描述符集绑定到顶点着色器
+            1, // 描述符集数量
+            &descriptorSets[currentFrame], // 描述符集
+            0, // 动态偏移量数量
+            nullptr); // 动态偏移量
         // vkCmdDraw(commandBuffer, static_cast<uint32_t>(vertices.size()), 1, 0, 0);
         /*
         void vkCmdDrawIndexed(
