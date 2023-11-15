@@ -1,11 +1,10 @@
 cmake_minimum_required(VERSION 3.19 FATAL_ERROR)
 
-project(VulkanTutorial VERSION 0.1.0) 
+project(VulkanTutorial VERSION 0.1.0)
 
 set(CMAKE_CXX_STANDARD 17)
 set(CMAKE_CXX_STANDARD_REQUIRED ON) # 设置指定的C++编译器版本是必须的，如果不设置，或者为OFF，则指定版本不可用时，会使用上一版本
 set(BUILD_SHARED_LIBS OFF) # 不构建共享库
-
 
 # 收集对应目录的文件到对应变量
 file(GLOB HEADERS CONFIGURE_DEPENDS ${CMAKE_CURRENT_SOURCE_DIR}/include/*.h)
@@ -15,7 +14,6 @@ file(GLOB SOURCES CONFIGURE_DEPENDS ${CMAKE_CURRENT_SOURCE_DIR}/source/*.cpp)
 source_group(TREE "${CMAKE_CURRENT_SOURCE_DIR}" FILES ${HEADERS} ${SOURCES})
 
 add_executable(${PROJECT_NAME} ${HEADERS} ${SOURCES})
-
 
 # 设置目录变量
 set(TUTORIAL_ROOT_DIR "${CMAKE_CURRENT_SOURCE_DIR}") # 定义变量
@@ -57,25 +55,28 @@ target_link_libraries(${PROJECT_NAME} PUBLIC ${vulkan_lib})
 
 # begin Vulkan
 target_include_directories(
-    ${PROJECT_NAME}
-    PUBLIC $<BUILD_INTERFACE:${vulkan_include}>)
+  ${PROJECT_NAME}
+  PUBLIC $<BUILD_INTERFACE:${vulkan_include}>)
 
 target_include_directories(
-    ${PROJECT_NAME}
-    PUBLIC $<BUILD_INTERFACE:${LIBRARY_DIR}/VulkanSDK/include/vma>
+  ${PROJECT_NAME}
+  PUBLIC $<BUILD_INTERFACE:${LIBRARY_DIR}/VulkanSDK/include/vma>
 )
 
 # end Vulkan
 
 # 将目录包含到对应目标里，不写这句话可就找不到.h文件了
 target_include_directories(
-    ${PROJECT_NAME}
-    PUBLIC $<BUILD_INTERFACE:${TUTORIAL_ROOT_DIR}/source>
-    $<INSTALL_INTERFACE:include/${PROJECT_NAME}-${PROJECT_VERSION}>
+  ${PROJECT_NAME}
+  PUBLIC $<BUILD_INTERFACE:${TUTORIAL_ROOT_DIR}/source>
+  $<INSTALL_INTERFACE:include/${PROJECT_NAME}-${PROJECT_VERSION}>
 )
 
 # shader 显式要求cmake先编译${SHADER_COMPILE_TARGET}
-add_dependencies(${PROJECT_NAME} ${SHADER_COMPILE_TARGET}) 
+add_dependencies(${PROJECT_NAME} ${SHADER_COMPILE_TARGET})
 target_include_directories(
-    ${PROJECT_NAME}
-    PUBLIC $<BUILD_INTERFACE:${TUTORIAL_ROOT_DIR}/shader/generated/cpp>)
+  ${PROJECT_NAME}
+  PUBLIC $<BUILD_INTERFACE:${TUTORIAL_ROOT_DIR}/shader/generated/cpp>)
+
+# 设置启动项目
+set_property(DIRECTORY ${CMAKE_CURRENT_SOURCE_DIR} PROPERTY VS_STARTUP_PROJECT ${PROJECT_NAME})
