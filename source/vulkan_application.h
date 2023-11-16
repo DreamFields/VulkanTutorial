@@ -49,6 +49,7 @@ struct Vertex {
     // 交错顶点属性，把位置和颜色放在一起
     glm::vec2 pos;
     glm::vec3 color;
+    glm::vec2 texCoord;
 
     static VkVertexInputBindingDescription getBindingDescription() {
         VkVertexInputBindingDescription bindingDescription{};
@@ -60,8 +61,8 @@ struct Vertex {
     }
 
     // https://vulkan-tutorial.com/Vertex_buffers/Vertex_input_description#page_Attribute-descriptions
-    static std::array<VkVertexInputAttributeDescription, 2> getAttributeDescriptions() {
-        std::array<VkVertexInputAttributeDescription, 2> attributeDescriptions{};
+    static std::array<VkVertexInputAttributeDescription, 3> getAttributeDescriptions() {
+        std::array<VkVertexInputAttributeDescription, 3> attributeDescriptions{};
 
         attributeDescriptions[0].binding = 0; // 告诉 Vulkan 每顶点数据来自哪个绑定
         attributeDescriptions[0].location = 0; // 从哪个位置读取顶点数据
@@ -73,15 +74,20 @@ struct Vertex {
         attributeDescriptions[1].format = VK_FORMAT_R32G32B32_SFLOAT;
         attributeDescriptions[1].offset = offsetof(Vertex, color);
 
+        attributeDescriptions[2].binding = 0;
+        attributeDescriptions[2].location = 2;
+        attributeDescriptions[2].format = VK_FORMAT_R32G32_SFLOAT;
+        attributeDescriptions[2].offset = offsetof(Vertex, texCoord);
+
         return attributeDescriptions;
     }
 };
 
 const std::vector<Vertex> vertices = {
-    {{-0.5f, -0.5f}, {1.0f, 0.0f, 0.0f}},
-    {{0.5f, -0.5f}, {0.0f, 1.0f, 0.0f}},
-    {{0.5f, 0.5f}, {0.0f, 0.0f, 1.0f}},
-    {{-0.5f, 0.5f}, {1.0f, 1.0f, 1.0f}}
+    {{-0.5f, -0.5f}, {1.0f, 0.0f, 0.0f}, {1.0f, 0.0f}},
+    {{0.5f, -0.5f}, {0.0f, 1.0f, 0.0f}, {0.0f, 0.0f}},
+    {{0.5f, 0.5f}, {0.0f, 0.0f, 1.0f}, {0.0f, 1.0f}},
+    {{-0.5f, 0.5f}, {1.0f, 1.0f, 1.0f}, {1.0f, 1.0f}}
 };
 
 // 与vertics中的索引匹配，以绘制右上三角形和左下三角形
@@ -178,7 +184,7 @@ private:
     void createTextureSampler();
     void transitionImageLayout(VkImage image, VkFormat format, VkImageLayout oldLayout, VkImageLayout newLayout);
     void copyBufferToImage(VkBuffer buffer, VkImage image, uint32_t width, uint32_t height);
-    
+
     // https://vulkan-tutorial.com/Texture_mapping/Images#page_Layout-transitions
     // 将记录和执行命令缓冲区的逻辑抽象为单独的函数
     VkCommandBuffer beginSingleTimeCommands();
@@ -575,11 +581,21 @@ private:
         uboLayoutBinding.stageFlags = VK_SHADER_STAGE_VERTEX_BIT;
         uboLayoutBinding.pImmutableSamplers = nullptr; // 可选，用于纹理采样
 
+        VkDescriptorSetLayoutBinding samplerLayoutBinding{};
+        samplerLayoutBinding.binding = 1; // 着色器中的绑定索引
+        samplerLayoutBinding.descriptorCount = 1;
+        samplerLayoutBinding.descriptorType = VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER;
+        // stageFlags参数指定在哪个着色器阶段使用此描述符布局。我们将在片段着色器中使用纹理采样器，因此我们将其设置为VK_SHADER_STAGE_FRAGMENT_BIT。
+        samplerLayoutBinding.stageFlags = VK_SHADER_STAGE_FRAGMENT_BIT;
+        samplerLayoutBinding.pImmutableSamplers = nullptr; // 可选，用于纹理采样
+
+        std::array<VkDescriptorSetLayoutBinding, 2> bindings = { uboLayoutBinding, samplerLayoutBinding };
+
         // 创建描述符布局
         VkDescriptorSetLayoutCreateInfo layoutInfo{};
         layoutInfo.sType = VK_STRUCTURE_TYPE_DESCRIPTOR_SET_LAYOUT_CREATE_INFO;
-        layoutInfo.bindingCount = 1; // 描述符绑定数量
-        layoutInfo.pBindings = &uboLayoutBinding;
+        layoutInfo.bindingCount = static_cast<uint32_t>(bindings.size()); // 描述符绑定数量
+        layoutInfo.pBindings = bindings.data(); // 描述符绑定 
 
         if (vkCreateDescriptorSetLayout(device, &layoutInfo, nullptr, &descriptorSetLayout) != VK_SUCCESS) {
             throw std::runtime_error("failed to create descriptor set layout!");
@@ -903,15 +919,18 @@ private:
 
     void createDescriptorPool() {
         // 创建描述符池
-        VkDescriptorPoolSize poolSize{};
-        poolSize.type = VK_DESCRIPTOR_TYPE_UNIFORM_BUFFER; // 描述符类型
-        poolSize.descriptorCount = static_cast<uint32_t>(MAX_FRAMES_IN_FLIGHT); // 描述符数量
+        std::array<VkDescriptorPoolSize, 2> poolSize{};
+        poolSize[0].type = VK_DESCRIPTOR_TYPE_UNIFORM_BUFFER; // 描述符类型
+        poolSize[0].descriptorCount = static_cast<uint32_t>(MAX_FRAMES_IN_FLIGHT); // 描述符数量
+
+        poolSize[1].type = VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER; // 描述符类型
+        poolSize[1].descriptorCount = static_cast<uint32_t>(MAX_FRAMES_IN_FLIGHT);
 
         // 描述符池信息
         VkDescriptorPoolCreateInfo poolInfo{};
         poolInfo.sType = VK_STRUCTURE_TYPE_DESCRIPTOR_POOL_CREATE_INFO;
-        poolInfo.poolSizeCount = 1; // 描述符池大小
-        poolInfo.pPoolSizes = &poolSize;
+        poolInfo.poolSizeCount = static_cast<uint32_t>(poolSize.size()); // 描述符池大小
+        poolInfo.pPoolSizes = poolSize.data();
         poolInfo.maxSets = static_cast<uint32_t>(MAX_FRAMES_IN_FLIGHT); // 描述符集数量
 
         if (vkCreateDescriptorPool(device, &poolInfo, nullptr, &descriptorPool) != VK_SUCCESS) {
@@ -941,18 +960,33 @@ private:
             bufferInfo.offset = 0; // 偏移量
             bufferInfo.range = sizeof(UniformBufferObject); // 范围
 
-            VkWriteDescriptorSet descriptorWrite{};
-            descriptorWrite.sType = VK_STRUCTURE_TYPE_WRITE_DESCRIPTOR_SET;
-            descriptorWrite.dstSet = descriptorSets[i]; // 描述符集
-            descriptorWrite.dstBinding = 0; // 描述符绑定
-            descriptorWrite.dstArrayElement = 0; // 描述符数组元素
-            descriptorWrite.descriptorType = VK_DESCRIPTOR_TYPE_UNIFORM_BUFFER; // 描述符类型
-            descriptorWrite.descriptorCount = 1; // 描述符数量
-            descriptorWrite.pBufferInfo = &bufferInfo;
-            descriptorWrite.pImageInfo = nullptr; // 图像信息
-            descriptorWrite.pTexelBufferView = nullptr; // 缓冲区视图
+            VkDescriptorImageInfo imageInfo{};
+            imageInfo.imageLayout = VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL; // 图像布局
+            imageInfo.imageView = textureImageView; // 图像视图
+            imageInfo.sampler = textureSampler; // 纹理采样器
 
-            vkUpdateDescriptorSets(device, 1, &descriptorWrite, 0, nullptr);
+            std::array<VkWriteDescriptorSet, 2> descriptorWrite{};
+            descriptorWrite[0].sType = VK_STRUCTURE_TYPE_WRITE_DESCRIPTOR_SET;
+            descriptorWrite[0].dstSet = descriptorSets[i]; // 描述符集
+            descriptorWrite[0].dstBinding = 0; // 描述符绑定
+            descriptorWrite[0].dstArrayElement = 0; // 描述符数组元素
+            descriptorWrite[0].descriptorType = VK_DESCRIPTOR_TYPE_UNIFORM_BUFFER; // 描述符类型
+            descriptorWrite[0].descriptorCount = 1; // 描述符数量
+            descriptorWrite[0].pBufferInfo = &bufferInfo;
+            descriptorWrite[0].pImageInfo = nullptr; // 图像信息
+            descriptorWrite[0].pTexelBufferView = nullptr; // 缓冲区视图
+
+            descriptorWrite[1].sType = VK_STRUCTURE_TYPE_WRITE_DESCRIPTOR_SET;
+            descriptorWrite[1].dstSet = descriptorSets[i]; // 描述符集
+            descriptorWrite[1].dstBinding = 1; // 描述符绑定
+            descriptorWrite[1].dstArrayElement = 0; // 描述符数组元素
+            descriptorWrite[1].descriptorType = VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER; // 描述符类型
+            descriptorWrite[1].descriptorCount = 1; // 描述符数量
+            descriptorWrite[1].pBufferInfo = nullptr;
+            descriptorWrite[1].pImageInfo = &imageInfo; // 图像信息
+            descriptorWrite[1].pTexelBufferView = nullptr; // 缓冲区视图
+
+            vkUpdateDescriptorSets(device, static_cast<uint32_t>(descriptorWrite.size()), descriptorWrite.data(), 0, nullptr);
         }
     }
 
