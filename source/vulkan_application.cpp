@@ -141,6 +141,79 @@ void VulkanApplication::createImage(    // 创建图像对象
 
 }
 
+void VulkanApplication::createTextureImageView() {
+    // 创建纹理的图像视图
+    textureImageView = createImageView(textureImage, VK_FORMAT_R8G8B8A8_SRGB);
+}
+
+
+VkImageView VulkanApplication::createImageView(VkImage image, VkFormat format) {
+    VkImageViewCreateInfo viewInfo{};
+    viewInfo.sType = VK_STRUCTURE_TYPE_IMAGE_VIEW_CREATE_INFO; // 指定结构体类型
+    viewInfo.image = image; // 指定图像对象
+    viewInfo.viewType = VK_IMAGE_VIEW_TYPE_2D;    // 指定图像视图类型
+    viewInfo.format = format;   // 指定图像数据的格式
+    viewInfo.subresourceRange.aspectMask = VK_IMAGE_ASPECT_COLOR_BIT; // 指定图像的哪些方面将受到屏障的影响。我们使用颜色位，因为我们只关心颜色数据
+    viewInfo.subresourceRange.baseMipLevel = 0;    // 指定图像的哪些 mipmap 级别将受到屏障的影响。我们将其设置为 0，以便它可以影响所有级别
+    viewInfo.subresourceRange.levelCount = 1; // 指定图像的 mipmap 级别数量
+    viewInfo.subresourceRange.baseArrayLayer = 0; // 指定图像的哪些数组层将受到屏障的影响。我们将其设置为 0，以便它可以影响所有层
+    viewInfo.subresourceRange.layerCount = 1;  // 指定图像的数组层数量
+
+    VkImageView imageView;
+    if (vkCreateImageView(device, &viewInfo, nullptr, &imageView) != VK_SUCCESS) {   // 创建图像视图
+        throw std::runtime_error("failed to create texture image view!");
+    }
+
+    return imageView;
+}
+
+
+void VulkanApplication::createTextureSampler() {
+    VkSamplerCreateInfo samplerInfo{};
+    samplerInfo.sType = VK_STRUCTURE_TYPE_SAMPLER_CREATE_INFO;
+    // magFilter 和 minFilter 参数指定了在纹理被拉伸（放大）或压缩（缩小）时如何处理纹理像素。
+    // 我们将它们都设置为 VK_FILTER_LINEAR，以便在纹理被拉伸时获得更好的效果。
+    samplerInfo.magFilter = VK_FILTER_LINEAR;    // 放大时的采样方式
+    samplerInfo.minFilter = VK_FILTER_LINEAR;    // 缩小时的采样方式
+    // addressModeU、addressModeV 和 addressModeW 参数指定了对超出纹理范围的坐标进行采样时使用的策略。
+    // 它们可以设置为以下值之一：
+    // VK_SAMPLER_ADDRESS_MODE_REPEAT：重复纹理地址。这可能是最常见的模式，它在纹理坐标超出 [0,1] 范围时重复纹理图像。
+    // VK_SAMPLER_ADDRESS_MODE_MIRRORED_REPEAT：纹理单元超出 [0,1] 范围时，镜像重复纹理图像。
+    // VK_SAMPLER_ADDRESS_MODE_CLAMP_TO_EDGE：纹理坐标被截断到 [0,1] 范围内，超出的部分将使用边缘的纹理颜色。
+    // VK_SAMPLER_ADDRESS_MODE_MIRROR_CLAMP_TO_EDGE：超出的坐标被截断到 [0,1] 范围内，然后使用镜像重复模式。
+    // VK_SAMPLER_ADDRESS_MODE_CLAMP_TO_BORDER：超出的坐标被截断到 [0,1] 范围内，然后使用用户指定的边框颜色。
+    samplerInfo.addressModeU = VK_SAMPLER_ADDRESS_MODE_REPEAT; // U 轴的采样方式
+    samplerInfo.addressModeV = VK_SAMPLER_ADDRESS_MODE_REPEAT; // V 轴的采样方式
+    samplerInfo.addressModeW = VK_SAMPLER_ADDRESS_MODE_REPEAT; // W 轴的采样方式
+
+    // 检索物理设备的属性，以确定支持的最大各向异性采样级别 
+    VkPhysicalDeviceProperties properties{};
+    vkGetPhysicalDeviceProperties(physicalDevice, &properties);
+    samplerInfo.anisotropyEnable = VK_TRUE;    // 启用各向异性过滤
+    samplerInfo.maxAnisotropy = properties.limits.maxSamplerAnisotropy; // 各向异性过滤的采样数
+
+    samplerInfo.borderColor = VK_BORDER_COLOR_INT_OPAQUE_BLACK;    // 边框颜色
+
+    // 如果该字段为 VK_TRUE，则可以简单地使用 [0, texWidth) 和 [0, texHeight) 范围内的坐标。
+    // 如果该字段为 VK_FALSE，则在所有坐标轴上使用 [0, 1) 范围对纹理进行寻址。
+    // 实际应用中几乎总是使用归一化坐标，因为这样就可以使用完全相同坐标的不同分辨率纹理。
+    samplerInfo.unnormalizedCoordinates = VK_FALSE; // 指定坐标是否使用非归一化的方式
+
+    samplerInfo.compareEnable = VK_FALSE;   // 指定是否启用比较操作。如果启用了比较功能，则会首先将像素与一个值进行比较，然后将比较结果用于过滤操作。这主要用于阴影贴图的百分比缩小过滤。
+    samplerInfo.compareOp = VK_COMPARE_OP_ALWAYS; // 指定比较操作的比较函数
+
+    samplerInfo.mipmapMode = VK_SAMPLER_MIPMAP_MODE_LINEAR; // 指定 mipmap 的过滤方式
+    samplerInfo.mipLodBias = 0.0f;  // 指定 mipmap 的 LOD 偏移量
+    samplerInfo.minLod = 0.0f;  // 指定 mipmap 的最小 LOD
+    samplerInfo.maxLod = 0.0f;  // 指定 mipmap 的最大 LOD
+
+    // 采样器不会在任何地方引用 VkImage。采样器是一个独特的对象，它提供了一个从纹理中提取颜色的接口。它可以应用于任何图像，无论是一维、二维还是三维图像。
+    if (vkCreateSampler(device, &samplerInfo, nullptr, &textureSampler) != VK_SUCCESS) {   // 创建纹理采样器
+        throw std::runtime_error("failed to create texture sampler!");
+    }
+
+}
+
 void VulkanApplication::transitionImageLayout(    // 图像布局转换
     VkImage image,
     VkFormat format,
@@ -170,19 +243,21 @@ void VulkanApplication::transitionImageLayout(    // 图像布局转换
     VkPipelineStageFlags sourceStage;
     VkPipelineStageFlags destinationStage;
 
-    if(oldLayout == VK_IMAGE_LAYOUT_UNDEFINED && newLayout == VK_IMAGE_LAYOUT_TRANSFER_DST_OPTIMAL) {
+    if (oldLayout == VK_IMAGE_LAYOUT_UNDEFINED && newLayout == VK_IMAGE_LAYOUT_TRANSFER_DST_OPTIMAL) {
         // 未定义 → 传输目的地：传输写入时不需要等待任何内容
         barrier.srcAccessMask = 0;  // 读取前访问图像的哪些操作。我们不关心旧数据，因为我们将完全覆盖它
         barrier.dstAccessMask = VK_ACCESS_TRANSFER_WRITE_BIT;    // 写入前访问图像的哪些操作。我们希望在传输写入之前等待内存访问，以便在写入之前不会覆盖它
         sourceStage = VK_PIPELINE_STAGE_TOP_OF_PIPE_BIT; // 指定在屏障前执行的管线阶段
         destinationStage = VK_PIPELINE_STAGE_TRANSFER_BIT;    // 指定在屏障后执行的管线阶段。VK_PIPELINE_STAGE_TRANSFER_BIT 并不是图形和计算流水线中的一个真正阶段。它更像是一个发生传输的伪阶段。
-    } else if(oldLayout == VK_IMAGE_LAYOUT_TRANSFER_DST_OPTIMAL && newLayout == VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL){
+    }
+    else if (oldLayout == VK_IMAGE_LAYOUT_TRANSFER_DST_OPTIMAL && newLayout == VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL) {
         // 传输目标→着色器读取：着色器读取应等待传输写入，特别是片段着色器中的着色器读取，因为那是我们要使用纹理的地方。
         barrier.srcAccessMask = VK_ACCESS_TRANSFER_WRITE_BIT;    // 写入前访问图像的哪些操作。我们希望在传输写入之前等待内存访问，以便在写入之前不会覆盖它
         barrier.dstAccessMask = VK_ACCESS_SHADER_READ_BIT;   // 读取前访问图像的哪些操作。我们不关心旧数据，因为我们将完全覆盖它
         sourceStage = VK_PIPELINE_STAGE_TRANSFER_BIT;
         destinationStage = VK_PIPELINE_STAGE_FRAGMENT_SHADER_BIT;    // 指定在屏障后执行的管线阶段
-    } else {
+    }
+    else {
         throw std::invalid_argument("unsupported layout transition!");
     }
 
@@ -197,11 +272,11 @@ void VulkanApplication::transitionImageLayout(    // 图像布局转换
         1, &barrier);
 
     endSingleTimeCommands(commandBuffer);   // !结束记录命令缓冲区,否则会报如下错误：
-    /* 
-    validation layer: Validation Error: [ UNASSIGNED-CoreValidation-DrawState-InvalidImageLayout ] 
-    Object 0: handle = 0x24f88480270, type = VK_OBJECT_TYPE_COMMAND_BUFFER; 
-    Object 1: handle = 0xd897d90000000016, type = VK_OBJECT_TYPE_IMAGE; | MessageID = 0x4dae5635 | vkQueueSubmit(): pSubmits[0].pCommandBuffers[0] 
-    command buffer VkCommandBuffer 0x24f88480270[] expects VkImage 0xd897d90000000016[] (subresource: aspectMask 0x1 array layer 0, mip level 0) to 
+    /*
+    validation layer: Validation Error: [ UNASSIGNED-CoreValidation-DrawState-InvalidImageLayout ]
+    Object 0: handle = 0x24f88480270, type = VK_OBJECT_TYPE_COMMAND_BUFFER;
+    Object 1: handle = 0xd897d90000000016, type = VK_OBJECT_TYPE_IMAGE; | MessageID = 0x4dae5635 | vkQueueSubmit(): pSubmits[0].pCommandBuffers[0]
+    command buffer VkCommandBuffer 0x24f88480270[] expects VkImage 0xd897d90000000016[] (subresource: aspectMask 0x1 array layer 0, mip level 0) to
     be in layout VK_IMAGE_LAYOUT_TRANSFER_DST_OPTIMAL--instead, current layout is VK_IMAGE_LAYOUT_UNDEFINED.
      */
 }

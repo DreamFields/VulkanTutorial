@@ -149,7 +149,9 @@ private:
     VkCommandPool commandPool;
 
     VkImage textureImage;
+    VkImageView textureImageView;
     VkDeviceMemory textureImageMemory;
+    VkSampler textureSampler;
     VkBuffer vertexBuffer;
     VkDeviceMemory vertexBufferMemory;
     VkBuffer indexBuffer;
@@ -169,8 +171,11 @@ private:
     bool framebufferResized = false;
 
     void createTextureImage();
+    void createTextureImageView();
     void createImage(uint32_t width, uint32_t height, VkFormat format, VkImageTiling tiling, VkImageUsageFlags usage,
         VkMemoryPropertyFlags properties, VkImage& image, VkDeviceMemory& imageMemory);
+    VkImageView createImageView(VkImage image, VkFormat format);
+    void createTextureSampler();
     void transitionImageLayout(VkImage image, VkFormat format, VkImageLayout oldLayout, VkImageLayout newLayout);
     void copyBufferToImage(VkBuffer buffer, VkImage image, uint32_t width, uint32_t height);
     
@@ -225,6 +230,8 @@ private:
         createFramebuffers();
         createCommandPool();
         createTextureImage();
+        createTextureImageView();
+        createTextureSampler();
         createVertexBuffer();
         createIndexBuffer();
         createUniformBuffers();
@@ -258,6 +265,8 @@ private:
     void cleanup() {
         cleanupSwapChain();
 
+        vkDestroySampler(device, textureSampler, nullptr);
+        vkDestroyImageView(device, textureImageView, nullptr);
         vkDestroyImage(device, textureImage, nullptr);
         vkFreeMemory(device, textureImageMemory, nullptr);
 
@@ -424,6 +433,7 @@ private:
         }
 
         VkPhysicalDeviceFeatures deviceFeatures{};
+        deviceFeatures.samplerAnisotropy = VK_TRUE; // 启用各向异性过滤
 
         VkDeviceCreateInfo createInfo{};
         createInfo.sType = VK_STRUCTURE_TYPE_DEVICE_CREATE_INFO;
@@ -508,24 +518,7 @@ private:
         swapChainImageViews.resize(swapChainImages.size());
 
         for (size_t i = 0; i < swapChainImages.size(); i++) {
-            VkImageViewCreateInfo createInfo{};
-            createInfo.sType = VK_STRUCTURE_TYPE_IMAGE_VIEW_CREATE_INFO;
-            createInfo.image = swapChainImages[i];
-            createInfo.viewType = VK_IMAGE_VIEW_TYPE_2D;
-            createInfo.format = swapChainImageFormat;
-            createInfo.components.r = VK_COMPONENT_SWIZZLE_IDENTITY;
-            createInfo.components.g = VK_COMPONENT_SWIZZLE_IDENTITY;
-            createInfo.components.b = VK_COMPONENT_SWIZZLE_IDENTITY;
-            createInfo.components.a = VK_COMPONENT_SWIZZLE_IDENTITY;
-            createInfo.subresourceRange.aspectMask = VK_IMAGE_ASPECT_COLOR_BIT;
-            createInfo.subresourceRange.baseMipLevel = 0;
-            createInfo.subresourceRange.levelCount = 1;
-            createInfo.subresourceRange.baseArrayLayer = 0;
-            createInfo.subresourceRange.layerCount = 1;
-
-            if (vkCreateImageView(device, &createInfo, nullptr, &swapChainImageViews[i]) != VK_SUCCESS) {
-                throw std::runtime_error("failed to create image views!");
-            }
+            swapChainImageViews[i] = createImageView(swapChainImages[i], swapChainImageFormat);
         }
     }
 
@@ -1246,7 +1239,12 @@ private:
             swapChainAdequate = !swapChainSupport.formats.empty() && !swapChainSupport.presentModes.empty();
         }
 
-        return indices.isComplete() && extensionsSupported && swapChainAdequate;
+        // 检查设备是否支持所需的队列族
+        VkPhysicalDeviceFeatures supportedFeatures;
+        // vkGetPhysicalDeviceFeatures 重新利用了 VkPhysicalDeviceFeatures 结构，通过设置布尔值来指示支持哪些功能，而不是请求哪些功能。
+        vkGetPhysicalDeviceFeatures(device, &supportedFeatures);
+
+        return indices.isComplete() && extensionsSupported && swapChainAdequate && supportedFeatures.samplerAnisotropy;
     }
 
     bool checkDeviceExtensionSupport(VkPhysicalDevice device) {
