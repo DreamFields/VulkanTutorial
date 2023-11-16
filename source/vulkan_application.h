@@ -148,6 +148,8 @@ private:
 
     VkCommandPool commandPool;
 
+    VkImage textureImage;
+    VkDeviceMemory textureImageMemory;
     VkBuffer vertexBuffer;
     VkDeviceMemory vertexBufferMemory;
     VkBuffer indexBuffer;
@@ -167,6 +169,15 @@ private:
     bool framebufferResized = false;
 
     void createTextureImage();
+    void createImage(uint32_t width, uint32_t height, VkFormat format, VkImageTiling tiling, VkImageUsageFlags usage,
+        VkMemoryPropertyFlags properties, VkImage& image, VkDeviceMemory& imageMemory);
+    void transitionImageLayout(VkImage image, VkFormat format, VkImageLayout oldLayout, VkImageLayout newLayout);
+    void copyBufferToImage(VkBuffer buffer, VkImage image, uint32_t width, uint32_t height);
+    
+    // https://vulkan-tutorial.com/Texture_mapping/Images#page_Layout-transitions
+    // 将记录和执行命令缓冲区的逻辑抽象为单独的函数
+    VkCommandBuffer beginSingleTimeCommands();
+    void endSingleTimeCommands(VkCommandBuffer commandBuffer);
 
     void initWindow() {
         glfwInit();
@@ -246,6 +257,9 @@ private:
 
     void cleanup() {
         cleanupSwapChain();
+
+        vkDestroyImage(device, textureImage, nullptr);
+        vkFreeMemory(device, textureImageMemory, nullptr);
 
         for (size_t i = 0; i < MAX_FRAMES_IN_FLIGHT; i++)
         {
@@ -824,26 +838,7 @@ private:
     }
 
     void copyBuffer(VkBuffer srcBuffer, VkBuffer dstBuffer, VkDeviceSize size) {
-        VkCommandBufferAllocateInfo allocInfo{};
-        allocInfo.sType = VK_STRUCTURE_TYPE_COMMAND_BUFFER_ALLOCATE_INFO;
-        // commandPool是用于分配命令缓冲区的命令池
-        allocInfo.commandPool = commandPool;
-        // level参数指定分配的命令缓冲区是否是主要或辅助缓冲区。主要缓冲区可以被提交到队列中，但不能从其他命令缓冲区调用。
-        // 辅助缓冲区可以从主缓冲区和其他辅助缓冲区调用。我们将使用主缓冲区来执行实际的数据传输操作。
-        allocInfo.level = VK_COMMAND_BUFFER_LEVEL_PRIMARY;
-        allocInfo.commandBufferCount = 1;
-
-        // 分配命令缓冲区
-        VkCommandBuffer commandBuffer;
-        vkAllocateCommandBuffers(device, &allocInfo, &commandBuffer);
-
-        // 开始记录命令缓冲区
-        VkCommandBufferBeginInfo beginInfo{};
-        beginInfo.sType = VK_STRUCTURE_TYPE_COMMAND_BUFFER_BEGIN_INFO;
-        // flags参数指定如何使用命令缓冲区。我们希望使用它一次并在使用后立即返回。
-        beginInfo.flags = VK_COMMAND_BUFFER_USAGE_ONE_TIME_SUBMIT_BIT;
-
-        vkBeginCommandBuffer(commandBuffer, &beginInfo);
+        VkCommandBuffer commandBuffer = beginSingleTimeCommands();
 
         // 复制缓冲区
         VkBufferCopy copyRegion{};
@@ -851,25 +846,7 @@ private:
         // srcOffset和dstOffset参数指定要复制的字节偏移量。我们将从缓冲区的起始位置开始复制。
         vkCmdCopyBuffer(commandBuffer, srcBuffer, dstBuffer, 1, &copyRegion);
 
-        // 结束记录命令缓冲区
-        vkEndCommandBuffer(commandBuffer);
-
-        // 执行命令缓冲区
-        VkSubmitInfo submitInfo{};
-        submitInfo.sType = VK_STRUCTURE_TYPE_SUBMIT_INFO;
-        // commandBufferCount和pCommandBuffers参数指定要提交的命令缓冲区数量和指针。
-        submitInfo.commandBufferCount = 1;
-        submitInfo.pCommandBuffers = &commandBuffer;
-
-        // 我们在这里使用了 vkQueueSubmit，而不是 vkQueueWaitIdle，因为后者是同步的，而前者是异步的。
-        // 这意味着 vkQueueSubmit 可以立即返回，而不是等待复制操作完成。
-        // 我们将在稍后使用信号量来同步操作，以便在复制操作完成之前不会使用缓冲区。
-        vkQueueSubmit(graphicsQueue, 1, &submitInfo, VK_NULL_HANDLE);
-        // 等待命令缓冲区执行完成
-        vkQueueWaitIdle(graphicsQueue);
-
-        // 释放命令缓冲区
-        vkFreeCommandBuffers(device, commandPool, 1, &commandBuffer);
+        endSingleTimeCommands(commandBuffer);
 
     }
 
