@@ -12,8 +12,8 @@ layout(location=0)out vec4 outColor;
 void main(){
     // outColor = vec4(fragColor, 1.0); // 将顶点颜色作为颜色进行插值输出
     // outColor = vec4(fragTexCoord,0.0, 1.0); // 将纹理坐标作为颜色进行插值输出
-    // outColor = texture(texSampler, fragTexCoord); // 从纹理中获取颜色
+    outColor = texture(texSampler, fragTexCoord); // 从纹理中获取颜色
     // outColor=texture(texSampler,fragTexCoord*2.);// 从纹理中获取颜色,并放大两倍
-    outColor=vec4(fragColor*texture(texSampler,fragTexCoord).rgb,1.); // 和顶点颜色进行混合
+    // outColor=vec4(fragColor*texture(texSampler,fragTexCoord).rgb,1.); // 和顶点颜色进行混合
     
 }

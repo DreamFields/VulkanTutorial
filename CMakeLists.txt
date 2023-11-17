@@ -51,10 +51,12 @@ add_subdirectory(library)
 # begin glfw
 target_link_libraries(${PROJECT_NAME} PUBLIC glfw)
 link_libraries(glfw)
+
 # end glfw
 
 # begin stb
 target_include_directories(${PROJECT_NAME} PUBLIC ${LIBRARY_DIR}/stb)
+
 # end stb
 
 # begin Vulkan
@@ -98,17 +100,24 @@ set_target_properties(dcmdata PROPERTIES
 add_library(zlib SHARED IMPORTED)
 set_target_properties(zlib PROPERTIES
   IMPORTED_IMPLIB ${DCMTK_DIR}/lib/zlib.lib)
-target_link_libraries(${PROJECT_NAME} PUBLIC  ofstd dcmdata)
+
+add_library(dcmimgle SHARED IMPORTED)
+set_target_properties(dcmimgle PROPERTIES
+  IMPORTED_LOCATION ${DCMTK_DIR}/bin/dcmimgle.dll
+  IMPORTED_IMPLIB ${DCMTK_DIR}/lib/dcmimgle.lib)
+target_link_libraries(${PROJECT_NAME} PUBLIC ofstd dcmdata dcmimgle)
 
 # 将.dll文件复制到输出目录
 configure_file(${DCMTK_DIR}/bin/ofstd.dll ${CMAKE_CURRENT_BINARY_DIR}/ofstd.dll COPYONLY)
 configure_file(${DCMTK_DIR}/bin/oflog.dll ${CMAKE_CURRENT_BINARY_DIR}/oflog.dll COPYONLY)
 configure_file(${DCMTK_DIR}/bin/dcmdata.dll ${CMAKE_CURRENT_BINARY_DIR}/dcmdata.dll COPYONLY)
+configure_file(${DCMTK_DIR}/bin/dcmimgle.dll ${CMAKE_CURRENT_BINARY_DIR}/dcmimgle.dll COPYONLY)
 
 # end DCMTK
 
 # begin glm
 target_include_directories(${PROJECT_NAME} PUBLIC ${LIBRARY_DIR}/glm)
+
 # end glm
 
 # 将目录包含到对应目标里，不写这句话可就找不到.h文件了

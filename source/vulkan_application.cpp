@@ -3,13 +3,13 @@
 #include <stb_image.h>
 void VulkanApplication::initVolumeRender() {
     volumeRender = std::make_shared<VolumeRender>();
-    volumeRender->loadDicom("C:\\Users\\Dream\\Documents\\00.Dicom\\ede6fe9eda6e44a98b3ad20da6f9116a Anonymized29\\Unknown Study\\CT Head 5.0000\\CT000000.dcm");
+    volumeRender->loadDicom("C:\\Users\\Dream\\Documents\\00.Dicom\\ede6fe9eda6e44a98b3ad20da6f9116a Anonymized29\\Unknown Study\\CT Head 5.0000\\CT000027.dcm");
 }
 
 void VulkanApplication::run() {
     initWindow();
     initVulkan();
-    initVolumeRender();
+    // initVolumeRender();
     mainLoop();
     cleanup();
 }
@@ -19,7 +19,10 @@ void VulkanApplication::createTextureImage() {
     // STBI_rgb_alpha 值会强制加载图像的 alpha 通道，即使图像没有 alpha 通道也是如此，这有利于将来与其他纹理保持一致。
     // 中间三个参数用于输出图像的宽度、高度和实际通道数。
     // 返回的指针是像素值数组的第一个元素。
-    stbi_uc* pixels = stbi_load("D:\\00.CG_project\\VulkanTutorial\\textures\\texture.jpg", &texWidth, &texHeight, &texChannels, STBI_rgb_alpha);
+    // stbi_uc* pixels = stbi_load("D:\\00.CG_project\\VulkanTutorial\\textures\\texture.jpg", &texWidth, &texHeight, &texChannels, STBI_rgb_alpha);
+    unsigned char* pixels = nullptr;
+    volumeRender->getPixelRGBA("C:\\Users\\Dream\\Documents\\00.Dicom\\ede6fe9eda6e44a98b3ad20da6f9116a Anonymized29\\Unknown Study\\CT Head 5.0000\\CT000027.dcm", texWidth, texHeight, texChannels, pixels);
+
     VkDeviceSize imageSize = texWidth * texHeight * 4;
 
     if (!pixels) {
