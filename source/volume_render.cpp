@@ -187,119 +187,134 @@ const Uint16* VolumeRender::getPixelUint16()
 
 bool VolumeRender::getPixelRGBA(std::string path, int& width, int& height, int& numSlice, unsigned char*& rgba)
 {
-    // DICOM解析
-    DcmFileFormat fileformat;
-    OFCondition status = fileformat.loadFile(path.c_str());
-    DcmDataset* dataset = fileformat.getDataset();
-    if (!status.good())
-    {
-        std::cout << "Load Dimcom File Error: " << status.text() << std::endl;
-        return false;
-    }
-
-    // 获取像素数据
-    unsigned long numPixelsUint16 = 0;
-    const Uint16* pixelData = nullptr;
-    dataset->findAndGetUint16Array(DCM_PixelData, pixelData, &numPixelsUint16);
-    // dataset->findAndGetSint16Array(DCM_PixelData, pixelData, &numPixels);
-    if (pixelData == nullptr)
-    {
-        std::cout << "Get Pixel Data Error: " << status.text() << std::endl;
-        return false;
-    }
-    std::cout << "Get Pixel Data numPixelsUint16: " << numPixelsUint16 << std::endl;
-
-    // 获取图像宽高
-    DicomImage* image = new DicomImage(path.c_str());
-    if (image == nullptr)
-    {
-        std::cout << "Load Dimcom File Error: " << status.text() << std::endl;
-        return false;
-    }
-    if (image->getStatus() != EIS_Normal)
-    {
-        std::cout << "Load Dimcom File Error: " << DicomImage::getString(image->getStatus()) << std::endl;
-        return false;
-    }
-    width = static_cast<int>(image->getWidth());
-    height = static_cast<int>(image->getHeight());
-    numSlice = 1;
-    std::cout << "Image Width: " << width << std::endl;
-    std::cout << "Image Height: " << height << std::endl;
-
-    // window_center
+    rgba = new unsigned char[width * height * numSlice * 4];
+    // tags
     double windowCenter = 0.0;
-    if (dataset->findAndGetFloat64(DCM_WindowCenter, windowCenter).good())
-    {
-        std::cout << "Window Center: " << windowCenter << std::endl;
-    }
-    else { std::runtime_error("windowCenter not found.\r\n"); }
-
-    // window_width
     double windowWidth = 0.0;
-    if (dataset->findAndGetFloat64(DCM_WindowWidth, windowWidth).good())
-    {
-        std::cout << "Window Width: " << windowWidth << std::endl;
-    }
-    else { std::runtime_error("windowWidth not found.\r\n"); }
-
-
-    // slope
+    // int maxValue = INT_MIN, minValue = INT_MAX;
+    int maxValue = 4355, minValue = 937;
     double slope = 0.0;
-    if (dataset->findAndGetFloat64(DCM_RescaleSlope, slope).good())
-    {
-        std::cout << "Slope: " << slope << std::endl;
-    }
-    else { std::runtime_error("slope not found.\r\n"); }
-    //intercept
     double intercept = 0.0;
-    if (dataset->findAndGetFloat64(DCM_RescaleIntercept, intercept).good())
+    OFString modality;
+    for (size_t index = 0; index < numSlice; index++)
     {
-        std::cout << "Intercept: " << intercept << std::endl;
-    }
-    else { std::runtime_error("intercept not found.\r\n"); }
+        std::stringstream ss;
+        ss << std::setw(2) << std::setfill('0') << index;
+        std::string fileIdx;
+        ss >> fileIdx;
+        std::string filePath = path + "CT0000" + fileIdx + ".dcm";
+        // std::cout << "Load Dimcom File: " << filePath << std::endl;
 
-    // max and min value
-    int maxValue = INT_MIN, minValue = INT_MAX;
-    for (int i = 0; i < width * height; ++i)
-    {
-        if (pixelData[i] > maxValue) maxValue = pixelData[i];
-        if (pixelData[i] < minValue) minValue = pixelData[i];
+        // DICOM读入
+        DcmFileFormat fileformat;
+        OFCondition status = fileformat.loadFile(filePath.c_str());
+        DcmDataset* dataset = fileformat.getDataset();
+        if (!status.good())
+        {
+            std::cout << "Load Dimcom File Error: " << filePath << std::endl;
+        }
+
+        if (index == 0) {
+            // 获取图像宽高
+            DicomImage* image = new DicomImage(filePath.c_str());
+            if (image == nullptr)
+            {
+                std::cout << "Load Dimcom File Error: " << filePath << std::endl;
+                return false;
+            }
+            if (image->getStatus() != EIS_Normal)
+            {
+                std::cout << "Load Dimcom File Error: " << DicomImage::getString(image->getStatus()) << std::endl;
+                return false;
+            }
+            width = static_cast<int>(image->getWidth());
+            height = static_cast<int>(image->getHeight());
+            std::cout << "Image Width: " << width << std::endl;
+            std::cout << "Image Height: " << height << std::endl;
+
+            // window_center
+            if (dataset->findAndGetFloat64(DCM_WindowCenter, windowCenter).good())
+            {
+                std::cout << "Window Center: " << windowCenter << std::endl;
+            }
+            else { std::runtime_error("windowCenter not found.\r\n"); }
+
+            // window_width
+            if (dataset->findAndGetFloat64(DCM_WindowWidth, windowWidth).good())
+            {
+                std::cout << "Window Width: " << windowWidth << std::endl;
+            }
+            else { std::runtime_error("windowWidth not found.\r\n"); }
+
+            // modality
+            if (dataset->findAndGetOFString(DCM_Modality, modality).good())
+            {
+                std::cout << "Modality: " << modality << std::endl;
+            }
+            else { std::runtime_error("modality not found.\r\n"); }
+        }
+
+        // 获取像素数据
+        unsigned long numPixelsUint16 = 0;
+        const Uint16* pixelData = nullptr;
+        dataset->findAndGetUint16Array(DCM_PixelData, pixelData, &numPixelsUint16);
+        // dataset->findAndGetSint16Array(DCM_PixelData, pixelData, &numPixels);
+        if (pixelData == nullptr)
+        {
+            std::cout << "Get Pixel Data Error: " << status.text() << std::endl;
+            return false;
+        }
+        // std::cout << "Get Pixel Data numPixelsUint16: " << numPixelsUint16 << std::endl;
+
+        // max and min value
+        for (int i = 0; i < width * height; ++i)
+        {
+            if (pixelData[i] > maxValue) maxValue = pixelData[i];
+            if (pixelData[i] < minValue) minValue = pixelData[i];
+        }
+
+        // slope
+        if (dataset->findAndGetFloat64(DCM_RescaleSlope, slope).good())
+        {
+            std::cout << "Slope: " << slope << std::endl;
+        }
+        else { std::runtime_error("slope not found.\r\n"); }
+        //intercept
+        if (dataset->findAndGetFloat64(DCM_RescaleIntercept, intercept).good())
+        {
+            std::cout << "Intercept: " << intercept << std::endl;
+        }
+        else { std::runtime_error("intercept not found.\r\n"); }
+
+        //if (modality == "CT" && 225 < maxValue)
+        //{
+        //    minValue = -125;
+        //    maxValue = 225;
+        //    windowCenter = (maxValue + minValue) / 2;
+        //    windowWidth = maxValue - minValue;
+        //}
+        //std::cout << "Window Center: " << windowCenter << std::endl;
+        //std::cout << "Window Width: " << windowWidth << std::endl;
+
+        for (int i = 0; i < width * height; ++i)
+        {
+            unsigned char value = static_cast<unsigned char>(pixelData[i] * slope + intercept);
+            float intensity = static_cast<float>(value - windowCenter) / windowWidth + 0.5f;
+            if (intensity < 0.0f) intensity = 0.0f;
+            if (intensity > 1.0f) intensity = 1.0f;
+            rgba[index * width * height * 4 + i * 4 + 0] = static_cast<unsigned char>(intensity * 255);
+            rgba[index * width * height * 4 + i * 4 + 1] = static_cast<unsigned char>(intensity * 255);
+            rgba[index * width * height * 4 + i * 4 + 2] = static_cast<unsigned char>(intensity * 255);
+            rgba[index * width * height * 4 + i * 4 + 3] = 255;
+        }
+
     }
-    maxValue = maxValue * slope + intercept;
-    minValue = minValue * slope + intercept;
     std::cout << "Max Value: " << maxValue << std::endl;
     std::cout << "Min Value: " << minValue << std::endl;
-    
-    // modality
-    OFString modality;
-    if (dataset->findAndGetOFString(DCM_Modality, modality).good())
-    {
-        std::cout << "Modality: " << modality << std::endl;
-    }
-    else { std::runtime_error("modality not found.\r\n"); }
-    //if (modality == "CT" && 225 < maxValue)
-    //{
-    //    minValue = -125;
-    //    maxValue = 225;
-    //    windowCenter = (maxValue + minValue) / 2;
-    //    windowWidth = maxValue - minValue;
-    //}
-    //std::cout << "Window Center: " << windowCenter << std::endl;
-    //std::cout << "Window Width: " << windowWidth << std::endl;
 
-    rgba = new unsigned char[width * height * 4];
-    for (int i = 0; i < width * height; ++i)
-    {
-        unsigned char value = static_cast<unsigned char>(pixelData[i] * slope + intercept);
-        float intensity = static_cast<float>(value - windowCenter) / windowWidth + 0.5f;
-        if (intensity < 0.0f) intensity = 0.0f;
-        if (intensity > 1.0f) intensity = 1.0f;
-        rgba[i * 4 + 0] = static_cast<unsigned char>(intensity * 255);
-        rgba[i * 4 + 1] = static_cast<unsigned char>(intensity * 255);
-        rgba[i * 4 + 2] = static_cast<unsigned char>(intensity * 255);
-        rgba[i * 4 + 3] = 255;
-    }
+
+
+
 
     return true;
 }

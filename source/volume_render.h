@@ -3,6 +3,10 @@
 #include "dcmtk/dcmdata/dctk.h"
 #include "dcmtk/dcmimgle/dcmimage.h"
 #include <string>
+#include <iostream>
+#include <sstream>
+#include <iomanip>
+#include <vector>
 class VolumeRender
 {
 private:
