@@ -48,7 +48,7 @@ const bool enableValidationLayers = true;
 
 struct Vertex {
     // 交错顶点属性，把位置和颜色放在一起
-    glm::vec2 pos;
+    glm::vec3 pos;
     glm::vec3 color;
     glm::vec2 texCoord;
 
@@ -67,7 +67,7 @@ struct Vertex {
 
         attributeDescriptions[0].binding = 0; // 告诉 Vulkan 每顶点数据来自哪个绑定
         attributeDescriptions[0].location = 0; // 从哪个位置读取顶点数据
-        attributeDescriptions[0].format = VK_FORMAT_R32G32_SFLOAT;
+        attributeDescriptions[0].format = VK_FORMAT_R32G32B32_SFLOAT;
         attributeDescriptions[0].offset = offsetof(Vertex, pos); // 从顶点数据的哪个位置开始读取
 
         attributeDescriptions[1].binding = 0;
@@ -84,16 +84,26 @@ struct Vertex {
     }
 };
 
+// 给出绘制立方体的顶点,一共8个顶点
 const std::vector<Vertex> vertices = {
-    {{-0.5f, -0.5f}, {1.0f, 0.0f, 0.0f}, {1.0f, 0.0f}},
-    {{0.5f, -0.5f}, {0.0f, 1.0f, 0.0f}, {0.0f, 0.0f}},
-    {{0.5f, 0.5f}, {0.0f, 0.0f, 1.0f}, {0.0f, 1.0f}},
-    {{-0.5f, 0.5f}, {1.0f, 1.0f, 1.0f}, {1.0f, 1.0f}}
+    {{-0.5f, -0.5f,0.5f}, {1.0f, 0.0f, 0.0f}, {1.0f, 0.0f}},
+    {{0.5f, -0.5f,0.5f}, {0.0f, 1.0f, 0.0f}, {0.0f, 0.0f}},
+    {{0.5f, 0.5f,0.5f}, {0.0f, 0.0f, 1.0f}, {0.0f, 1.0f}},
+    {{-0.5f, 0.5f,0.5f}, {1.0f, 1.0f, 1.0f}, {1.0f, 1.0f}},
+    {{-0.5f, -0.5f,-0.5f}, {1.0f, 0.0f, 0.0f}, {1.0f, 0.0f}},
+    {{0.5f, -0.5f,-0.5f}, {0.0f, 1.0f, 0.0f}, {0.0f, 0.0f}},
+    {{0.5f, 0.5f,-0.5f}, {0.0f, 0.0f, 1.0f}, {0.0f, 1.0f}},
+    {{-0.5f, 0.5f,-0.5f}, {1.0f, 1.0f, 1.0f}, {1.0f, 1.0f}}
 };
 
-// 与vertics中的索引匹配，以绘制右上三角形和左下三角形
+// 与vertics中的索引匹配,绘制立方体,按照顺时针绘制
 const std::vector<uint16_t> indices = {
-    0, 1, 2, 2, 3, 0
+    0, 1, 2, 2, 3, 0,
+    1, 5, 6, 6, 2, 1,
+    7, 6, 5, 5, 4, 7,
+    4, 0, 3, 3, 7, 4,
+    4, 5, 1, 1, 0, 4,
+    3, 2, 6, 6, 7, 3
 };
 
 // https://vulkan-tutorial.com/Uniform_buffers/Descriptor_layout_and_buffer
@@ -166,6 +176,16 @@ private:
     VkBuffer indexBuffer;
     VkDeviceMemory indexBufferMemory;
 
+    // 背面纹理和纹理图像内存
+    VkImage backFaceImage;
+    VkDeviceMemory backFaceImageMemory;
+    VkImageView backFaceImageView;
+
+    // 正面纹理和纹理图像内存
+    VkImage frontFaceImage;
+    VkDeviceMemory frontFaceImageMemory;
+    VkImageView frontFaceImageView;
+
     std::vector<VkBuffer> uniformBuffers;
     std::vector<VkDeviceMemory> uniformBuffersMemory;
     std::vector<void*> uniformBuffersMapped;
@@ -206,15 +226,15 @@ private:
         // 设置鼠标移动和按键回调函数
         camera = std::make_shared<Camera>();
         // 鼠标移动回调函数
-        glfwSetCursorPosCallback(window,[](GLFWwindow* window, double xpos, double ypos) {
+        glfwSetCursorPosCallback(window, [](GLFWwindow* window, double xpos, double ypos) {
             auto app = reinterpret_cast<VulkanApplication*>(glfwGetWindowUserPointer(window));
             app->camera->onMouseMove(window, xpos, ypos);
-        });
+            });
         // 鼠标按键回调函数
         glfwSetMouseButtonCallback(window, [](GLFWwindow* window, int button, int action, int mods) {
             auto app = reinterpret_cast<VulkanApplication*>(glfwGetWindowUserPointer(window));
             app->camera->onMouseButton(window, button, action, mods);
-        });
+            });
         // 将鼠标指针模式设置为 `GLFW_CURSOR_NORMAL`不隐藏鼠标
         glfwSetInputMode(window, GLFW_CURSOR, GLFW_CURSOR_NORMAL);
         // 设置键盘按键回调函数
@@ -223,7 +243,7 @@ private:
             if (key == GLFW_KEY_ESCAPE && action == GLFW_PRESS) {
                 app->shouldExit = true;
             }
-        });
+            });
     }
 
     VkResult CreateDebugUtilsMessengerEXT(VkInstance instance, const VkDebugUtilsMessengerCreateInfoEXT* pCreateInfo, const VkAllocationCallbacks* pAllocator, VkDebugUtilsMessengerEXT* pDebugMessenger) {
@@ -1140,9 +1160,8 @@ private:
         // rotation 90 degrees per second
         // ubo.model = glm::rotate(glm::mat4(1.0f), time * glm::radians(90.0f), glm::vec3(0.0f, 0.0f, 1.0f));
         ubo.model = glm::mat4(1.0f);
-        // ubo.view = glm::lookAt(glm::vec3(0.0f, 0.0f, 2.0f), glm::vec3(0.0f), glm::vec3(0.0f, -1.0f, 0.0f));
-        ubo.view = glm::lookAt(camera->cameraFront,camera->cameraPos, camera->cameraUp);
-        // ubo.view = glm::mat4(1.0f);
+        // 根据相机的参数更新视图矩阵
+        ubo.view = camera->getViewMatrix();
         ubo.proj = glm::perspective(glm::radians(45.0f), swapChainExtent.width / (float)swapChainExtent.height, 0.1f, 10.0f);
 
         // GLM 最初是为 OpenGL 设计的，其中剪辑坐标的 Y 坐标是反转的。最简单的补偿方法是翻转投影矩阵中 Y 轴缩放因子的符号。如果不这样做，图像将被颠倒渲染

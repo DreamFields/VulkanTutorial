@@ -10,24 +10,27 @@ void Camera::onMouseMove(GLFWwindow* window, double xpos, double ypos)
         }
 
         float xoffset = xpos - lastMouseX;
-        float yoffset = lastMouseY - ypos; // y轴反转
+
+        // 鼠标坐标的y是从上到下增大的，而摄像机的y是从下到上增大的，所以要取反
+        float yoffset = lastMouseY - ypos;
 
         lastMouseX = xpos;
         lastMouseY = ypos;
 
-        float sensitivity = 0.1f;
+        float sensitivity = 0.002f;
         xoffset *= sensitivity;
         yoffset *= sensitivity;
 
-        float yaw = glm::radians(xoffset);
-        float pitch = glm::radians(yoffset);
+        // 根据offset值直接计算出新的方向向量
+        glm::vec3 newFront = cameraFront + xoffset * glm::normalize(glm::cross(cameraFront, cameraUp)) + yoffset * cameraUp;
+        cameraFront = glm::normalize(newFront);
 
-        // 根据鼠标移动计算相机的旋转
-        glm::mat4 rotation = glm::rotate(glm::mat4(1.0f), yaw, glm::vec3(0.0f, 1.0f, 0.0f)) *
-            glm::rotate(glm::mat4(1.0f), pitch, glm::vec3(1.0f, 0.0f, 0.0f));
+        // 根据方向向量计算出旋转矩阵，然后将旋转矩阵应用到摄像机的up向量上
+        glm::vec3 newUp = glm::cross(glm::cross(cameraFront, cameraUp), cameraFront);
+        cameraUp = glm::normalize(newUp);
 
-        // 转换相机的方向向量
-        cameraFront = glm::mat3(rotation) * cameraFront;
+        std::cout << "cameraFront: " << cameraFront.x << ", " << cameraFront.y << ", " << cameraFront.z << std::endl;
+        std::cout << "cameraUp: " << cameraUp.x << ", " << cameraUp.y << ", " << cameraUp.z << std::endl;
     }
 }
 
@@ -66,4 +69,18 @@ void Camera::updateCameraMove(GLFWwindow* window){
     if (glfwGetKey(window, GLFW_KEY_D) == GLFW_PRESS) {
         cameraPos += glm::normalize(glm::cross(cameraFront, cameraUp)) * cameraSpeed;
     }
+    // 通过键盘的E和Q来控制相机上升和下降
+    if (glfwGetKey(window, GLFW_KEY_E) == GLFW_PRESS) {
+        cameraPos += cameraSpeed * cameraUp;
+    }
+    if (glfwGetKey(window, GLFW_KEY_Q) == GLFW_PRESS) {
+        cameraPos -= cameraSpeed * cameraUp;
+    }
+}
+
+glm::mat4 Camera::getViewMatrix()
+{
+    // 根据相机参数手动计算view矩阵
+    glm::mat4 view = glm::lookAt(cameraPos, cameraPos + cameraFront, cameraUp);
+    return view;
 }
