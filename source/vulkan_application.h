@@ -1,5 +1,6 @@
 #pragma once 
 #include "volume_render.h"
+#include "camera.h"
 #include <debugdraw_vert.h> // 通过库文件的形式来引入着色器文件
 #include <debugdraw_frag.h>
 
@@ -124,6 +125,7 @@ public:
     void run();
     void initVolumeRender();
     std::shared_ptr<VolumeRender> volumeRender;
+    std::shared_ptr<Camera> camera;
 
 private:
     GLFWwindow* window;
@@ -176,13 +178,14 @@ private:
     uint32_t currentFrame = 0;
 
     bool framebufferResized = false;
+    bool shouldExit = false;
 
     void createTextureImage();
     void create3DTextureImage();
     void createTextureImageView();
-    void createImage(uint32_t width, uint32_t height, uint32_t depth, VkFormat format,VkImageType imageType, VkImageTiling tiling, VkImageUsageFlags usage,
+    void createImage(uint32_t width, uint32_t height, uint32_t depth, VkFormat format, VkImageType imageType, VkImageTiling tiling, VkImageUsageFlags usage,
         VkMemoryPropertyFlags properties, VkImage& image, VkDeviceMemory& imageMemory);
-    VkImageView createImageView(VkImage image, VkFormat format,VkImageViewType viewType);
+    VkImageView createImageView(VkImage image, VkFormat format, VkImageViewType viewType);
     void createTextureSampler();
     void transitionImageLayout(VkImage image, VkFormat format, VkImageLayout oldLayout, VkImageLayout newLayout);
     void copyBufferToImage(VkBuffer buffer, VkImage image, uint32_t width, uint32_t height, uint32_t depth);
@@ -200,6 +203,27 @@ private:
         window = glfwCreateWindow(WIDTH, HEIGHT, "Vulkan", nullptr, nullptr);
         glfwSetWindowUserPointer(window, this);
         glfwSetFramebufferSizeCallback(window, framebufferResizeCallback);
+        // 设置鼠标移动和按键回调函数
+        camera = std::make_shared<Camera>();
+        // 鼠标移动回调函数
+        glfwSetCursorPosCallback(window,[](GLFWwindow* window, double xpos, double ypos) {
+            auto app = reinterpret_cast<VulkanApplication*>(glfwGetWindowUserPointer(window));
+            app->camera->onMouseMove(window, xpos, ypos);
+        });
+        // 鼠标按键回调函数
+        glfwSetMouseButtonCallback(window, [](GLFWwindow* window, int button, int action, int mods) {
+            auto app = reinterpret_cast<VulkanApplication*>(glfwGetWindowUserPointer(window));
+            app->camera->onMouseButton(window, button, action, mods);
+        });
+        // 将鼠标指针模式设置为 `GLFW_CURSOR_NORMAL`不隐藏鼠标
+        glfwSetInputMode(window, GLFW_CURSOR, GLFW_CURSOR_NORMAL);
+        // 设置键盘按键回调函数
+        glfwSetKeyCallback(window, [](GLFWwindow* window, int key, int scancode, int action, int mods) {
+            auto app = reinterpret_cast<VulkanApplication*>(glfwGetWindowUserPointer(window));
+            if (key == GLFW_KEY_ESCAPE && action == GLFW_PRESS) {
+                app->shouldExit = true;
+            }
+        });
     }
 
     VkResult CreateDebugUtilsMessengerEXT(VkInstance instance, const VkDebugUtilsMessengerCreateInfoEXT* pCreateInfo, const VkAllocationCallbacks* pAllocator, VkDebugUtilsMessengerEXT* pDebugMessenger) {
@@ -251,9 +275,14 @@ private:
     }
 
     void mainLoop() {
-        while (!glfwWindowShouldClose(window)) {
+        while (!glfwWindowShouldClose(window) && !shouldExit) {
             glfwPollEvents();
             drawFrame();
+
+            // 检查是否按下ESC键
+            if (shouldExit) {
+                glfwSetWindowShouldClose(window, GLFW_TRUE);
+            }
         }
 
         vkDeviceWaitIdle(device);
@@ -527,7 +556,7 @@ private:
         swapChainImageViews.resize(swapChainImages.size());
 
         for (size_t i = 0; i < swapChainImages.size(); i++) {
-            swapChainImageViews[i] = createImageView(swapChainImages[i], swapChainImageFormat,VK_IMAGE_VIEW_TYPE_2D);
+            swapChainImageViews[i] = createImageView(swapChainImages[i], swapChainImageFormat, VK_IMAGE_VIEW_TYPE_2D);
         }
     }
 
@@ -1111,7 +1140,8 @@ private:
         // rotation 90 degrees per second
         // ubo.model = glm::rotate(glm::mat4(1.0f), time * glm::radians(90.0f), glm::vec3(0.0f, 0.0f, 1.0f));
         ubo.model = glm::mat4(1.0f);
-        ubo.view = glm::lookAt(glm::vec3(0.0f, 0.0f, 2.0f), glm::vec3(0.0f), glm::vec3(0.0f, -1.0f, 0.0f));
+        // ubo.view = glm::lookAt(glm::vec3(0.0f, 0.0f, 2.0f), glm::vec3(0.0f), glm::vec3(0.0f, -1.0f, 0.0f));
+        ubo.view = glm::lookAt(camera->cameraFront,camera->cameraPos, camera->cameraUp);
         // ubo.view = glm::mat4(1.0f);
         ubo.proj = glm::perspective(glm::radians(45.0f), swapChainExtent.width / (float)swapChainExtent.height, 0.1f, 10.0f);
 
@@ -1136,7 +1166,7 @@ private:
         else if (result != VK_SUCCESS && result != VK_SUBOPTIMAL_KHR) {
             throw std::runtime_error("failed to acquire swap chain image!");
         }
-
+        camera->updateCameraMove(window);
         updateUniformBuffer(currentFrame);
 
         vkResetFences(device, 1, &inFlightFences[currentFrame]);
