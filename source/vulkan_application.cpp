@@ -229,7 +229,54 @@ void VulkanApplication::createImage(    // 创建图像对象
 
 }
 
+void VulkanApplication::createBackposAttachmentImage() {
+    // 创建图像对象
+    VkImageCreateInfo imageInfo{};
+    imageInfo.sType = VK_STRUCTURE_TYPE_IMAGE_CREATE_INFO;
+    imageInfo.imageType = VK_IMAGE_TYPE_2D;   // 图像类型告诉 Vulkan 图像中的像素将采用哪种坐标系。可以创建一维、二维和三维图像。一维图像可用于存储数据数组或梯度，二维图像主要用于纹理，三维图像可用于存储体素体积等。
+    imageInfo.extent.width = swapChainExtent.width;    // 图像的宽度和高度，以像素为单位
+    imageInfo.extent.height = swapChainExtent.height;
+    imageInfo.extent.depth = 1; // 图像的深度，对于 2D 图像，其值必须为 1
+    imageInfo.mipLevels = 1;    // 图像的 mipmap 级别数
+    imageInfo.arrayLayers = 1;  // 图像的数组层数
+    imageInfo.format = VK_FORMAT_R16G16B16A16_SFLOAT;  // 图像数据的格式
+    imageInfo.tiling = VK_IMAGE_TILING_OPTIMAL;  // 图像数据的布局
+    imageInfo.initialLayout = VK_IMAGE_LAYOUT_UNDEFINED;    // 图像数据的初始布局。vk_image_layout_undefined：GPU 无法使用，第一次转换将丢弃像素。vk_image_layout_preinitialized：GPU 无法使用，第一次转换不
+    imageInfo.usage = VK_IMAGE_USAGE_COLOR_ATTACHMENT_BIT | VK_IMAGE_USAGE_INPUT_ATTACHMENT_BIT;    // 图像用途
+
+    // 图像对象可以是单个图像，也可以是图像数组。图像数组可以用于存储多幅图像，它们共享相同的格式和大小。
+    // 例如，我们可以使用单个图像数组来存储立方体贴图中的六个面。
+    // arrayLayers 成员指定图像数组中的图像数量。如果我们要创建一个立方体贴图，那么这个值应该设置为 6。
+    // 如果我们要创建一个 2D 数组纹理，那么这个值应该设置为数组中的图像数量。
+    imageInfo.arrayLayers = 1;
+
+    imageInfo.samples = VK_SAMPLE_COUNT_1_BIT;   // 采样数，指定多重采样纹理的采样数，通常为 1，最大为 VK_SAMPLE_COUNT_64_BIT
+    imageInfo.flags = 0;    // 图像创建标志，可以用于指定图像被视为稀疏图像或图像立方体数组等特殊类型。如果您使用三维纹理来制作体素地形，那么您可以使用它来避免分配内存来存储大量的 "空气 "值
+
+    if (vkCreateImage(device, &imageInfo, nullptr, &backFaceImage) != VK_SUCCESS) {
+        throw std::runtime_error("failed to create image!");
+    }
+
+    VkMemoryRequirements memRequirements;  // 获取图像内存需求
+    vkGetImageMemoryRequirements(device, backFaceImage, &memRequirements);
+
+    // 分配图像内存
+    VkMemoryAllocateInfo allocInfo{};
+    allocInfo.sType = VK_STRUCTURE_TYPE_MEMORY_ALLOCATE_INFO;
+    allocInfo.allocationSize = memRequirements.size;    // 分配的内存大小
+    allocInfo.memoryTypeIndex = findMemoryType(memRequirements.memoryTypeBits, VK_MEMORY_PROPERTY_DEVICE_LOCAL_BIT); // 分配的内存类型
+
+    if (vkAllocateMemory(device, &allocInfo, nullptr, &backFaceImageMemory) != VK_SUCCESS) {   // 分配内存
+        throw std::runtime_error("failed to allocate image memory!");
+    }
+
+    vkBindImageMemory(device, backFaceImage, backFaceImageMemory, 0);    // 将内存绑定到图像对象
+
+}
+
 void VulkanApplication::createTextureImageView() {
+    backFaceImageView = createImageView(backFaceImage, VK_FORMAT_R16G16B16A16_SFLOAT, VK_IMAGE_VIEW_TYPE_2D);
+
     // 创建纹理的图像视图
     // textureImageView = createImageView(textureImage, VK_FORMAT_R8G8B8A8_SRGB, VK_IMAGE_VIEW_TYPE_2D);
     textureImageView = createImageView(textureImage, VK_FORMAT_R8G8B8A8_SRGB, VK_IMAGE_VIEW_TYPE_3D);
