@@ -16,6 +16,6 @@ layout(location = 1) out vec3 outBackPos;
 void main(){
     gl_Position=ubo.proj * ubo.view * ubo.model * vec4(inPosition,1.);
     outColor = inColor;
-    // outBackPos = vec3(ubo.model * vec4(inPosition,1.));
-    outBackPos = inColor; // 将背面的颜色传递进去进行测试
+    outBackPos = vec3(ubo.model * vec4(inPosition,1.));
+    // outBackPos = inColor; // 将背面的颜色传递进去进行测试
 }

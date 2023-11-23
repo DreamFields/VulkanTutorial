@@ -13,11 +13,11 @@ public:
     double lastMouseY = 0.0;
     bool rightMouseDown = false;  // 是否按下右键
     bool leftMouseDown = false;  // 是否按下左键
-    glm::vec3 cameraPos = glm::vec3(0.0f, 0.0f, 2.0f);
+    glm::vec3 cameraPos = glm::vec3(0.5f, 0.5f, 2.5f);
     glm::vec3 cameraTarget = glm::vec3(0.0f, 0.0f, 0.0f);
     glm::vec3 cameraFront = glm::vec3(0.0f, 0.0f, -1.0f);
     glm::vec3 cameraUp = glm::vec3(0.0f, 1.0f, 0.0f);
-    float cameraSpeed = 0.0002f;
+    float cameraSpeed = 0.005f;
     bool firstMouse = true;
 public:
     void onMouseMove(GLFWwindow* window, double xpos, double ypos);
