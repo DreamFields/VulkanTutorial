@@ -7,20 +7,34 @@
 #include <sstream>
 #include <iomanip>
 #include <vector>
+#include <map>
+#include <math.h>
+
+struct DicomTags{
+    std::string folderPath;
+    std::vector<int> fileIndex;
+    int numSlice;
+    int boxWidth;
+    int boxHeight;
+    int boxDepth;
+    int minVal;
+    int maxVal;
+    double windowCenter;
+    double windowWidth;
+    double rescaleIntercept;
+    double rescaleSlope;
+};
+
 class VolumeRender
 {
 private:
-    const Uint16* pixelDataUint16 = nullptr;
-    const Uint8* pixelDataUint8 = nullptr;
+    DicomTags dicomTags;
 public:
     VolumeRender(/* args */);
     ~VolumeRender();
 
-    bool loadDicom(std::string path);
-    const Uint8* getPixelUint8();
-    const Uint16* getPixelUint16();
-
-    bool getPixelRGBA(std::string path, int& width, int& height, int& numSlice, unsigned char*& rgba);
+    bool loadDicom(std::string path, int numSlice = 0);
+    bool getPixelRGBA(int& width, int& height, int& numSlice, unsigned char*& rgba);
 
 };
 

@@ -1,15 +1,10 @@
 #include "vulkan_application.h"
 #define STB_IMAGE_IMPLEMENTATION
 #include <stb_image.h>
-void VulkanApplication::initVolumeRender() {
-    volumeRender = std::make_shared<VolumeRender>();
-    volumeRender->loadDicom("C:\\Users\\Dream\\Documents\\00.Dicom\\ede6fe9eda6e44a98b3ad20da6f9116a Anonymized29\\Unknown Study\\CT Head 5.0000\\CT000027.dcm");
-}
 
 void VulkanApplication::run() {
     initWindow();
     initVulkan();
-    // initVolumeRender();
     mainLoop();
     cleanup();
 }
@@ -58,18 +53,19 @@ void VulkanApplication::createTextureImage() {
         texWidth,
         texHeight,
         1,
-        VK_FORMAT_R8G8B8A8_SRGB,
+        VK_FORMAT_R8G8B8A8_UNORM,
         VK_IMAGE_TYPE_2D,
         VK_IMAGE_TILING_OPTIMAL,
         VK_IMAGE_USAGE_TRANSFER_DST_BIT | VK_IMAGE_USAGE_SAMPLED_BIT,
         VK_MEMORY_PROPERTY_DEVICE_LOCAL_BIT,
         textureImage,
-        textureImageMemory);
+        textureImageMemory,
+        VK_SAMPLE_COUNT_1_BIT);
 
     // 将纹理图像转换为 VK_IMAGE_LAYOUT_TRANSFER_DST_OPTIMAL
     transitionImageLayout(
         textureImage,
-        VK_FORMAT_R8G8B8A8_SRGB,
+        VK_FORMAT_R8G8B8A8_UNORM,
         VK_IMAGE_LAYOUT_UNDEFINED,
         VK_IMAGE_LAYOUT_TRANSFER_DST_OPTIMAL);
 
@@ -85,7 +81,7 @@ void VulkanApplication::createTextureImage() {
     // 将纹理图像转换为 VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL
     transitionImageLayout(
         textureImage,
-        VK_FORMAT_R8G8B8A8_SRGB,
+        VK_FORMAT_R8G8B8A8_UNORM,
         VK_IMAGE_LAYOUT_TRANSFER_DST_OPTIMAL,
         VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL);
 
@@ -101,7 +97,9 @@ void VulkanApplication::create3DTextureImage() {
     // 返回的指针是像素值数组的第一个元素。
     // stbi_uc* pixels = stbi_load("D:\\00.CG_project\\VulkanTutorial\\textures\\texture.jpg", &texWidth, &texHeight, &texChannels, STBI_rgb_alpha);
     unsigned char* pixels = nullptr;
-    volumeRender->getPixelRGBA("C:\\Users\\Dream\\Documents\\00.Dicom\\ede6fe9eda6e44a98b3ad20da6f9116a Anonymized29\\Unknown Study\\CT Head 5.0000\\", texWidth, texHeight, texDepth, pixels);
+    volumeRender = std::make_shared<VolumeRender>();
+    volumeRender->loadDicom("C:\\Users\\Dream\\Documents\\00.Dicom\\ede6fe9eda6e44a98b3ad20da6f9116a Anonymized29\\Unknown Study\\CT Head 5.0000\\", 41);
+    volumeRender->getPixelRGBA(texWidth, texHeight, texDepth, pixels);
 
     VkDeviceSize imageSize = texWidth * texHeight * texDepth * 4;
 
@@ -138,18 +136,19 @@ void VulkanApplication::create3DTextureImage() {
         texWidth,
         texHeight,
         texDepth,
-        VK_FORMAT_R8G8B8A8_SRGB,
+        VK_FORMAT_R8G8B8A8_UNORM,
         VK_IMAGE_TYPE_3D,
         VK_IMAGE_TILING_OPTIMAL,
         VK_IMAGE_USAGE_TRANSFER_DST_BIT | VK_IMAGE_USAGE_SAMPLED_BIT,
         VK_MEMORY_PROPERTY_DEVICE_LOCAL_BIT,
         textureImage,
-        textureImageMemory);
+        textureImageMemory,
+        VK_SAMPLE_COUNT_1_BIT);
 
     // 将纹理图像转换为 VK_IMAGE_LAYOUT_TRANSFER_DST_OPTIMAL
     transitionImageLayout(
         textureImage,
-        VK_FORMAT_R8G8B8A8_SRGB,
+        VK_FORMAT_R8G8B8A8_UNORM,
         VK_IMAGE_LAYOUT_UNDEFINED,
         VK_IMAGE_LAYOUT_TRANSFER_DST_OPTIMAL);
 
@@ -165,7 +164,7 @@ void VulkanApplication::create3DTextureImage() {
     // 将纹理图像转换为 VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL
     transitionImageLayout(
         textureImage,
-        VK_FORMAT_R8G8B8A8_SRGB,
+        VK_FORMAT_R8G8B8A8_UNORM,
         VK_IMAGE_LAYOUT_TRANSFER_DST_OPTIMAL,
         VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL);
 
@@ -184,7 +183,8 @@ void VulkanApplication::createImage(    // 创建图像对象
     VkImageUsageFlags usage,    // 图像用途
     VkMemoryPropertyFlags properties,   // 内存属性
     VkImage& image,
-    VkDeviceMemory& imageMemory) {
+    VkDeviceMemory& imageMemory,
+    VkSampleCountFlagBits numSamples) {
     // 创建图像对象
     VkImageCreateInfo imageInfo{};
     imageInfo.sType = VK_STRUCTURE_TYPE_IMAGE_CREATE_INFO;
@@ -205,7 +205,7 @@ void VulkanApplication::createImage(    // 创建图像对象
     // 如果我们要创建一个 2D 数组纹理，那么这个值应该设置为数组中的图像数量。
     imageInfo.arrayLayers = 1;
 
-    imageInfo.samples = VK_SAMPLE_COUNT_1_BIT;   // 采样数，指定多重采样纹理的采样数，通常为 1，最大为 VK_SAMPLE_COUNT_64_BIT
+    imageInfo.samples = numSamples;   // 采样数，指定多重采样纹理的采样数，通常为 1，最大为 VK_SAMPLE_COUNT_64_BIT
     imageInfo.flags = 0;    // 图像创建标志，可以用于指定图像被视为稀疏图像或图像立方体数组等特殊类型。如果您使用三维纹理来制作体素地形，那么您可以使用它来避免分配内存来存储大量的 "空气 "值
 
     if (vkCreateImage(device, &imageInfo, nullptr, &image) != VK_SUCCESS) {
@@ -278,8 +278,8 @@ void VulkanApplication::createTextureImageView() {
     backFaceImageView = createImageView(backFaceImage, VK_FORMAT_R16G16B16A16_SFLOAT, VK_IMAGE_VIEW_TYPE_2D);
 
     // 创建纹理的图像视图
-    // textureImageView = createImageView(textureImage, VK_FORMAT_R8G8B8A8_SRGB, VK_IMAGE_VIEW_TYPE_2D);
-    textureImageView = createImageView(textureImage, VK_FORMAT_R8G8B8A8_SRGB, VK_IMAGE_VIEW_TYPE_3D);
+    // textureImageView = createImageView(textureImage, VK_FORMAT_R8G8B8A8_UNORM, VK_IMAGE_VIEW_TYPE_2D);
+    textureImageView = createImageView(textureImage, VK_FORMAT_R8G8B8A8_UNORM, VK_IMAGE_VIEW_TYPE_3D);
 }
 
 
@@ -309,7 +309,7 @@ void VulkanApplication::createTextureSampler() {
     samplerInfo.sType = VK_STRUCTURE_TYPE_SAMPLER_CREATE_INFO;
     // magFilter 和 minFilter 参数指定了在纹理被拉伸（放大）或压缩（缩小）时如何处理纹理像素。
     // 我们将它们都设置为 VK_FILTER_LINEAR，以便在纹理被拉伸时获得更好的效果。
-    samplerInfo.magFilter = VK_FILTER_LINEAR;    // 放大时的采样方式
+    samplerInfo.magFilter = VK_FILTER_LINEAR;    // 放大时的采样方式 VK_FILTER_NEAREST
     samplerInfo.minFilter = VK_FILTER_LINEAR;    // 缩小时的采样方式
     // addressModeU、addressModeV 和 addressModeW 参数指定了对超出纹理范围的坐标进行采样时使用的策略。
     // 它们可以设置为以下值之一：

@@ -138,7 +138,6 @@ struct SwapChainSupportDetails {
 class VulkanApplication {
 public:
     void run();
-    void initVolumeRender();
     std::shared_ptr<VolumeRender> volumeRender;
     std::shared_ptr<Camera> camera;
 
@@ -224,7 +223,7 @@ private:
     void create3DTextureImage();
     void createTextureImageView();
     void createImage(uint32_t width, uint32_t height, uint32_t depth, VkFormat format, VkImageType imageType, VkImageTiling tiling, VkImageUsageFlags usage,
-        VkMemoryPropertyFlags properties, VkImage& image, VkDeviceMemory& imageMemory);
+        VkMemoryPropertyFlags properties, VkImage& image, VkDeviceMemory& imageMemory,VkSampleCountFlagBits numSamples);
     VkImageView createImageView(VkImage image, VkFormat format, VkImageViewType viewType);
     void createTextureSampler();
     void transitionImageLayout(VkImage image, VkFormat format, VkImageLayout oldLayout, VkImageLayout newLayout);
@@ -1501,7 +1500,7 @@ private:
 
     VkSurfaceFormatKHR chooseSwapSurfaceFormat(const std::vector<VkSurfaceFormatKHR>& availableFormats) {
         for (const auto& availableFormat : availableFormats) {
-            if (availableFormat.format == VK_FORMAT_B8G8R8A8_SRGB && availableFormat.colorSpace == VK_COLOR_SPACE_SRGB_NONLINEAR_KHR) {
+            if (availableFormat.format == VK_FORMAT_R8G8B8A8_UNORM && availableFormat.colorSpace == VK_COLOR_SPACE_SRGB_NONLINEAR_KHR) {
                 return availableFormat;
             }
         }
