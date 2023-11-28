@@ -200,3 +200,8 @@ bool VolumeRender::getPixelRGBA(int& width, int& height, int& numSlice, unsigned
 
 	return true;
 }
+
+DicomTags VolumeRender::getDicomTags()
+{
+	return dicomTags;
+}

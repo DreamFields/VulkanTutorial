@@ -35,7 +35,7 @@ public:
 
     bool loadDicom(std::string path, int numSlice = 0);
     bool getPixelRGBA(int& width, int& height, int& numSlice, unsigned char*& rgba);
-
+    DicomTags getDicomTags();
 };
 
 

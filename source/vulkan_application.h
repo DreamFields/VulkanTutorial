@@ -120,6 +120,13 @@ struct UniformBufferObject {
     glm::vec1 slice;
 };
 
+// 在使用时，着色器中的结构体和这里的结构体布局必须一致
+struct DicomUniformBufferObject {
+    glm::vec1 windowCenter;
+    glm::vec1 windowWidth;
+    glm::vec1 minVal;
+};
+
 struct QueueFamilyIndices {
     std::optional<uint32_t> graphicsFamily;
     std::optional<uint32_t> presentFamily;
@@ -209,6 +216,10 @@ private:
     std::vector<VkDeviceMemory> uniformBuffersMemory;
     std::vector<void*> uniformBuffersMapped;
 
+    std::vector<VkBuffer> dicomUniformBuffers;
+    std::vector<VkDeviceMemory> dicomUniformBuffersMemory;
+    std::vector<void*> dicomUniformBuffersMapped;
+
     std::vector<VkCommandBuffer> commandBuffers;
 
     std::vector<VkSemaphore> imageAvailableSemaphores;
@@ -223,7 +234,7 @@ private:
     void create3DTextureImage();
     void createTextureImageView();
     void createImage(uint32_t width, uint32_t height, uint32_t depth, VkFormat format, VkImageType imageType, VkImageTiling tiling, VkImageUsageFlags usage,
-        VkMemoryPropertyFlags properties, VkImage& image, VkDeviceMemory& imageMemory,VkSampleCountFlagBits numSamples);
+        VkMemoryPropertyFlags properties, VkImage& image, VkDeviceMemory& imageMemory, VkSampleCountFlagBits numSamples);
     VkImageView createImageView(VkImage image, VkFormat format, VkImageViewType viewType);
     void createTextureSampler();
     void transitionImageLayout(VkImage image, VkFormat format, VkImageLayout oldLayout, VkImageLayout newLayout);
@@ -356,7 +367,9 @@ private:
         for (size_t i = 0; i < MAX_FRAMES_IN_FLIGHT; i++)
         {
             vkDestroyBuffer(device, uniformBuffers[i], nullptr);
+            vkDestroyBuffer(device, dicomUniformBuffers[i], nullptr);
             vkFreeMemory(device, uniformBuffersMemory[i], nullptr);
+            vkFreeMemory(device, dicomUniformBuffersMemory[i], nullptr);
         }
         vkDestroyDescriptorPool(device, descriptorPool, nullptr);
         vkDestroyDescriptorSetLayout(device, descriptorSetLayout.backFaceDescriptorSetLayout, nullptr);
@@ -723,11 +736,19 @@ private:
         // stageFlags参数指定在哪个着色器阶段使用此描述符布局。我们将在片段着色器中使用纹理采样器，因此我们将其设置为VK_SHADER_STAGE_FRAGMENT_BIT。
         backFaceLayoutBinding.stageFlags = VK_SHADER_STAGE_FRAGMENT_BIT;
         backFaceLayoutBinding.pImmutableSamplers = nullptr; // 可选，用于纹理采样
+        
+        VkDescriptorSetLayoutBinding dicomUboLayoutBinding{};
+        dicomUboLayoutBinding.binding = 3;
+        dicomUboLayoutBinding.descriptorType = VK_DESCRIPTOR_TYPE_UNIFORM_BUFFER;
+        dicomUboLayoutBinding.descriptorCount = 1;
+        dicomUboLayoutBinding.stageFlags = VK_SHADER_STAGE_FRAGMENT_BIT;
+        dicomUboLayoutBinding.pImmutableSamplers = nullptr;
 
-        std::array<VkDescriptorSetLayoutBinding, 3> bindings = {
+        std::array<VkDescriptorSetLayoutBinding, 4> bindings = {
             uboLayoutBinding,
             samplerLayoutBinding,
-            backFaceLayoutBinding
+            backFaceLayoutBinding,
+            dicomUboLayoutBinding
         };
 
         // 创建描述符布局
@@ -1119,10 +1140,14 @@ private:
 
     void createUniformBuffers() {
         VkDeviceSize bufferSize = sizeof(UniformBufferObject);
-
         uniformBuffers.resize(MAX_FRAMES_IN_FLIGHT);
         uniformBuffersMemory.resize(MAX_FRAMES_IN_FLIGHT);
         uniformBuffersMapped.resize(MAX_FRAMES_IN_FLIGHT);
+
+        VkDeviceSize dicomBufferSize = sizeof(DicomUniformBufferObject);
+        dicomUniformBuffers.resize(MAX_FRAMES_IN_FLIGHT);
+        dicomUniformBuffersMemory.resize(MAX_FRAMES_IN_FLIGHT);
+        dicomUniformBuffersMapped.resize(MAX_FRAMES_IN_FLIGHT);
 
         // 创建uniform缓冲区
         for (size_t i = 0; i < MAX_FRAMES_IN_FLIGHT; i++) {
@@ -1132,11 +1157,18 @@ private:
                 VK_MEMORY_PROPERTY_HOST_VISIBLE_BIT | VK_MEMORY_PROPERTY_HOST_COHERENT_BIT,
                 uniformBuffers[i],
                 uniformBuffersMemory[i]);
-
             // 创建缓冲区后，我们会立即使用 vkMapMemory 映射缓冲区，以获得一个指针，以便以后写入数据。在应用程序的整个生命周期中，缓冲区都会映射到这个指针。
             // 这种技术称为 "持久映射"，适用于所有 Vulkan 实现。由于映射不是免费的，因此无需在每次更新时映射缓冲区，从而提高了性能。
             // uniform data将用于所有绘制调用，因此包含uniform data的缓冲区只有在我们停止渲染时才会被销毁。
             vkMapMemory(device, uniformBuffersMemory[i], 0, bufferSize, 0, &uniformBuffersMapped[i]);
+
+            createBuffer(
+                dicomBufferSize,
+                VK_BUFFER_USAGE_UNIFORM_BUFFER_BIT,
+                VK_MEMORY_PROPERTY_HOST_VISIBLE_BIT | VK_MEMORY_PROPERTY_HOST_COHERENT_BIT,
+                dicomUniformBuffers[i],
+                dicomUniformBuffersMemory[i]);
+            vkMapMemory(device, dicomUniformBuffersMemory[i], 0, dicomBufferSize, 0, &dicomUniformBuffersMapped[i]);
         }
     }
 
@@ -1224,7 +1256,12 @@ private:
             backFaceImageInfo.imageView = backFaceImageView; // 图像视图
             backFaceImageInfo.sampler = VK_NULL_HANDLE; // *纹理采样器这里暂时为空
 
-            std::array<VkWriteDescriptorSet, 3> descriptorWrite{};
+            VkDescriptorBufferInfo dicomBufferInfo{};
+            dicomBufferInfo.buffer = dicomUniformBuffers[i]; // 缓冲区
+            dicomBufferInfo.offset = 0; // 偏移量
+            dicomBufferInfo.range = sizeof(DicomUniformBufferObject); // 范围
+
+            std::array<VkWriteDescriptorSet, 4> descriptorWrite{};
             descriptorWrite[0].sType = VK_STRUCTURE_TYPE_WRITE_DESCRIPTOR_SET;
             descriptorWrite[0].dstSet = descriptorSets.compositionDescriptorSets[i]; // 描述符集
             descriptorWrite[0].dstBinding = 0; // 描述符绑定
@@ -1254,6 +1291,16 @@ private:
             descriptorWrite[2].pBufferInfo = nullptr;
             descriptorWrite[2].pImageInfo = &backFaceImageInfo; // *上一阶段的图像信息
             descriptorWrite[2].pTexelBufferView = nullptr; // 缓冲区视图
+
+            descriptorWrite[3].sType = VK_STRUCTURE_TYPE_WRITE_DESCRIPTOR_SET;
+            descriptorWrite[3].dstSet = descriptorSets.compositionDescriptorSets[i]; // 描述符集
+            descriptorWrite[3].dstBinding = 3; // 描述符绑定
+            descriptorWrite[3].dstArrayElement = 0; // 描述符数组元素
+            descriptorWrite[3].descriptorType = VK_DESCRIPTOR_TYPE_UNIFORM_BUFFER; // 描述符类型
+            descriptorWrite[3].descriptorCount = 1; // 描述符数量
+            descriptorWrite[3].pBufferInfo = &dicomBufferInfo;
+            descriptorWrite[3].pImageInfo = nullptr; // 图像信息
+            descriptorWrite[3].pTexelBufferView = nullptr; // 缓冲区视图
 
             vkUpdateDescriptorSets(device, static_cast<uint32_t>(descriptorWrite.size()), descriptorWrite.data(), 0, nullptr);
         }
@@ -1415,6 +1462,13 @@ private:
 
         // 将数据复制到映射的内存中
         memcpy(uniformBuffersMapped[currentFrame], &ubo, sizeof(ubo));
+
+        // 更新dicomUniformBuffer
+        DicomUniformBufferObject dicomUbo{};
+        dicomUbo.windowCenter = static_cast<glm::vec1>(volumeRender->getDicomTags().windowCenter);
+        dicomUbo.windowWidth = static_cast<glm::vec1>(volumeRender->getDicomTags().windowWidth);
+        dicomUbo.minVal = static_cast<glm::vec1>(volumeRender->getDicomTags().minVal);
+        memcpy(dicomUniformBuffersMapped[currentFrame], &dicomUbo, sizeof(dicomUbo));
 
     }
 

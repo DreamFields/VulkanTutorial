@@ -11,6 +11,11 @@ layout(binding=1)uniform sampler3D tex3DSampler;
 // 也就是说，这里的input_attachment_index=0，对应于subpasses[1].pInputAttachments[0]
 // 这里的binding=2，对应于 compositionDescriptorWrite[2].dstBinding = 2
 layout(input_attachment_index=0,binding=2)uniform subpassInput inputBackpos;
+layout(binding=3)uniform DicomUniformBufferObject{
+    float windowCenter;
+    float windowWidth;
+    float minVal;
+}dicomUbo;
 
 layout(location=0)in vec3 inColor;
 layout(location=1)in vec2 inTexCoord;
@@ -21,11 +26,11 @@ layout(location=0)out vec4 outColor;
 vec4 get3DTextureColor(vec3 pos){
     vec4 color=texture(tex3DSampler,pos);
     // vec3 color = pow(color_srgb.rgb,vec3(1./2.2));
-    float intensity=color.r*255. + color.g*255.*255. - 1111.;
+    float intensity=color.r*255.+color.g*255.*255.-abs(dicomUbo.minVal);
     // if(color.b==0.){
         //         intensity=-intensity;
     // }
-    intensity=(intensity-45.)/95.+.5;
+    intensity=(intensity-dicomUbo.windowCenter)/dicomUbo.windowWidth+.5;
     intensity=clamp(intensity,0.,1.);
     return vec4(intensity,intensity,intensity,1.);
     
