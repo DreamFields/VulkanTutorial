@@ -13,11 +13,37 @@ file(GLOB SOURCES CONFIGURE_DEPENDS ${CMAKE_CURRENT_SOURCE_DIR}/source/*.cpp)
 # 在IDE里面给编译需要的文件归类
 source_group(TREE "${CMAKE_CURRENT_SOURCE_DIR}" FILES ${HEADERS} ${SOURCES})
 
-add_executable(${PROJECT_NAME} ${HEADERS} ${SOURCES})
-
 # 设置目录变量
 set(TUTORIAL_ROOT_DIR "${CMAKE_CURRENT_SOURCE_DIR}") # 定义变量
 set(LIBRARY_DIR "${TUTORIAL_ROOT_DIR}/library")
+
+# begin imgui
+set(IMGUI_HEADERS
+  ${LIBRARY_DIR}/imgui/imconfig.h
+  ${LIBRARY_DIR}/imgui/imgui.h
+  ${LIBRARY_DIR}/imgui/imgui_internal.h
+  ${LIBRARY_DIR}/imgui/imstb_rectpack.h
+  ${LIBRARY_DIR}/imgui/imstb_textedit.h
+  ${LIBRARY_DIR}/imgui/imstb_truetype.h
+  ${LIBRARY_DIR}/imgui/backends/imgui_impl_glfw.h
+  ${LIBRARY_DIR}/imgui/backends/imgui_impl_vulkan.h
+)
+set(IMGUI_SRC
+  ${LIBRARY_DIR}/imgui/imgui.cpp
+  ${LIBRARY_DIR}/imgui/imgui_demo.cpp
+  ${LIBRARY_DIR}/imgui/imgui_draw.cpp
+  ${LIBRARY_DIR}/imgui/imgui_widgets.cpp
+  ${LIBRARY_DIR}/imgui/imgui_tables.cpp
+  ${LIBRARY_DIR}/imgui/backends/imgui_impl_glfw.cpp
+  ${LIBRARY_DIR}/imgui/backends/imgui_impl_vulkan.cpp
+)
+
+include_directories(${LIBRARY_DIR}/imgui ${LIBRARY_DIR}/imgui/backends)
+# end imgui
+
+# add_executable(${PROJECT_NAME} ${HEADERS} ${SOURCES})
+add_executable(${PROJECT_NAME} ${HEADERS} ${SOURCES} ${IMGUI_HEADERS} ${IMGUI_SRC})
+
 
 # 设置vulkan的include目录
 set(vulkan_include ${LIBRARY_DIR}/VulkanSDK/include)

@@ -16,6 +16,11 @@
 #include <glm.hpp>
 #include <gtc/matrix_transform.hpp>
 
+// include imgui
+#include <imgui.h>
+#include <imgui_impl_glfw.h>
+#include <imgui_impl_vulkan.h>
+
 #include <chrono>
 #include <vk_mem_alloc.h>
 #include <vulkan/vulkan.h>
