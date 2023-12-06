@@ -232,6 +232,13 @@ private:
     std::vector<VkFence> inFlightFences;
     uint32_t currentFrame = 0;
 
+    // imgui
+    VkDescriptorPool imguiDescriptorPool;
+    VkRenderPass imguiRenderPass;
+    VkCommandPool imguiCommandPool;
+    std::vector<VkCommandBuffer> imguiCommandBuffers;
+    std::vector<VkFramebuffer> imguiFramebuffers;
+
     bool framebufferResized = false;
     bool shouldExit = false;
 
@@ -246,10 +253,21 @@ private:
     void copyBufferToImage(VkBuffer buffer, VkImage image, uint32_t width, uint32_t height, uint32_t depth);
     void createBackposAttachmentImage();
 
+    // begin imgui
+    void initImGui();
+    void createImGuiDescriptorPool();
+    void createImGuiRenderPass();
+    void createImGuiCommandPool();
+    void createImGuiCommandBuffers();
+    void createImGuiFramebuffers();
+    void drawImGui();
+    void recordImGuiCommandBuffer(uint32_t imageIndex);
+    // end imgui
+
     // https://vulkan-tutorial.com/Texture_mapping/Images#page_Layout-transitions
     // 将记录和执行命令缓冲区的逻辑抽象为单独的函数
-    VkCommandBuffer beginSingleTimeCommands();
-    void endSingleTimeCommands(VkCommandBuffer commandBuffer);
+    VkCommandBuffer beginSingleTimeCommands(VkCommandPool cmdPool);
+    void endSingleTimeCommands(VkCommandBuffer commandBuffer, VkCommandPool cmdPool);
 
     void initWindow() {
         glfwInit();
@@ -334,6 +352,7 @@ private:
     void mainLoop() {
         while (!glfwWindowShouldClose(window) && !shouldExit) {
             glfwPollEvents();
+            drawImGui();
             drawFrame();
 
             // 检查是否按下ESC键
@@ -358,6 +377,18 @@ private:
     }
 
     void cleanup() {
+        // Cleanup DearImGui
+        ImGui_ImplVulkan_Shutdown();
+        ImGui_ImplGlfw_Shutdown();
+        ImGui::DestroyContext();
+        vkDestroyDescriptorPool(device, imguiDescriptorPool, nullptr);
+        vkDestroyRenderPass(device, imguiRenderPass, nullptr);
+        vkDestroyCommandPool(device, imguiCommandPool, nullptr);
+        for (auto framebuffer : imguiFramebuffers) {
+            vkDestroyFramebuffer(device, framebuffer, nullptr);
+        }
+
+
         cleanupSwapChain();
 
         vkDestroySampler(device, textureSampler, nullptr);
@@ -430,6 +461,15 @@ private:
         createSwapChain();
         createImageViews();
         createFramebuffers();
+
+        // We also need to take care of the UI
+        for(auto framebuffer: imguiFramebuffers) {
+            vkDestroyFramebuffer(device, framebuffer, nullptr);
+        }
+        vkFreeCommandBuffers(device, imguiCommandPool, static_cast<uint32_t>(imguiCommandBuffers.size()), imguiCommandBuffers.data());
+        ImGui_ImplVulkan_SetMinImageCount(swapChainImages.size());
+        createImGuiFramebuffers();
+        createImGuiCommandBuffers();
     }
 
     void createInstance() {
@@ -638,7 +678,7 @@ private:
         colorAttachments[0].stencilLoadOp = VK_ATTACHMENT_LOAD_OP_DONT_CARE;
         colorAttachments[0].stencilStoreOp = VK_ATTACHMENT_STORE_OP_DONT_CARE;
         colorAttachments[0].initialLayout = VK_IMAGE_LAYOUT_UNDEFINED;
-        colorAttachments[0].finalLayout = VK_IMAGE_LAYOUT_PRESENT_SRC_KHR;
+        colorAttachments[0].finalLayout = VK_IMAGE_LAYOUT_COLOR_ATTACHMENT_OPTIMAL; // !最终布局是颜色附件，因为最终显示的是UI
 
         // backpos attachment
         colorAttachments[1].format = VK_FORMAT_R16G16B16A16_SFLOAT;
@@ -741,7 +781,7 @@ private:
         // stageFlags参数指定在哪个着色器阶段使用此描述符布局。我们将在片段着色器中使用纹理采样器，因此我们将其设置为VK_SHADER_STAGE_FRAGMENT_BIT。
         backFaceLayoutBinding.stageFlags = VK_SHADER_STAGE_FRAGMENT_BIT;
         backFaceLayoutBinding.pImmutableSamplers = nullptr; // 可选，用于纹理采样
-        
+
         VkDescriptorSetLayoutBinding dicomUboLayoutBinding{};
         dicomUboLayoutBinding.binding = 3;
         dicomUboLayoutBinding.descriptorType = VK_DESCRIPTOR_TYPE_UNIFORM_BUFFER;
@@ -1096,7 +1136,7 @@ private:
     }
 
     void copyBuffer(VkBuffer srcBuffer, VkBuffer dstBuffer, VkDeviceSize size) {
-        VkCommandBuffer commandBuffer = beginSingleTimeCommands();
+        VkCommandBuffer commandBuffer = beginSingleTimeCommands(commandPool);
 
         // 复制缓冲区
         VkBufferCopy copyRegion{};
@@ -1104,7 +1144,7 @@ private:
         // srcOffset和dstOffset参数指定要复制的字节偏移量。我们将从缓冲区的起始位置开始复制。
         vkCmdCopyBuffer(commandBuffer, srcBuffer, dstBuffer, 1, &copyRegion);
 
-        endSingleTimeCommands(commandBuffer);
+        endSingleTimeCommands(commandBuffer, commandPool);
 
     }
 
@@ -1496,6 +1536,9 @@ private:
         vkResetFences(device, 1, &inFlightFences[currentFrame]);
 
         vkResetCommandBuffer(commandBuffers[currentFrame], /*VkCommandBufferResetFlagBits*/ 0);
+
+        // record UI command buffer
+        recordImGuiCommandBuffer(imageIndex);
         recordCommandBuffer(commandBuffers[currentFrame], imageIndex);
 
         VkSubmitInfo submitInfo{};
@@ -1503,12 +1546,13 @@ private:
 
         VkSemaphore waitSemaphores[] = { imageAvailableSemaphores[currentFrame] };
         VkPipelineStageFlags waitStages[] = { VK_PIPELINE_STAGE_COLOR_ATTACHMENT_OUTPUT_BIT };
+        std::array<VkCommandBuffer, 2> submitCommandBuffers = { commandBuffers[currentFrame], imguiCommandBuffers[imageIndex] };
         submitInfo.waitSemaphoreCount = 1;
         submitInfo.pWaitSemaphores = waitSemaphores;
         submitInfo.pWaitDstStageMask = waitStages;
 
-        submitInfo.commandBufferCount = 1;
-        submitInfo.pCommandBuffers = &commandBuffers[currentFrame];
+        submitInfo.commandBufferCount = static_cast<uint32_t>(submitCommandBuffers.size());
+        submitInfo.pCommandBuffers = submitCommandBuffers.data();
 
         VkSemaphore signalSemaphores[] = { renderFinishedSemaphores[currentFrame] };
         submitInfo.signalSemaphoreCount = 1;

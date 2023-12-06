@@ -5,6 +5,7 @@
 void VulkanApplication::run() {
     initWindow();
     initVulkan();
+    initImGui();
     mainLoop();
     cleanup();
 }
@@ -355,7 +356,7 @@ void VulkanApplication::transitionImageLayout(    // 图像布局转换
     VkFormat format,
     VkImageLayout oldLayout,
     VkImageLayout newLayout) {
-    VkCommandBuffer commandBuffer = beginSingleTimeCommands(); // 开始记录命令缓冲区
+    VkCommandBuffer commandBuffer = beginSingleTimeCommands(commandPool); // 开始记录命令缓冲区
 
     // VkImageMemoryBarrier（流水线屏障的一种）通常用于同步资源访问，例如确保在从缓冲区读取数据之前完成对缓冲区的写入
     VkImageMemoryBarrier barrier{};
@@ -407,7 +408,7 @@ void VulkanApplication::transitionImageLayout(    // 图像布局转换
         0, nullptr,
         1, &barrier);
 
-    endSingleTimeCommands(commandBuffer);   // !结束记录命令缓冲区,否则会报如下错误：
+    endSingleTimeCommands(commandBuffer, commandPool);   // !结束记录命令缓冲区,否则会报如下错误：
     /*
     validation layer: Validation Error: [ UNASSIGNED-CoreValidation-DrawState-InvalidImageLayout ]
     Object 0: handle = 0x24f88480270, type = VK_OBJECT_TYPE_COMMAND_BUFFER;
@@ -424,7 +425,7 @@ void VulkanApplication::copyBufferToImage(
     uint32_t width,
     uint32_t height,
     uint32_t depth) {
-    VkCommandBuffer commandBuffer = beginSingleTimeCommands(); // 开始记录命令缓冲区
+    VkCommandBuffer commandBuffer = beginSingleTimeCommands(commandPool); // 开始记录命令缓冲区
 
     // 将缓冲区数据复制到图像对象
     VkBufferImageCopy region{};
@@ -449,14 +450,14 @@ void VulkanApplication::copyBufferToImage(
         1, // regionCount
         &region); // pRegions
 
-    endSingleTimeCommands(commandBuffer);   // 结束记录命令缓冲区
+    endSingleTimeCommands(commandBuffer, commandPool);   // 结束记录命令缓冲区
 }
 
-VkCommandBuffer VulkanApplication::beginSingleTimeCommands() {
+VkCommandBuffer VulkanApplication::beginSingleTimeCommands(VkCommandPool cmdPool) {
     VkCommandBufferAllocateInfo allocInfo{};
     allocInfo.sType = VK_STRUCTURE_TYPE_COMMAND_BUFFER_ALLOCATE_INFO;
     // commandPool是用于分配命令缓冲区的命令池
-    allocInfo.commandPool = commandPool;
+    allocInfo.commandPool = cmdPool;
     // level参数指定分配的命令缓冲区是否是主要或辅助缓冲区。主要缓冲区可以被提交到队列中，但不能从其他命令缓冲区调用。
     // 辅助缓冲区可以从主缓冲区和其他辅助缓冲区调用。我们将使用主缓冲区来执行实际的数据传输操作。
     allocInfo.level = VK_COMMAND_BUFFER_LEVEL_PRIMARY;
@@ -477,7 +478,7 @@ VkCommandBuffer VulkanApplication::beginSingleTimeCommands() {
     return commandBuffer;
 }
 
-void VulkanApplication::endSingleTimeCommands(VkCommandBuffer commandBuffer) {
+void VulkanApplication::endSingleTimeCommands(VkCommandBuffer commandBuffer, VkCommandPool cmdPool) {
     // 结束记录命令缓冲区
     vkEndCommandBuffer(commandBuffer);
 
@@ -496,5 +497,273 @@ void VulkanApplication::endSingleTimeCommands(VkCommandBuffer commandBuffer) {
     vkQueueWaitIdle(graphicsQueue);
 
     // 释放命令缓冲区
-    vkFreeCommandBuffers(device, commandPool, 1, &commandBuffer);
+    vkFreeCommandBuffers(device, cmdPool, 1, &commandBuffer);
+}
+
+void VulkanApplication::initImGui() {
+    // 初始化 ImGui
+    IMGUI_CHECKVERSION();
+    ImGui::CreateContext();
+
+    ImGui::StyleColorsDark();
+
+    // init some imgui specefic resources
+    createImGuiDescriptorPool();
+    createImGuiRenderPass();
+    createImGuiCommandPool();
+    createImGuiCommandBuffers();
+    createImGuiFramebuffers();
+
+    // init imgui for vulkan
+    ImGui_ImplGlfw_InitForVulkan(window, true);
+    ImGui_ImplVulkan_InitInfo init_info = {};
+    init_info.Instance = instance;
+    init_info.PhysicalDevice = physicalDevice;
+    init_info.Device = device;
+    QueueFamilyIndices indices = findQueueFamilies(physicalDevice);
+    init_info.QueueFamily = indices.graphicsFamily.value();
+    init_info.Queue = graphicsQueue;
+    init_info.PipelineCache = VK_NULL_HANDLE;
+    init_info.DescriptorPool = imguiDescriptorPool;
+    init_info.Allocator = nullptr;
+    init_info.MinImageCount = swapChainImages.size();
+    init_info.ImageCount = swapChainImages.size();
+
+    ImGui_ImplVulkan_Init(&init_info, imguiRenderPass);
+
+    // upload fonts
+    VkCommandBuffer commandBuffer = beginSingleTimeCommands(imguiCommandPool);
+    ImGui_ImplVulkan_CreateFontsTexture(commandBuffer);
+    endSingleTimeCommands(commandBuffer, imguiCommandPool);
+    ImGui_ImplVulkan_DestroyFontUploadObjects();
+}
+
+// Copied this code from DearImgui's setup:
+// https://github.com/ocornut/imgui/blob/master/examples/example_glfw_vulkan/main.cpp
+void VulkanApplication::createImGuiDescriptorPool() {
+    VkDescriptorPoolSize pool_sizes[] = {
+        {VK_DESCRIPTOR_TYPE_SAMPLER, 1000},
+        {VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER, 1000},
+        {VK_DESCRIPTOR_TYPE_SAMPLED_IMAGE, 1000},
+        {VK_DESCRIPTOR_TYPE_STORAGE_IMAGE, 1000},
+        {VK_DESCRIPTOR_TYPE_UNIFORM_TEXEL_BUFFER, 1000},
+        {VK_DESCRIPTOR_TYPE_STORAGE_TEXEL_BUFFER, 1000},
+        {VK_DESCRIPTOR_TYPE_UNIFORM_BUFFER, 1000},
+        {VK_DESCRIPTOR_TYPE_STORAGE_BUFFER, 1000},
+        {VK_DESCRIPTOR_TYPE_UNIFORM_BUFFER_DYNAMIC, 1000},
+        {VK_DESCRIPTOR_TYPE_STORAGE_BUFFER_DYNAMIC, 1000},
+        {VK_DESCRIPTOR_TYPE_INPUT_ATTACHMENT, 1000}
+    };
+    VkDescriptorPoolCreateInfo pool_info = {};
+    pool_info.sType = VK_STRUCTURE_TYPE_DESCRIPTOR_POOL_CREATE_INFO;
+    pool_info.flags = VK_DESCRIPTOR_POOL_CREATE_FREE_DESCRIPTOR_SET_BIT;
+    pool_info.maxSets = 1000 * IM_ARRAYSIZE(pool_sizes);
+    pool_info.poolSizeCount = (uint32_t)IM_ARRAYSIZE(pool_sizes);
+    pool_info.pPoolSizes = pool_sizes;
+    if (vkCreateDescriptorPool(device, &pool_info, nullptr, &imguiDescriptorPool) != VK_SUCCESS) {
+        throw std::runtime_error("failed to create imgui descriptor pool!");
+    }
+}
+
+void VulkanApplication::createImGuiRenderPass() {
+    // create an attachment description for the renderpass
+    VkAttachmentDescription attachment = {};
+    attachment.format = swapChainImageFormat;
+    attachment.samples = VK_SAMPLE_COUNT_1_BIT;
+    // !在渲染通道开始时，我们不希望图像中的内容被清除，因为我们要在上面绘制 Dear ImGui 的 UI。
+    attachment.loadOp = VK_ATTACHMENT_LOAD_OP_LOAD;// Need UI to be drawn on top of main
+    // we keep the attachment stored when the renderpass ends
+    attachment.storeOp = VK_ATTACHMENT_STORE_OP_STORE;
+    // we don't care about stencil
+    attachment.stencilLoadOp = VK_ATTACHMENT_LOAD_OP_DONT_CARE;
+    attachment.stencilStoreOp = VK_ATTACHMENT_STORE_OP_DONT_CARE;
+    // we don't know or care about the starting layout of the attachment
+    attachment.initialLayout = VK_IMAGE_LAYOUT_COLOR_ATTACHMENT_OPTIMAL;
+    // after the renderpass ends, the image has to be on a layout ready for display
+    attachment.finalLayout = VK_IMAGE_LAYOUT_PRESENT_SRC_KHR;
+
+    // create an attachment reference for the renderpass
+    VkAttachmentReference color_attachment = {};
+    color_attachment.attachment = 0;
+    color_attachment.layout = VK_IMAGE_LAYOUT_COLOR_ATTACHMENT_OPTIMAL;
+
+    // create a subpass description for the renderpass
+    VkSubpassDescription subpass = {};
+    subpass.pipelineBindPoint = VK_PIPELINE_BIND_POINT_GRAPHICS;
+    // this subpass has 1 color attachment
+    subpass.colorAttachmentCount = 1;
+    subpass.pColorAttachments = &color_attachment;
+
+    // Create a subpass dependency to synchronize our main and UI render passes
+    // We want to render the UI after the geometry has been written to the framebuffer
+    // so we need to configure a subpass dependency as such
+    VkSubpassDependency dependency = {};
+    dependency.srcSubpass = VK_SUBPASS_EXTERNAL;
+    dependency.dstSubpass = 0; // our subpass index is 0, since we're creating the only one
+    dependency.srcStageMask = VK_PIPELINE_STAGE_COLOR_ATTACHMENT_OUTPUT_BIT;
+    dependency.dstStageMask = VK_PIPELINE_STAGE_COLOR_ATTACHMENT_OUTPUT_BIT;
+    // we need to wait for the swapchain to finish reading from the image before we can access it
+    dependency.srcAccessMask = VK_ACCESS_COLOR_ATTACHMENT_WRITE_BIT;
+    dependency.dstAccessMask = VK_ACCESS_COLOR_ATTACHMENT_WRITE_BIT;
+
+    // create the renderpass
+    VkRenderPassCreateInfo render_pass_info = {};
+    render_pass_info.sType = VK_STRUCTURE_TYPE_RENDER_PASS_CREATE_INFO;
+    render_pass_info.attachmentCount = 1;
+    render_pass_info.pAttachments = &attachment;
+    render_pass_info.subpassCount = 1;
+    render_pass_info.pSubpasses = &subpass;
+    render_pass_info.dependencyCount = 1;
+    render_pass_info.pDependencies = &dependency;
+
+    if (vkCreateRenderPass(device, &render_pass_info, nullptr, &imguiRenderPass) != VK_SUCCESS) {
+        throw std::runtime_error("failed to create imgui render pass!");
+    }
+}
+
+void VulkanApplication::createImGuiCommandPool() {
+    QueueFamilyIndices queueFamilyIndices = findQueueFamilies(physicalDevice);
+    VkCommandPoolCreateInfo poolInfo{};
+    poolInfo.sType = VK_STRUCTURE_TYPE_COMMAND_POOL_CREATE_INFO;
+    poolInfo.queueFamilyIndex = queueFamilyIndices.graphicsFamily.value(); // 指定队列族
+    poolInfo.flags = VK_COMMAND_POOL_CREATE_RESET_COMMAND_BUFFER_BIT;  // 指定命令缓冲区的标志
+
+    if (vkCreateCommandPool(device, &poolInfo, nullptr, &imguiCommandPool) != VK_SUCCESS) { // 创建命令池
+        throw std::runtime_error("failed to create command pool!");
+    }
+}
+
+void VulkanApplication::createImGuiCommandBuffers() {
+    // create a command buffer for each swapchain image
+    imguiCommandBuffers.resize(swapChainFramebuffers.size());
+
+    VkCommandBufferAllocateInfo allocInfo{};
+    allocInfo.sType = VK_STRUCTURE_TYPE_COMMAND_BUFFER_ALLOCATE_INFO;
+    allocInfo.commandPool = imguiCommandPool;
+    allocInfo.level = VK_COMMAND_BUFFER_LEVEL_PRIMARY;
+    allocInfo.commandBufferCount = (uint32_t)imguiCommandBuffers.size();
+
+    if (vkAllocateCommandBuffers(device, &allocInfo, imguiCommandBuffers.data()) != VK_SUCCESS) {
+        throw std::runtime_error("failed to allocate imgui command buffers!");
+    }
+}
+
+void VulkanApplication::createImGuiFramebuffers() {
+    // create a framebuffer for each swapchain image
+    imguiFramebuffers.resize(swapChainFramebuffers.size());
+
+    // create a framebuffer for each swapchain image
+    for (size_t i = 0; i < swapChainFramebuffers.size(); i++) {
+        VkImageView attachments[] = {
+            swapChainImageViews[i]
+        };
+
+        VkFramebufferCreateInfo framebufferInfo{};
+        framebufferInfo.sType = VK_STRUCTURE_TYPE_FRAMEBUFFER_CREATE_INFO;
+        framebufferInfo.renderPass = imguiRenderPass;
+        framebufferInfo.attachmentCount = 1;
+        framebufferInfo.pAttachments = attachments;
+        framebufferInfo.width = swapChainExtent.width;
+        framebufferInfo.height = swapChainExtent.height;
+        framebufferInfo.layers = 1;
+
+        if (vkCreateFramebuffer(device, &framebufferInfo, nullptr, &imguiFramebuffers[i]) != VK_SUCCESS) {
+            throw std::runtime_error("failed to create imgui framebuffer!");
+        }
+    }
+}
+
+
+void VulkanApplication::drawImGui() {
+    // start the Dear ImGui frame
+    ImGui_ImplVulkan_NewFrame();
+    ImGui_ImplGlfw_NewFrame();
+    ImGui::NewFrame();
+
+    // imgui state
+    static bool showDemoWindow = true;
+    static bool showAnotherWindow = true;
+    // clear color
+    static ImVec4 clearColor = ImVec4(0.45f, 0.55f, 0.60f, 1.00f);
+
+    // 1. Show a simple window
+    // Tip: if we don't call ImGui::Begin()/ImGui::End() the widgets automatically appears in a window called "Debug"
+    {
+        static float f = 0.0f;
+        static int counter = 0;
+
+        ImGui::Begin("Hello, world!");                          // Create a window called "Hello, world!" and append into it.
+
+        ImGui::Text("This is some useful text.");               // Display some text (you can use a format strings too)
+        ImGui::Checkbox("Demo Window", &showDemoWindow);      // Edit bools storing our window open/close state
+        ImGui::Checkbox("Another Window", &showAnotherWindow);
+
+        ImGui::SliderFloat("float", &f, 0.0f, 1.0f);            // Edit 1 float using a slider from 0.0f to 1.0f    
+        ImGui::ColorEdit3("clear color", (float*)&clearColor); // Edit 3 floats representing a color
+
+        if (ImGui::Button("Button")) {                            // Buttons return true when clicked (NB: most widgets return true when edited/activated)
+            counter++;
+        }
+        ImGui::SameLine();
+        ImGui::Text("counter = %d", counter);
+
+        ImGui::Text("Application average %.3f ms/frame (%.1f FPS)", 1000.0f / ImGui::GetIO().Framerate,
+            ImGui::GetIO().Framerate);
+
+        ImGui::End();
+    }
+
+    // 2. Show another simple window, this time using an explicit Begin/End pair
+    if (showAnotherWindow) {
+        ImGui::Begin("Another Window", &showAnotherWindow);
+        ImGui::Text("Hello from another window!");
+        if (ImGui::Button("Close Me")) {
+            showAnotherWindow = false;
+        }
+        ImGui::End();
+    }
+
+    // 3. Show the ImGui demo window. Most of the sample code is in ImGui::ShowDemoWindow()
+    if (showDemoWindow) {
+        ImGui::ShowDemoWindow(&showDemoWindow);
+    }
+
+    // Rendering
+    ImGui::Render();
+}
+
+void VulkanApplication::recordImGuiCommandBuffer(uint32_t imageIndex) {
+    // record imgui commands into command buffer
+    VkCommandBufferBeginInfo beginInfo{};
+    beginInfo.sType = VK_STRUCTURE_TYPE_COMMAND_BUFFER_BEGIN_INFO;
+    // we're only submitting the ui commands once, so we use the one time submit bit
+    beginInfo.flags = VK_COMMAND_BUFFER_USAGE_ONE_TIME_SUBMIT_BIT;
+
+    if (vkBeginCommandBuffer(imguiCommandBuffers[imageIndex], &beginInfo) != VK_SUCCESS) {
+        throw std::runtime_error("failed to begin recording imgui command buffer!");
+    }
+
+    // start the renderpass
+    VkClearValue clearColor = { 0.0f, 0.0f, 0.0f, 1.0f };
+    VkRenderPassBeginInfo renderPassInfo{};
+    renderPassInfo.sType = VK_STRUCTURE_TYPE_RENDER_PASS_BEGIN_INFO;
+    renderPassInfo.renderPass = imguiRenderPass;
+    renderPassInfo.framebuffer = imguiFramebuffers[imageIndex];
+    renderPassInfo.renderArea.extent.width = swapChainExtent.width;
+    renderPassInfo.renderArea.extent.height = swapChainExtent.height;
+    renderPassInfo.clearValueCount = 1;
+    renderPassInfo.pClearValues = &clearColor;
+
+    // start the renderpass
+    vkCmdBeginRenderPass(imguiCommandBuffers[imageIndex], &renderPassInfo, VK_SUBPASS_CONTENTS_INLINE);
+
+    // record imgui draw data and draw funcs into command buffer
+    ImGui_ImplVulkan_RenderDrawData(ImGui::GetDrawData(), imguiCommandBuffers[imageIndex]);
+
+    // end the renderpass
+    vkCmdEndRenderPass(imguiCommandBuffers[imageIndex]);
+
+    if (vkEndCommandBuffer(imguiCommandBuffers[imageIndex]) != VK_SUCCESS) {
+        throw std::runtime_error("failed to record imgui command buffer!");
+    }
 }
