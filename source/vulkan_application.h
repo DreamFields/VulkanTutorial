@@ -286,6 +286,10 @@ private:
             });
         // 鼠标按键回调函数
         glfwSetMouseButtonCallback(window, [](GLFWwindow* window, int button, int action, int mods) {
+            // 如果 ImGui 希望捕获鼠标事件，则不传递给主程序
+            if (action == GLFW_PRESS && ImGui::GetIO().WantCaptureMouse) {
+                return;
+            }
             auto app = reinterpret_cast<VulkanApplication*>(glfwGetWindowUserPointer(window));
             app->camera->onMouseButton(window, button, action, mods);
             });
@@ -463,7 +467,7 @@ private:
         createFramebuffers();
 
         // We also need to take care of the UI
-        for(auto framebuffer: imguiFramebuffers) {
+        for (auto framebuffer : imguiFramebuffers) {
             vkDestroyFramebuffer(device, framebuffer, nullptr);
         }
         vkFreeCommandBuffers(device, imguiCommandPool, static_cast<uint32_t>(imguiCommandBuffers.size()), imguiCommandBuffers.data());
