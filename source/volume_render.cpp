@@ -118,6 +118,11 @@ bool VolumeRender::loadDicom(std::string path, int numSlice /*= 0*/)
 		std::cout << dicomTags.fileIndex[index] << " ";
 	}
 
+	dicomParamControl.windowCenter = dicomTags.windowCenter;
+	dicomParamControl.windowWidth = dicomTags.windowWidth;
+	dicomParamControl.tau = 0.5f;
+	dicomParamControl.steps = 800;
+
 	return true;
 }
 

@@ -10,7 +10,7 @@
 #include <map>
 #include <math.h>
 
-struct DicomTags{
+struct DicomTags {
     std::string folderPath;
     std::vector<int> fileIndex;
     int numSlice;
@@ -25,10 +25,19 @@ struct DicomTags{
     double rescaleSlope;
 };
 
+struct DicomParamControl {
+    double windowCenter;
+    double windowWidth;
+    float tau;
+    int steps;
+};
+
 class VolumeRender
 {
 private:
     DicomTags dicomTags;
+public:
+    DicomParamControl dicomParamControl;
 public:
     VolumeRender(/* args */);
     ~VolumeRender();

@@ -15,6 +15,8 @@ layout(binding=3)uniform DicomUniformBufferObject{
     float windowCenter;
     float windowWidth;
     float minVal;
+    float tau;
+    int steps;
 }dicomUbo;
 
 layout(location=0)in vec3 inColor;
@@ -49,31 +51,52 @@ void main(){
     
     vec3 dir=normalize(backPos-inFrontPos);
     float rayLength=length(backPos-inFrontPos);
-    float steps=800.;
+    float steps= float(dicomUbo.steps);
     float stepLength=rayLength/steps;
     vec3 currentPos=inFrontPos;
-    float sampleAlpha=.5;
+    // float sampleAlpha=.5;
+    
+    // // 从前向后遍历采样点
+    // vec4 accumulateColor=vec4(0.,0.,0.,0.);
+    // float accumulateAlpha=0.;
+    // float accumulateLength=0.;
+    
+    // for(int i=0;i<steps;i++){
+        //     vec4 sampleColor=get3DTextureColor(currentPos);
+        //     // vec4 sampleColor=texture(tex3DSampler,currentPos);
+        //     if(sampleColor.r!=0.){
+            //         accumulateColor+=sampleColor*(1.-accumulateAlpha);
+            //         accumulateAlpha+=sampleAlpha*(1.-accumulateAlpha);
+        //     }
+        //     accumulateLength+=stepLength;
+        //     currentPos+=dir*stepLength;
+        //     if(accumulateAlpha>.99||accumulateLength>=rayLength){
+            //         break;
+        //     }
+    // }
+    
+    // outColor=accumulateColor;
     
     // 从前向后遍历采样点
-    vec4 accumulateColor=vec4(0.,0.,0.,0.);
-    float accumulateAlpha=0.;
+    vec4 E=vec4(0.,0.,0.,0.);
+    float T=1.;
     float accumulateLength=0.;
     
     for(int i=0;i<steps;i++){
         vec4 sampleColor=get3DTextureColor(currentPos);
         // vec4 sampleColor=texture(tex3DSampler,currentPos);
         if(sampleColor.r!=0.){
-            accumulateColor+=sampleColor*(1.-accumulateAlpha);
-            accumulateAlpha+=sampleAlpha*(1.-accumulateAlpha);
+            E=E+T*dicomUbo.tau*sampleColor;
+            T=T*(1.-dicomUbo.tau);
         }
         accumulateLength+=stepLength;
         currentPos+=dir*stepLength;
-        if(accumulateAlpha>.99||accumulateLength>=rayLength){
+        if(T<.01||accumulateLength>=rayLength){
             break;
         }
     }
     
-    outColor=accumulateColor;
+    outColor=E;
     // outColor=texture(tex3DSampler,vec3(inTexCoord.y,27.0/41.0,inTexCoord.x));
     // outColor = get3DTextureColor(vec3(inTexCoord.y,27.0/41.0,inTexCoord.x));
     // outColor=get3DTextureColor(vec3(inTexCoord.x,inTexCoord.y,27./41.));
