@@ -87,7 +87,8 @@ void main(){
         // vec4 sampleColor=texture(tex3DSampler,currentPos);
         if(sampleColor.r!=0.){
             E=E+T*dicomUbo.tau*sampleColor;
-            T=T*(1.-dicomUbo.tau);
+            // T=T*(1.-dicomUbo.tau * stepLength); // 泰勒展开近似
+            T=T*exp(-dicomUbo.tau * stepLength);
         }
         accumulateLength+=stepLength;
         currentPos+=dir*stepLength;
