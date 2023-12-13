@@ -52,11 +52,13 @@ void main(){
     float accmulateAlpha=0.;
     // control render equation
     bool isUseTransparency=false;
+
+    float stepLength = dicomUbo.stepLength == 0. ? rayLength / float(dicomUbo.steps) : dicomUbo.stepLength;
     
     // Evaluate form 0 to D
     for(float s=0.;s<rayLength;){
         // Get the current step or the remaining interval
-        float h=min(dicomUbo.stepLength,rayLength-s);
+        float h=min(stepLength,rayLength-s);
         // Get the current position
         vec3 pos=currentPos+dir*(s+h*.5);
         // Get the sampleColor from the 3D texture

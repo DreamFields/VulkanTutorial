@@ -17,20 +17,33 @@ void Camera::onMouseMove(GLFWwindow* window, double xpos, double ypos)
         lastMouseX = xpos;
         lastMouseY = ypos;
 
-        float sensitivity = 0.002f;
+        float sensitivity = 0.2f;
         xoffset *= sensitivity;
         yoffset *= sensitivity;
 
-        // 根据offset值直接计算出新的方向向量
-        glm::vec3 newFront = cameraFront + xoffset * glm::normalize(glm::cross(cameraFront, cameraUp)) + yoffset * cameraUp;
-        cameraFront = glm::normalize(newFront);
+        if (isSurround) {
+            glm::mat4 rotation = glm::rotate(glm::mat4(1.0f), glm::radians(-xoffset), cameraUp);
+            glm::vec4 direction = rotation * glm::vec4(cameraPos - cameraTarget, 0.0f);
+            cameraPos = cameraTarget + glm::vec3(direction);
 
-        // 根据方向向量计算出旋转矩阵，然后将旋转矩阵应用到摄像机的up向量上
-        glm::vec3 newUp = glm::cross(glm::cross(cameraFront, cameraUp), cameraFront);
-        cameraUp = glm::normalize(newUp);
+            glm::vec3 axis = glm::cross(cameraTarget - cameraPos, cameraUp);
+            rotation = glm::rotate(glm::mat4(1.0f), glm::radians(yoffset), glm::normalize(axis));
+            direction = rotation * glm::vec4(cameraPos - cameraTarget, 0.0f);
+            cameraUp = glm::normalize( glm::cross(glm::normalize(axis), glm::normalize(glm::vec3(-direction))));
+            cameraFront = glm::normalize(glm::vec3(-direction));
+            cameraPos = cameraTarget + glm::vec3(direction);
+        }
+        else {
+            // 根据offset值直接计算出新的方向向量
+            glm::vec3 newFront = cameraFront + xoffset * glm::normalize(glm::cross(cameraFront, cameraUp)) + yoffset * cameraUp;
+            cameraFront = glm::normalize(newFront);
 
-        std::cout << "cameraFront: " << cameraFront.x << ", " << cameraFront.y << ", " << cameraFront.z << std::endl;
-        std::cout << "cameraUp: " << cameraUp.x << ", " << cameraUp.y << ", " << cameraUp.z << std::endl;
+            // 根据方向向量计算出旋转矩阵，然后将旋转矩阵应用到摄像机的up向量上
+            glm::vec3 newUp = glm::cross(glm::cross(cameraFront, cameraUp), cameraFront);
+            cameraUp = glm::normalize(newUp);
+        }
+        // std::cout << "cameraFront: " << cameraFront.x << ", " << cameraFront.y << ", " << cameraFront.z << std::endl;
+        // std::cout << "cameraUp: " << cameraUp.x << ", " << cameraUp.y << ", " << cameraUp.z << std::endl;
     }
 }
 
@@ -56,7 +69,7 @@ void Camera::onMouseButton(GLFWwindow* window, int button, int action, int mods)
     }
 }
 
-void Camera::updateCameraMove(GLFWwindow* window){
+void Camera::updateCameraMove(GLFWwindow* window) {
     if (glfwGetKey(window, GLFW_KEY_W) == GLFW_PRESS) {
         cameraPos += cameraSpeed * cameraFront;
     }
@@ -81,6 +94,7 @@ void Camera::updateCameraMove(GLFWwindow* window){
 glm::mat4 Camera::getViewMatrix()
 {
     // 根据相机参数手动计算view矩阵
-    glm::mat4 view = glm::lookAt(cameraPos, cameraPos + cameraFront, cameraUp);
+    // glm::mat4 view = glm::lookAt(cameraPos, cameraPos + cameraFront, cameraUp);
+    glm::mat4 view = glm::lookAt(cameraPos, cameraTarget, cameraUp);
     return view;
 }
