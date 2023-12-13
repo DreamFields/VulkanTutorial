@@ -132,6 +132,8 @@ struct DicomUniformBufferObject {
     glm::vec1 minVal;
     glm::vec1 tau;
     glm::int16 steps;
+    glm::vec1 stepLength;
+    glm::vec1 glow;
 };
 
 struct QueueFamilyIndices {
@@ -1516,11 +1518,13 @@ private:
 
         // 更新dicomUniformBuffer
         DicomUniformBufferObject dicomUbo{};
-        dicomUbo.windowCenter = static_cast<glm::vec1>(volumeRender->getDicomTags().windowCenter);
-        dicomUbo.windowWidth = static_cast<glm::vec1>(volumeRender->getDicomTags().windowWidth);
+        dicomUbo.windowCenter = static_cast<glm::vec1>(volumeRender->dicomParamControl.windowCenter);
+        dicomUbo.windowWidth = static_cast<glm::vec1>(volumeRender->dicomParamControl.windowWidth);
         dicomUbo.minVal = static_cast<glm::vec1>(volumeRender->getDicomTags().minVal);
         dicomUbo.tau = static_cast<glm::vec1>(volumeRender->dicomParamControl.tau);
         dicomUbo.steps = static_cast<glm::int16>(volumeRender->dicomParamControl.steps);
+        dicomUbo.stepLength = static_cast<glm::vec1>(volumeRender->dicomParamControl.stepLength);
+        dicomUbo.glow = static_cast<glm::vec1>(volumeRender->dicomParamControl.glow);
         memcpy(dicomUniformBuffersMapped[currentFrame], &dicomUbo, sizeof(dicomUbo));
 
     }

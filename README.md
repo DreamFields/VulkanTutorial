@@ -1,5 +1,10 @@
 # VulkanTutorial
 
+## 启动
+```bash
+
+```
+
 ## Vulkan的多pass渲染
 
 - https://github.com/SaschaWillems/Vulkan/tree/master/examples/subpasses

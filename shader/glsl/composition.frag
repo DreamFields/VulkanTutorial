@@ -17,6 +17,8 @@ layout(binding=3)uniform DicomUniformBufferObject{
     float minVal;
     float tau;
     int steps;
+    float stepLength;
+    float glow;
 }dicomUbo;
 
 layout(location=0)in vec3 inColor;
@@ -26,81 +28,58 @@ layout(location=2)in vec3 inFrontPos;
 layout(location=0)out vec4 outColor;
 
 vec4 get3DTextureColor(vec3 pos){
-    vec4 color=texture(tex3DSampler,pos);
-    // vec3 color = pow(color_srgb.rgb,vec3(1./2.2));
-    float intensity=color.r*255.+color.g*255.*255.-abs(dicomUbo.minVal);
-    // if(color.b==0.){
-        //         intensity=-intensity;
-    // }
+    vec4 sampleColor=texture(tex3DSampler,pos);
+    float intensity=sampleColor.r*255.+sampleColor.g*255.*255.-abs(dicomUbo.minVal);
     intensity=(intensity-dicomUbo.windowCenter)/dicomUbo.windowWidth+.5;
     intensity=clamp(intensity,0.,1.);
-    return vec4(intensity,intensity,intensity,1.);
-    
-    // int value=61;
-    // float test=(value-45.)/95.+.5;
-    // return vec4(intensity,pow(intensity,2.2),pow((pow(color_srgb.b,2.2)+0.1),1./2.2),1.);
-    // return vec4(intensity,test,color.b,1.);
+    return vec4(intensity,0.,0.,1.);
 }
 
 void main(){
-    // outColor = vec4(inColor,1.0);
-    
     // 通过subpassLoad函数，从subpassInput中加载数据
     vec3 backPos=subpassLoad(inputBackpos).xyz;
-    // outColor=vec4(backPos,1.);
-    
+    // Ray dir
     vec3 dir=normalize(backPos-inFrontPos);
+    // Ray length
     float rayLength=length(backPos-inFrontPos);
-    float steps= float(dicomUbo.steps);
-    float stepLength=rayLength/steps;
+    // Current position
     vec3 currentPos=inFrontPos;
-    // float sampleAlpha=.5;
-    
-    // // 从前向后遍历采样点
-    // vec4 accumulateColor=vec4(0.,0.,0.,0.);
-    // float accumulateAlpha=0.;
-    // float accumulateLength=0.;
-    
-    // for(int i=0;i<steps;i++){
-        //     vec4 sampleColor=get3DTextureColor(currentPos);
-        //     // vec4 sampleColor=texture(tex3DSampler,currentPos);
-        //     if(sampleColor.r!=0.){
-            //         accumulateColor+=sampleColor*(1.-accumulateAlpha);
-            //         accumulateAlpha+=sampleAlpha*(1.-accumulateAlpha);
-        //     }
-        //     accumulateLength+=stepLength;
-        //     currentPos+=dir*stepLength;
-        //     if(accumulateAlpha>.99||accumulateLength>=rayLength){
-            //         break;
-        //     }
-    // }
-    
-    // outColor=accumulateColor;
-    
-    // 从前向后遍历采样点
-    vec4 E=vec4(0.,0.,0.,0.);
+    // Initialize Transparency and Radiance sampleColor
+    vec4 dst=vec4(0.);
+    // T
     float T=1.;
-    float accumulateLength=0.;
+    // accmulate alpha
+    float accmulateAlpha=0.;
+    // control render equation
+    bool isUseTransparency=false;
     
-    for(int i=0;i<steps;i++){
-        vec4 sampleColor=get3DTextureColor(currentPos);
-        // vec4 sampleColor=texture(tex3DSampler,currentPos);
-        if(sampleColor.r!=0.){
-            E=E+T*dicomUbo.tau*sampleColor;
-            // T=T*(1.-dicomUbo.tau * stepLength); // 泰勒展开近似
-            T=T*exp(-dicomUbo.tau * stepLength);
+    // Evaluate form 0 to D
+    for(float s=0.;s<rayLength;){
+        // Get the current step or the remaining interval
+        float h=min(dicomUbo.stepLength,rayLength-s);
+        // Get the current position
+        vec3 pos=currentPos+dir*(s+h*.5);
+        // Get the sampleColor from the 3D texture
+        vec4 sampleColor=get3DTextureColor(pos);
+
+        // 如果使用透明度渲染
+        if(isUseTransparency){
+            // Accumulate the sampleColor
+            dst=dst+T*sampleColor*(1.-exp(-dicomUbo.tau*h))*dicomUbo.glow;
+            // Accumulate the transparency  // !即 T = T * exp(-tau * deltaS)
+            T=T*exp(-dicomUbo.tau*h);
+            
+            if((1.-T)>.99)break;
+        }else{
+            if(sampleColor.r!=0.){
+                dst=dst+sampleColor*(1.-accmulateAlpha)*dicomUbo.glow;
+                accmulateAlpha=accmulateAlpha+dicomUbo.tau*(1.-accmulateAlpha);
+            }
+            if(accmulateAlpha>.99)break;
         }
-        accumulateLength+=stepLength;
-        currentPos+=dir*stepLength;
-        if(T<.01||accumulateLength>=rayLength){
-            break;
-        }
+        
+        // Go to the next interval
+        s=s+h;
     }
-    
-    outColor=E;
-    // outColor=texture(tex3DSampler,vec3(inTexCoord.y,27.0/41.0,inTexCoord.x));
-    // outColor = get3DTextureColor(vec3(inTexCoord.y,27.0/41.0,inTexCoord.x));
-    // outColor=get3DTextureColor(vec3(inTexCoord.x,inTexCoord.y,27./41.));
-    // outColor = texture(tex3DSampler,vec3(inTexCoord.x,inTexCoord.y,27./41.));
-    // outColor = texture(tex3DSampler,vec3(inTexCoord.y,27.0/41.0,inTexCoord.x));
+    outColor=dst;
 }

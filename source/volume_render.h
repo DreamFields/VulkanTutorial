@@ -26,10 +26,12 @@ struct DicomTags {
 };
 
 struct DicomParamControl {
-    double windowCenter;
-    double windowWidth;
+    float windowCenter;
+    float windowWidth;
     float tau;
     int steps;
+    float stepLength;
+    float glow;
 };
 
 class VolumeRender
