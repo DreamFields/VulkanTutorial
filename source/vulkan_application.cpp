@@ -10,7 +10,89 @@ void VulkanApplication::run() {
     cleanup();
 }
 
-void VulkanApplication::createTextureImage() {
+void VulkanApplication::create1DTextureImage(){
+    int texWidth, texHeight, texChannels;
+    // STBI_rgb_alpha 值会强制加载图像的 alpha 通道，即使图像没有 alpha 通道也是如此，这有利于将来与其他纹理保持一致。
+    // 中间三个参数用于输出图像的宽度、高度和实际通道数。
+    // 返回的指针是像素值数组的第一个元素。
+    stbi_uc* pixels = stbi_load("D:\\00.CG_project\\00.VulkanTutorial\\textures\\cm_viridis.png", &texWidth, &texHeight, &texChannels, STBI_rgb_alpha);
+    // unsigned char* pixels = nullptr;
+    // volumeRender->getPixelRGBA("C:\\Users\\Dream\\Documents\\00.Dicom\\ede6fe9eda6e44a98b3ad20da6f9116a Anonymized29\\Unknown Study\\CT Head 5.0000\\CT000027.dcm", texWidth, texHeight, texChannels, pixels);
+
+    VkDeviceSize imageSize = texWidth * 4;
+
+    if (!pixels) {
+        throw std::runtime_error("failed to load texture image!");
+    }
+
+    // 创建临时缓冲区
+    VkBuffer stagingBuffer;
+    VkDeviceMemory stagingBufferMemory;
+    createBuffer(
+        imageSize,
+        VK_BUFFER_USAGE_TRANSFER_SRC_BIT,
+        VK_MEMORY_PROPERTY_HOST_VISIBLE_BIT | VK_MEMORY_PROPERTY_HOST_COHERENT_BIT,
+        stagingBuffer,
+        stagingBufferMemory);
+
+    // 将数据复制到临时缓冲区
+    void* data;
+    vkMapMemory(device, stagingBufferMemory, 0, imageSize, 0, &data);
+    memcpy(data, pixels, static_cast<size_t>(imageSize));
+    vkUnmapMemory(device, stagingBufferMemory);
+
+    // 释放像素数组
+    stbi_image_free(pixels);
+
+    /*
+    虽然我们可以设置着色器来访问缓冲区中的像素值，但最好还是使用 Vulkan 中的图像对象来实现这一目的。
+    首先，图像对象允许我们使用二维坐标，这将使我们更容易、更快速地检索颜色。图像对象中的像素被称为 texels
+     */
+
+     // 创建纹理图像
+    createImage(
+        texWidth,
+        1,
+        1,
+        VK_FORMAT_R8G8B8A8_UNORM,
+        VK_IMAGE_TYPE_1D,
+        VK_IMAGE_TILING_OPTIMAL,
+        VK_IMAGE_USAGE_TRANSFER_DST_BIT | VK_IMAGE_USAGE_SAMPLED_BIT,
+        VK_MEMORY_PROPERTY_DEVICE_LOCAL_BIT,
+        lutImage,
+        lutImageMemory,
+        VK_SAMPLE_COUNT_1_BIT);
+
+    // 将纹理图像转换为 VK_IMAGE_LAYOUT_TRANSFER_DST_OPTIMAL
+    transitionImageLayout(
+        lutImage,
+        VK_FORMAT_R8G8B8A8_UNORM,
+        VK_IMAGE_LAYOUT_UNDEFINED,
+        VK_IMAGE_LAYOUT_TRANSFER_DST_OPTIMAL);
+
+    // 将缓冲区数据复制到图像对象
+    copyBufferToImage(
+        stagingBuffer,
+        lutImage,
+        static_cast<uint32_t>(texWidth),
+        static_cast<uint32_t>(1),
+        1);
+
+    // 为了能够在着色器中开始从纹理图像中采样，我们需要最后一次转换，为着色器访问纹理图像做好准备。
+    // 将纹理图像转换为 VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL
+    transitionImageLayout(
+        lutImage,
+        VK_FORMAT_R8G8B8A8_UNORM,
+        VK_IMAGE_LAYOUT_TRANSFER_DST_OPTIMAL,
+        VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL);
+
+    // 清理临时缓冲区
+    vkDestroyBuffer(device, stagingBuffer, nullptr);
+    vkFreeMemory(device, stagingBufferMemory, nullptr);
+}
+
+
+void VulkanApplication::create2DTextureImage() {
     int texWidth, texHeight, texChannels;
     // STBI_rgb_alpha 值会强制加载图像的 alpha 通道，即使图像没有 alpha 通道也是如此，这有利于将来与其他纹理保持一致。
     // 中间三个参数用于输出图像的宽度、高度和实际通道数。
@@ -281,6 +363,7 @@ void VulkanApplication::createTextureImageView() {
     // 创建纹理的图像视图
     // textureImageView = createImageView(textureImage, VK_FORMAT_R8G8B8A8_UNORM, VK_IMAGE_VIEW_TYPE_2D);
     textureImageView = createImageView(textureImage, VK_FORMAT_R8G8B8A8_UNORM, VK_IMAGE_VIEW_TYPE_3D);
+    lutImageView = createImageView(lutImage, VK_FORMAT_R8G8B8A8_UNORM, VK_IMAGE_VIEW_TYPE_1D);
 }
 
 

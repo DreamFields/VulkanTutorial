@@ -20,6 +20,7 @@ layout(binding=3)uniform DicomUniformBufferObject{
     float stepLength;
     float glow;
 }dicomUbo;
+layout(binding=4)uniform sampler1D lutTexSampler;
 
 layout(location=0)in vec3 inColor;
 layout(location=1)in vec2 inTexCoord;
@@ -32,7 +33,9 @@ vec4 get3DTextureColor(vec3 pos){
     float intensity=sampleColor.r*255.+sampleColor.g*255.*255.-abs(dicomUbo.minVal);
     intensity=(intensity-dicomUbo.windowCenter)/dicomUbo.windowWidth+.5;
     intensity=clamp(intensity,0.,1.);
-    return vec4(intensity,0.,0.,1.);
+    if(intensity==0.)return vec4(0.);
+    // 通过采样器，从lutTexSampler中加载数据，相当于传递函数的实现
+    return texture(lutTexSampler,intensity);
 }
 
 void main(){

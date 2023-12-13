@@ -221,6 +221,11 @@ private:
     VkDeviceMemory backFaceImageMemory;
     VkImageView backFaceImageView;
 
+    // look up table texture
+    VkImage lutImage;
+    VkDeviceMemory lutImageMemory;
+    VkImageView lutImageView;
+
     std::vector<VkBuffer> uniformBuffers;
     std::vector<VkDeviceMemory> uniformBuffersMemory;
     std::vector<void*> uniformBuffersMapped;
@@ -246,7 +251,8 @@ private:
     bool framebufferResized = false;
     bool shouldExit = false;
 
-    void createTextureImage();
+    void create1DTextureImage();
+    void create2DTextureImage();
     void create3DTextureImage();
     void createTextureImageView();
     void createImage(uint32_t width, uint32_t height, uint32_t depth, VkFormat format, VkImageType imageType, VkImageTiling tiling, VkImageUsageFlags usage,
@@ -342,9 +348,10 @@ private:
         createDescriptorSetLayout();
         createGraphicsPipeline();
         createCommandPool();
-        // createTextureImage();
+        // create2DTextureImage();
         createBackposAttachmentImage(); // 创建附件图像，用于存储上一阶段渲染的图像，而不是从文件传入的纹理
         create3DTextureImage();
+        create1DTextureImage();
         createTextureImageView(); // 创建纹理图像视图
         createFramebuffers();
         createTextureSampler();
@@ -407,6 +414,10 @@ private:
         vkDestroyImageView(device, backFaceImageView, nullptr);
         vkDestroyImage(device, backFaceImage, nullptr);
         vkFreeMemory(device, backFaceImageMemory, nullptr);
+        
+        vkDestroyImageView(device, lutImageView, nullptr);
+        vkDestroyImage(device, lutImage, nullptr);
+        vkFreeMemory(device, lutImageMemory, nullptr);
 
         for (size_t i = 0; i < MAX_FRAMES_IN_FLIGHT; i++)
         {
@@ -797,11 +808,19 @@ private:
         dicomUboLayoutBinding.stageFlags = VK_SHADER_STAGE_FRAGMENT_BIT;
         dicomUboLayoutBinding.pImmutableSamplers = nullptr;
 
-        std::array<VkDescriptorSetLayoutBinding, 4> bindings = {
+        VkDescriptorSetLayoutBinding lutLayoutBinding{};
+        lutLayoutBinding.binding = 4;
+        lutLayoutBinding.descriptorType = VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER;
+        lutLayoutBinding.descriptorCount = 1;
+        lutLayoutBinding.stageFlags = VK_SHADER_STAGE_FRAGMENT_BIT;
+        lutLayoutBinding.pImmutableSamplers = nullptr;
+
+        std::array<VkDescriptorSetLayoutBinding, 5> bindings = {
             uboLayoutBinding,
             samplerLayoutBinding,
             backFaceLayoutBinding,
-            dicomUboLayoutBinding
+            dicomUboLayoutBinding,
+            lutLayoutBinding
         };
 
         // 创建描述符布局
@@ -1309,12 +1328,17 @@ private:
             backFaceImageInfo.imageView = backFaceImageView; // 图像视图
             backFaceImageInfo.sampler = VK_NULL_HANDLE; // *纹理采样器这里暂时为空
 
+            VkDescriptorImageInfo lutImageInfo{};
+            lutImageInfo.imageLayout = VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL; // 图像布局
+            lutImageInfo.imageView = lutImageView; // 图像视图
+            lutImageInfo.sampler = textureSampler; // 纹理采样器
+
             VkDescriptorBufferInfo dicomBufferInfo{};
             dicomBufferInfo.buffer = dicomUniformBuffers[i]; // 缓冲区
             dicomBufferInfo.offset = 0; // 偏移量
             dicomBufferInfo.range = sizeof(DicomUniformBufferObject); // 范围
 
-            std::array<VkWriteDescriptorSet, 4> descriptorWrite{};
+            std::array<VkWriteDescriptorSet, 5> descriptorWrite{};
             descriptorWrite[0].sType = VK_STRUCTURE_TYPE_WRITE_DESCRIPTOR_SET;
             descriptorWrite[0].dstSet = descriptorSets.compositionDescriptorSets[i]; // 描述符集
             descriptorWrite[0].dstBinding = 0; // 描述符绑定
@@ -1354,6 +1378,16 @@ private:
             descriptorWrite[3].pBufferInfo = &dicomBufferInfo;
             descriptorWrite[3].pImageInfo = nullptr; // 图像信息
             descriptorWrite[3].pTexelBufferView = nullptr; // 缓冲区视图
+
+            descriptorWrite[4].sType = VK_STRUCTURE_TYPE_WRITE_DESCRIPTOR_SET;
+            descriptorWrite[4].dstSet = descriptorSets.compositionDescriptorSets[i]; // 描述符集
+            descriptorWrite[4].dstBinding = 4; // 描述符绑定
+            descriptorWrite[4].dstArrayElement = 0; // 描述符数组元素
+            descriptorWrite[4].descriptorType = VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER; // 描述符类型
+            descriptorWrite[4].descriptorCount = 1; // 描述符数量
+            descriptorWrite[4].pBufferInfo = nullptr;
+            descriptorWrite[4].pImageInfo = &lutImageInfo; // 图像信息
+            descriptorWrite[4].pTexelBufferView = nullptr; // 缓冲区视图
 
             vkUpdateDescriptorSets(device, static_cast<uint32_t>(descriptorWrite.size()), descriptorWrite.data(), 0, nullptr);
         }
