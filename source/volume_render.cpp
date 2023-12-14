@@ -123,7 +123,7 @@ bool VolumeRender::loadDicom(std::string path, int numSlice /*= 0*/)
 	dicomParamControl.tau = 1.0f;
 	dicomParamControl.steps = 800;
 	dicomParamControl.stepLength = 0.001f;
-	dicomParamControl.glow = 3.0f;
+	dicomParamControl.glow = 1.0f;
 
 	return true;
 }
@@ -186,21 +186,21 @@ bool VolumeRender::getPixelRGBA(int& width, int& height, int& numSlice, unsigned
 
 			for (int j = 0; j < width * height; ++j)
 			{
-				// Sint16 value = static_cast<Sint16> (pixelData[j]);
-				// double intensity = static_cast<double>((value - dicomTags.windowCenter) / dicomTags.windowWidth) + 0.5f;
-				// if (intensity < 0.0f) intensity = 0.0f;
-				// if (intensity > 1.0f) intensity = 1.0f;
-				// rgba[index * width * height * 4 + j * 4 + 0] = static_cast<unsigned char>(intensity * 255);
-				// rgba[index * width * height * 4 + j * 4 + 1] = static_cast<unsigned char>(intensity * 255);
-				// rgba[index * width * height * 4 + j * 4 + 2] = static_cast<unsigned char>(intensity * 255);
-				// rgba[index * width * height * 4 + j * 4 + 3] = 255;
-
+				// 未排序
 				int value = static_cast<int> (pixelData[j]);
 				value += +abs(dicomTags.minVal);
 				rgba[index * width * height * 4 + j * 4 + 0] = static_cast<unsigned char>(value & 0xff);
 				rgba[index * width * height * 4 + j * 4 + 1] = static_cast<unsigned char>((value >> 8) & 0xff);
 				rgba[index * width * height * 4 + j * 4 + 2] = 255;
 				rgba[index * width * height * 4 + j * 4 + 3] = 255;
+
+				// 排序
+				// int value = static_cast<int> (pixelData[j]);
+				// value += +abs(dicomTags.minVal);
+				// rgba[i * width * height * 4 + j * 4 + 0] = static_cast<unsigned char>(value & 0xff);
+				// rgba[i * width * height * 4 + j * 4 + 1] = static_cast<unsigned char>((value >> 8) & 0xff);
+				// rgba[i * width * height * 4 + j * 4 + 2] = 255;
+				// rgba[i * width * height * 4 + j * 4 + 3] = 255;
 			}
 
 	}
