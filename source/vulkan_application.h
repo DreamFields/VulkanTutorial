@@ -130,7 +130,7 @@ struct DicomUniformBufferObject {
     glm::vec1 windowCenter;
     glm::vec1 windowWidth;
     glm::vec1 minVal;
-    glm::vec1 tau;
+    glm::vec1 alphaCorrection;
     glm::int16 steps;
     glm::vec1 stepLength;
     glm::vec1 glow;
@@ -1555,7 +1555,7 @@ private:
         dicomUbo.windowCenter = static_cast<glm::vec1>(volumeRender->dicomParamControl.windowCenter);
         dicomUbo.windowWidth = static_cast<glm::vec1>(volumeRender->dicomParamControl.windowWidth);
         dicomUbo.minVal = static_cast<glm::vec1>(volumeRender->getDicomTags().minVal);
-        dicomUbo.tau = static_cast<glm::vec1>(volumeRender->dicomParamControl.tau);
+        dicomUbo.alphaCorrection = static_cast<glm::vec1>(volumeRender->dicomParamControl.alphaCorrection);
         dicomUbo.steps = static_cast<glm::int16>(volumeRender->dicomParamControl.steps);
         dicomUbo.stepLength = static_cast<glm::vec1>(volumeRender->dicomParamControl.stepLength);
         dicomUbo.glow = static_cast<glm::vec1>(volumeRender->dicomParamControl.glow);

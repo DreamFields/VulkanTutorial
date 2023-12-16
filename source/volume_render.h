@@ -28,7 +28,7 @@ struct DicomTags {
 struct DicomParamControl {
     float windowCenter;
     float windowWidth;
-    float tau;
+    float alphaCorrection;
     int steps;
     float stepLength;
     float glow;

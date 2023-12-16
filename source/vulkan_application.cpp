@@ -790,12 +790,12 @@ void VulkanApplication::drawImGui() {
         ImGui::Text(" %.3f ms/frame (%.1f FPS)", 1000.0f / ImGui::GetIO().Framerate,
             ImGui::GetIO().Framerate);
 
-        ImGui::SliderFloat("tau", &volumeRender->dicomParamControl.tau, 0.0f, 256.0f);
+        ImGui::SliderFloat("alphaCorrection", &volumeRender->dicomParamControl.alphaCorrection, 0.0f, 256.0f);
         ImGui::SliderInt("steps", &volumeRender->dicomParamControl.steps, 100, 1500);
         ImGui::SliderFloat("stepLength", &volumeRender->dicomParamControl.stepLength, 0.0f, 0.002f);
         ImGui::SliderFloat("WindowWidth", &volumeRender->dicomParamControl.windowWidth, 0.0f, 200.0f);
         ImGui::SliderFloat("WindowCenter", &volumeRender->dicomParamControl.windowCenter, 0.0f, 1000.0f);
-        ImGui::SliderFloat("glow", &volumeRender->dicomParamControl.glow, 0.0f, 100.0f);
+        ImGui::SliderFloat("glow", &volumeRender->dicomParamControl.glow, 0.0f, 3.0f);
 
         ImGui::Checkbox("Demo Window", &showDemoWindow);      // Edit bools storing our window open/close state
         ImGui::Checkbox("Another Window", &showAnotherWindow);

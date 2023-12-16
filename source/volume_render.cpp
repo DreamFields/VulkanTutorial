@@ -120,7 +120,7 @@ bool VolumeRender::loadDicom(std::string path, int numSlice /*= 0*/)
 
 	dicomParamControl.windowCenter = static_cast<float>(dicomTags.windowCenter);
 	dicomParamControl.windowWidth  = static_cast<float>(dicomTags.windowWidth);
-	dicomParamControl.tau = 1.0f;
+	dicomParamControl.alphaCorrection = 1.0f;
 	dicomParamControl.steps = 800;
 	dicomParamControl.stepLength = 0.001f;
 	dicomParamControl.glow = 1.0f;
