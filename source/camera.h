@@ -6,6 +6,9 @@
 #define GLM_FORCE_RADIANS
 #include <glm.hpp>
 #include <gtc/matrix_transform.hpp>
+
+#include "volume_render.h"
+
 class Camera
 {
 public:

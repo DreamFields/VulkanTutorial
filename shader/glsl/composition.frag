@@ -12,13 +12,16 @@ layout(binding=1)uniform sampler3D tex3DSampler;
 // 这里的binding=2，对应于 compositionDescriptorWrite[2].dstBinding = 2
 layout(input_attachment_index=0,binding=2)uniform subpassInput inputBackpos;
 layout(binding=3)uniform DicomUniformBufferObject{
+    vec3 voxelSize;
+    vec3 voxelResolution;
+    vec3 boxSize;
     float windowCenter;
     float windowWidth;
     float minVal;
     float alphaCorrection; // 作为透明度的矫正系数
-    int steps;
     float stepLength;
     float glow;
+    int steps;
 }dicomUbo;
 layout(binding=4)uniform sampler1D lutTexSampler;
 
@@ -28,8 +31,10 @@ layout(location=2)in vec3 inFrontPos;
 
 layout(location=0)out vec4 outColor;
 
-vec4 get3DTextureColor(vec3 pos){
-    vec4 sampleColor=texture(tex3DSampler,pos);
+vec4 get3DTextureColor(vec3 worldPos){
+    // 将世界坐标转换为纹理坐标,并归一化后再采样
+    vec3 texPos=worldPos/dicomUbo.boxSize;
+    vec4 sampleColor=texture(tex3DSampler,texPos); 
     float intensity=sampleColor.r*255.+sampleColor.g*255.*255.-abs(dicomUbo.minVal);
     intensity=(intensity-dicomUbo.windowCenter)/dicomUbo.windowWidth+.5;
     intensity=clamp(intensity,0.,1.);
@@ -165,4 +170,5 @@ void main(){
     // vec4 color=opaqueMethod(stepLength,rayLength,dir,currentPos);
     
     outColor=color;
+    // outColor=vec4(backPos,1.);
 }

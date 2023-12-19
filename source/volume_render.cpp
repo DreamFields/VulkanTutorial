@@ -16,6 +16,10 @@ bool VolumeRender::loadDicom(std::string path, int numSlice /*= 0*/)
 	dicomTags.minVal = INT_MAX;
 	dicomTags.fileIndex.clear();
 	dicomTags.fileIndex.resize(numSlice);
+	dicomTags.voxelSize = glm::vec3(1.0f, 1.0f, 1.0f);
+	dicomTags.realSize = glm::vec3(1.0f, 1.0f, 1.0f);
+	dicomTags.boxSize = glm::vec3(1.0f, 1.0f, 1.0f);
+	dicomTags.voxelResolution = glm::vec3(1.0f, 1.0f, static_cast<float>(numSlice));
 	std::vector<std::pair<int, int>> fileIndex(numSlice);
 	for (size_t index = 0; index < numSlice; index++)
 	{
@@ -44,8 +48,10 @@ bool VolumeRender::loadDicom(std::string path, int numSlice /*= 0*/)
 				std::cout << "Load Dimcom File Error: " << DicomImage::getString(image->getStatus()) << std::endl;
 				return false;
 			}
-			dicomTags.boxWidth = static_cast<int>(image->getWidth());
-			dicomTags.boxHeight = static_cast<int>(image->getHeight());
+			// dicomTags.voxelResolution[0] = static_cast<int>(image->getWidth());
+			// dicomTags.voxelResolution[1] = static_cast<int>(image->getHeight());
+			dicomTags.voxelResolution[0] = static_cast<float>(image->getWidth());
+			dicomTags.voxelResolution[1] = static_cast<float>(image->getHeight());
 
 			// window_center
 			if (!dataset->findAndGetFloat64(DCM_WindowCenter, dicomTags.windowCenter).good())
@@ -69,13 +75,53 @@ bool VolumeRender::loadDicom(std::string path, int numSlice /*= 0*/)
 			{
 				std::runtime_error("intercept not found.\r\n");
 			}
+
+			// pixelSpacing
+			OFString pixelSpacing0;
+			if (!dataset->findAndGetOFString(DCM_PixelSpacing, pixelSpacing0, 0).good())
+			{
+				std::runtime_error("pixelSpacing not found.\r\n");
+			}
+			dicomTags.voxelSize[0] = std::stof(pixelSpacing0.c_str());
+			std::cout << "Pixel Spacing0 = " << pixelSpacing0 << std::endl;
+
+			OFString pixelSpacing1;
+			if (!dataset->findAndGetOFString(DCM_PixelSpacing, pixelSpacing1, 1).good())
+			{
+				std::runtime_error("pixelSpacing not found.\r\n");
+			}
+			dicomTags.voxelSize[1] = std::stof(pixelSpacing1.c_str());
+			std::cout << "Pixel Spacing1 = " << pixelSpacing1 << std::endl;
+
+			// thickness
+			OFString sliceThickness;
+			if (!dataset->findAndGetOFString(DCM_SliceThickness, sliceThickness).good())
+			{
+				std::runtime_error("sliceThickness not found.\r\n");
+			}
+			dicomTags.voxelSize[2] = std::stof(sliceThickness.c_str());
+			std::cout << "Slice Thickness = " << sliceThickness << std::endl;
+
+			// realSize
+			dicomTags.realSize[0] = dicomTags.voxelSize[0] * dicomTags.voxelResolution[0];
+			dicomTags.realSize[1] = dicomTags.voxelSize[1] * dicomTags.voxelResolution[1];
+			dicomTags.realSize[2] = dicomTags.voxelSize[2] * dicomTags.numSlice;
+			std::cout << "Real Size = " << dicomTags.realSize[0] << ", " << dicomTags.realSize[1] << ", " << dicomTags.realSize[2] << std::endl;
+
+			// boxGeometry
+			glm::float32 maxSize = std::max(dicomTags.realSize[0], std::max(dicomTags.realSize[1], dicomTags.realSize[2]));
+			dicomTags.boxSize[0] = dicomTags.realSize[0] / maxSize;
+			dicomTags.boxSize[1] = dicomTags.realSize[1] / maxSize;
+			dicomTags.boxSize[2] = dicomTags.realSize[2] / maxSize;
+			std::cout << "Box Size = " << dicomTags.boxSize[0] << ", " << dicomTags.boxSize[1] << ", " << dicomTags.boxSize[2] << std::endl;
+
 		}
 		// max and min value
 		const DiPixel* pix = (image->getInterData());
 		EP_Representation rep = pix->getRepresentation();
 		Sint16* pixelData = (Sint16*)pix->getData();
 		unsigned long numPixels = pix->getCount();
-		for (int i = 0; i < dicomTags.boxWidth * dicomTags.boxHeight; ++i)
+		for (int i = 0; i < dicomTags.voxelResolution[0] * dicomTags.voxelResolution[1]; ++i)
 		{
 			Sint16 value = static_cast<Sint16> (pixelData[i]);
 			if (value > dicomTags.maxVal) dicomTags.maxVal = value;
@@ -92,10 +138,10 @@ bool VolumeRender::loadDicom(std::string path, int numSlice /*= 0*/)
 	}
 	std::sort(fileIndex.begin(), fileIndex.end(), [](std::pair<int, int> a, std::pair<int, int> b) {return a.second < b.second; });
 	// cout fileIndex
-	for (size_t index = 0; index < numSlice; index++)
-	{
-		std::cout << fileIndex[index].first << " " << fileIndex[index].second << std::endl;
-	}
+	// for (size_t index = 0; index < numSlice; index++)
+	// {
+	// 	std::cout << fileIndex[index].first << " " << fileIndex[index].second << std::endl;
+	// }
 	for (size_t index = 0; index < numSlice; index++)
 	{
 		dicomTags.fileIndex[index] = fileIndex[index].first;
@@ -104,8 +150,8 @@ bool VolumeRender::loadDicom(std::string path, int numSlice /*= 0*/)
 	// cout dicomtags
 	std::cout << "Folder Path: " << dicomTags.folderPath << std::endl;
 	std::cout << "Num Slice: " << dicomTags.numSlice << std::endl;
-	std::cout << "Box Width: " << dicomTags.boxWidth << std::endl;
-	std::cout << "Box Height: " << dicomTags.boxHeight << std::endl;
+	std::cout << "Box Width: " << dicomTags.voxelResolution[0] << std::endl;
+	std::cout << "Box Height: " << dicomTags.voxelResolution[1] << std::endl;
 	std::cout << "Window Center: " << dicomTags.windowCenter << std::endl;
 	std::cout << "Window Width: " << dicomTags.windowWidth << std::endl;
 	std::cout << "Rescale Slope: " << dicomTags.rescaleSlope << std::endl;
@@ -119,19 +165,19 @@ bool VolumeRender::loadDicom(std::string path, int numSlice /*= 0*/)
 	}
 
 	dicomParamControl.windowCenter = static_cast<float>(dicomTags.windowCenter);
-	dicomParamControl.windowWidth  = static_cast<float>(dicomTags.windowWidth);
-	dicomParamControl.alphaCorrection = 1.0f;
+	dicomParamControl.windowWidth = static_cast<float>(dicomTags.windowWidth);
+	dicomParamControl.alphaCorrection = 25.0f;
 	dicomParamControl.steps = 800;
 	dicomParamControl.stepLength = 0.001f;
-	dicomParamControl.glow = 1.0f;
+	dicomParamControl.glow = 1.5f;
 
 	return true;
 }
 
 bool VolumeRender::getPixelRGBA(int& width, int& height, int& numSlice, unsigned char*& rgba)
 {
-	width = dicomTags.boxWidth;
-	height = dicomTags.boxHeight;
+	width = dicomTags.voxelResolution[0];
+	height = dicomTags.voxelResolution[1];
 	numSlice = dicomTags.numSlice;
 	rgba = new unsigned char[width * height * numSlice * 4];
 	std::string path = dicomTags.folderPath;
@@ -156,13 +202,13 @@ bool VolumeRender::getPixelRGBA(int& width, int& height, int& numSlice, unsigned
 		{
 			std::runtime_error("instanceUID not found.\r\n");
 		}
-		std::cout << "Instance UID: " << instanceUID << std::endl;
-		if (image == nullptr)
-		{
-			std::cout << "Load Dimcom File Error: " << filePath << std::endl;
-			return false;
-		}
-		std::cout << "Load Dimcom File: " << filePath << std::endl;
+		// std::cout << "Instance UID: " << instanceUID << std::endl;
+		// if (image == nullptr)
+		// {
+		// 	std::cout << "Load Dimcom File Error: " << filePath << std::endl;
+		// 	return false;
+		// }
+		// std::cout << "Load Dimcom File: " << filePath << std::endl;
 
 		// 获取像素数据
 		const DiPixel* pix = (image->getInterData());
@@ -184,24 +230,24 @@ bool VolumeRender::getPixelRGBA(int& width, int& height, int& numSlice, unsigned
 		//	windowWidth = tmpmaxValue - tmpminValue;
 		//}
 
-			for (int j = 0; j < width * height; ++j)
-			{
-				// 未排序
-				int value = static_cast<int> (pixelData[j]);
-				value += +abs(dicomTags.minVal);
-				rgba[index * width * height * 4 + j * 4 + 0] = static_cast<unsigned char>(value & 0xff);
-				rgba[index * width * height * 4 + j * 4 + 1] = static_cast<unsigned char>((value >> 8) & 0xff);
-				rgba[index * width * height * 4 + j * 4 + 2] = 255;
-				rgba[index * width * height * 4 + j * 4 + 3] = 255;
+		for (int j = 0; j < width * height; ++j)
+		{
+			// 未排序
+			int value = static_cast<int> (pixelData[j]);
+			value += +abs(dicomTags.minVal);
+			rgba[index * width * height * 4 + j * 4 + 0] = static_cast<unsigned char>(value & 0xff);
+			rgba[index * width * height * 4 + j * 4 + 1] = static_cast<unsigned char>((value >> 8) & 0xff);
+			rgba[index * width * height * 4 + j * 4 + 2] = 255;
+			rgba[index * width * height * 4 + j * 4 + 3] = 255;
 
-				// 排序
-				// int value = static_cast<int> (pixelData[j]);
-				// value += +abs(dicomTags.minVal);
-				// rgba[i * width * height * 4 + j * 4 + 0] = static_cast<unsigned char>(value & 0xff);
-				// rgba[i * width * height * 4 + j * 4 + 1] = static_cast<unsigned char>((value >> 8) & 0xff);
-				// rgba[i * width * height * 4 + j * 4 + 2] = 255;
-				// rgba[i * width * height * 4 + j * 4 + 3] = 255;
-			}
+			// 排序
+			// int value = static_cast<int> (pixelData[j]);
+			// value += +abs(dicomTags.minVal);
+			// rgba[i * width * height * 4 + j * 4 + 0] = static_cast<unsigned char>(value & 0xff);
+			// rgba[i * width * height * 4 + j * 4 + 1] = static_cast<unsigned char>((value >> 8) & 0xff);
+			// rgba[i * width * height * 4 + j * 4 + 2] = 255;
+			// rgba[i * width * height * 4 + j * 4 + 3] = 255;
+		}
 
 	}
 
@@ -211,4 +257,30 @@ bool VolumeRender::getPixelRGBA(int& width, int& height, int& numSlice, unsigned
 DicomTags VolumeRender::getDicomTags()
 {
 	return dicomTags;
+}
+
+const std::vector<Vertex> VolumeRender::getBoxVertices() {
+	const std::vector<Vertex> vertices = {
+		{{0.0f, 									0.0f,									 static_cast<float>(dicomTags.boxSize[2])}, {1.0f, 0.0f, 0.0f}, {1.0f, 0.0f}},
+		{{static_cast<float>(dicomTags.boxSize[0]), 0.0f,									 static_cast<float>(dicomTags.boxSize[2])}, {1.0f, 0.0f, 0.0f}, {0.0f, 0.0f}},
+		{{static_cast<float>(dicomTags.boxSize[0]), static_cast<float>(dicomTags.boxSize[1]),static_cast<float>(dicomTags.boxSize[2])}, {1.0f, 0.0f, 0.0f}, {0.0f, 1.0f}},
+		{{0.0f, 									static_cast<float>(dicomTags.boxSize[1]),static_cast<float>(dicomTags.boxSize[2])}, {1.0f, 0.0f, 0.0f}, {1.0f, 1.0f}},
+		{{0.0f, 									0.0f,									 0.0f}, {0.0f, 0.0f, 1.0f}, {1.0f, 0.0f}},
+		{{static_cast<float>(dicomTags.boxSize[0]), 0.0f,									 0.0f}, {0.0f, 0.0f, 1.0f}, {0.0f, 0.0f}},
+		{{static_cast<float>(dicomTags.boxSize[0]), static_cast<float>(dicomTags.boxSize[1]),0.0f}, {0.0f, 0.0f, 1.0f}, {0.0f, 1.0f}},
+		{{0.0f, 									static_cast<float>(dicomTags.boxSize[1]),0.0f}, {0.0f, 0.0f, 1.0f}, {1.0f, 1.0f}}
+	};
+
+	// const std::vector<Vertex> vertices = {
+	//     {{0.0f, 0.0f,1.0f}, {1.0f, 0.0f, 0.0f}, {1.0f, 0.0f}},
+	//     {{1.0f, 0.0f,1.0f}, {1.0f, 0.0f, 0.0f}, {0.0f, 0.0f}},
+	//     {{1.0f, 1.0f,1.0f}, {1.0f, 0.0f, 0.0f}, {0.0f, 1.0f}},
+	//     {{0.0f, 1.0f,1.0f}, {1.0f, 0.0f, 0.0f}, {1.0f, 1.0f}},
+	//     {{0.0f, 0.0f,0.0f}, {0.0f, 0.0f, 1.0f}, {1.0f, 0.0f}},
+	//     {{1.0f, 0.0f,0.0f}, {0.0f, 0.0f, 1.0f}, {0.0f, 0.0f}},
+	//     {{1.0f, 1.0f,0.0f}, {0.0f, 0.0f, 1.0f}, {0.0f, 1.0f}},
+	//     {{0.0f, 1.0f,0.0f}, {0.0f, 0.0f, 1.0f}, {1.0f, 1.0f}}
+	// };
+
+	return vertices;
 }

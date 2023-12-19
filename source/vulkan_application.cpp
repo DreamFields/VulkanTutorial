@@ -4,13 +4,33 @@
 
 void VulkanApplication::run() {
     initWindow();
+    initVolume();
+    initGeometry();
     initVulkan();
     initImGui();
     mainLoop();
     cleanup();
 }
 
-void VulkanApplication::create1DTextureImage(){
+void VulkanApplication::initVolume(){
+    volumeRender = std::make_shared<VolumeRender>();
+    volumeRender->loadDicom("C:\\Users\\Dream\\Documents\\00.Dicom\\ede6fe9eda6e44a98b3ad20da6f9116a Anonymized29\\Unknown Study\\CT Head 5.0000\\", 41);
+}
+
+void VulkanApplication::initGeometry() {
+    vertices = volumeRender->getBoxVertices();
+    // 与vertics中的索引匹配,绘制立方体,按照顺时针绘制
+    indices = {
+        0, 1, 2, 2, 3, 0,
+        1, 5, 6, 6, 2, 1,
+        7, 6, 5, 5, 4, 7,
+        4, 0, 3, 3, 7, 4,
+        4, 5, 1, 1, 0, 4,
+        3, 2, 6, 6, 7, 3
+    };
+}
+
+void VulkanApplication::create1DTextureImage() {
     int texWidth, texHeight, texChannels;
     // STBI_rgb_alpha 值会强制加载图像的 alpha 通道，即使图像没有 alpha 通道也是如此，这有利于将来与其他纹理保持一致。
     // 中间三个参数用于输出图像的宽度、高度和实际通道数。
@@ -141,13 +161,13 @@ void VulkanApplication::create2DTextureImage() {
         VK_IMAGE_TILING_OPTIMAL,
         VK_IMAGE_USAGE_TRANSFER_DST_BIT | VK_IMAGE_USAGE_SAMPLED_BIT,
         VK_MEMORY_PROPERTY_DEVICE_LOCAL_BIT,
-        textureImage,
-        textureImageMemory,
+        texture3DImage,
+        texture3DImageMemory,
         VK_SAMPLE_COUNT_1_BIT);
 
     // 将纹理图像转换为 VK_IMAGE_LAYOUT_TRANSFER_DST_OPTIMAL
     transitionImageLayout(
-        textureImage,
+        texture3DImage,
         VK_FORMAT_R8G8B8A8_UNORM,
         VK_IMAGE_LAYOUT_UNDEFINED,
         VK_IMAGE_LAYOUT_TRANSFER_DST_OPTIMAL);
@@ -155,7 +175,7 @@ void VulkanApplication::create2DTextureImage() {
     // 将缓冲区数据复制到图像对象
     copyBufferToImage(
         stagingBuffer,
-        textureImage,
+        texture3DImage,
         static_cast<uint32_t>(texWidth),
         static_cast<uint32_t>(texHeight),
         1);
@@ -163,7 +183,7 @@ void VulkanApplication::create2DTextureImage() {
     // 为了能够在着色器中开始从纹理图像中采样，我们需要最后一次转换，为着色器访问纹理图像做好准备。
     // 将纹理图像转换为 VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL
     transitionImageLayout(
-        textureImage,
+        texture3DImage,
         VK_FORMAT_R8G8B8A8_UNORM,
         VK_IMAGE_LAYOUT_TRANSFER_DST_OPTIMAL,
         VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL);
@@ -180,8 +200,6 @@ void VulkanApplication::create3DTextureImage() {
     // 返回的指针是像素值数组的第一个元素。
     // stbi_uc* pixels = stbi_load("D:\\00.CG_project\\VulkanTutorial\\textures\\texture.jpg", &texWidth, &texHeight, &texChannels, STBI_rgb_alpha);
     unsigned char* pixels = nullptr;
-    volumeRender = std::make_shared<VolumeRender>();
-    volumeRender->loadDicom("C:\\Users\\Dream\\Documents\\00.Dicom\\ede6fe9eda6e44a98b3ad20da6f9116a Anonymized29\\Unknown Study\\CT Head 5.0000\\", 41);
     volumeRender->getPixelRGBA(texWidth, texHeight, texDepth, pixels);
 
     VkDeviceSize imageSize = texWidth * texHeight * texDepth * 4;
@@ -224,13 +242,13 @@ void VulkanApplication::create3DTextureImage() {
         VK_IMAGE_TILING_OPTIMAL,
         VK_IMAGE_USAGE_TRANSFER_DST_BIT | VK_IMAGE_USAGE_SAMPLED_BIT,
         VK_MEMORY_PROPERTY_DEVICE_LOCAL_BIT,
-        textureImage,
-        textureImageMemory,
+        texture3DImage,
+        texture3DImageMemory,
         VK_SAMPLE_COUNT_1_BIT);
 
     // 将纹理图像转换为 VK_IMAGE_LAYOUT_TRANSFER_DST_OPTIMAL
     transitionImageLayout(
-        textureImage,
+        texture3DImage,
         VK_FORMAT_R8G8B8A8_UNORM,
         VK_IMAGE_LAYOUT_UNDEFINED,
         VK_IMAGE_LAYOUT_TRANSFER_DST_OPTIMAL);
@@ -238,7 +256,7 @@ void VulkanApplication::create3DTextureImage() {
     // 将缓冲区数据复制到图像对象
     copyBufferToImage(
         stagingBuffer,
-        textureImage,
+        texture3DImage,
         static_cast<uint32_t>(texWidth),
         static_cast<uint32_t>(texHeight),
         static_cast<uint32_t>(texDepth));
@@ -246,7 +264,7 @@ void VulkanApplication::create3DTextureImage() {
     // 为了能够在着色器中开始从纹理图像中采样，我们需要最后一次转换，为着色器访问纹理图像做好准备。
     // 将纹理图像转换为 VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL
     transitionImageLayout(
-        textureImage,
+        texture3DImage,
         VK_FORMAT_R8G8B8A8_UNORM,
         VK_IMAGE_LAYOUT_TRANSFER_DST_OPTIMAL,
         VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL);
@@ -362,7 +380,7 @@ void VulkanApplication::createTextureImageView() {
 
     // 创建纹理的图像视图
     // textureImageView = createImageView(textureImage, VK_FORMAT_R8G8B8A8_UNORM, VK_IMAGE_VIEW_TYPE_2D);
-    textureImageView = createImageView(textureImage, VK_FORMAT_R8G8B8A8_UNORM, VK_IMAGE_VIEW_TYPE_3D);
+    texture3DImageView = createImageView(texture3DImage, VK_FORMAT_R8G8B8A8_UNORM, VK_IMAGE_VIEW_TYPE_3D);
     lutImageView = createImageView(lutImage, VK_FORMAT_R8G8B8A8_UNORM, VK_IMAGE_VIEW_TYPE_1D);
 }
 
