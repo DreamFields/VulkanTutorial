@@ -7,6 +7,7 @@
 #include <vulkan/vulkan.h>
 
 #include <array>
+#include <vector>
 
 
 struct Vertex {
@@ -68,5 +69,26 @@ struct DicomUniformBufferObject {
     glm::vec1 stepLength;
     glm::vec1 glow;
     glm::int32 steps;
-    
+
+};
+
+struct Compute {
+    VkQueue queue;								        // Separate queue for compute commands (queue family may differ from the one used for graphics)
+    VkCommandPool commandPool;					        // Use a separate command pool (queue family may differ from the one used for graphics)
+    VkDescriptorSetLayout descriptorSetLayout;	        // Compute shader binding layout
+    std::vector<VkDescriptorSet> descriptorSets;        // Compute shader bindings
+    VkPipelineLayout pipelineLayout;			        // Layout of the compute pipeline
+    std::vector<VkPipeline> pipelines;			        // Compute pipelines for image filters
+    std::vector<VkCommandBuffer> commandBuffers;				        // Command buffer storing the dispatch commands and barriers
+    std::vector<VkFence> inFlightFences;                // Compute fences to check compute command buffer completion
+    std::vector<VkSemaphore> finishedSemaphores;        // Compute semaphore to wait for compute completion
+};
+
+struct TextureTarget {
+    VkImage image;
+    VkImageView imageView;
+    VkImageLayout imageLayout;
+    VkSampler sampler;
+    VkDeviceMemory memory;
+    // VkDescriptorImageInfo descriptor;
 };

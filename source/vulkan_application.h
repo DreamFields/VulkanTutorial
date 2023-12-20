@@ -4,6 +4,7 @@
 #include "struct.h"
 #include <debugdraw_vert.h> // 通过库文件的形式来引入着色器文件
 #include <debugdraw_frag.h>
+#include <generateExtinctionCoef_comp.h>
 
 #include <backpos_vert.h>
 #include <backpos_frag.h>
@@ -56,9 +57,10 @@ const bool enableValidationLayers = true;
 struct QueueFamilyIndices {
     std::optional<uint32_t> graphicsFamily;
     std::optional<uint32_t> presentFamily;
+    std::optional<uint32_t> computeFamily;
 
     bool isComplete() {
-        return graphicsFamily.has_value() && presentFamily.has_value();
+        return graphicsFamily.has_value() && presentFamily.has_value() && computeFamily.has_value();
     }
 };
 
@@ -140,10 +142,14 @@ private:
     VkDeviceMemory backFaceImageMemory;
     VkImageView backFaceImageView;
 
-    // look up table texture
+    // look up table texture 1D
     VkImage lutImage;
     VkDeviceMemory lutImageMemory;
     VkImageView lutImageView;
+
+    VkImage test2DImage;
+    VkDeviceMemory test2DImageMemory;
+    VkImageView test2DImageView;
 
     std::vector<VkBuffer> uniformBuffers;
     std::vector<VkDeviceMemory> uniformBuffersMemory;
@@ -169,7 +175,7 @@ private:
 
     bool framebufferResized = false;
     bool shouldExit = false;
-    
+
     void initVolume();
     void initGeometry();
     void create1DTextureImage();
@@ -194,6 +200,14 @@ private:
     void drawImGui();
     void recordImGuiCommandBuffer(uint32_t imageIndex);
     // end imgui
+
+    // begin compute
+    Compute computeResources;   // Compute resources
+    TextureTarget textureTarget; // Target image for compute shader writes
+    void prepareTextureTarget();
+    void prepareCompute();
+    void recordComputeCommandBuffer(uint32_t currentFrame);
+    // end compute
 
     // https://vulkan-tutorial.com/Texture_mapping/Images#page_Layout-transitions
     // 将记录和执行命令缓冲区的逻辑抽象为单独的函数
@@ -280,6 +294,9 @@ private:
         createIndexBuffer();
         createUniformBuffers();
         createDescriptorPool();
+
+        prepareCompute();
+
         createDescriptorSets();
         createCommandBuffers();
         createSyncObjects();
@@ -313,6 +330,21 @@ private:
     }
 
     void cleanup() {
+        // cleanup compute resource
+        vkDestroyImage(device, textureTarget.image, nullptr);
+        vkFreeMemory(device, textureTarget.memory, nullptr);
+        vkDestroyImageView(device, textureTarget.imageView, nullptr);
+        vkDestroyDescriptorSetLayout(device, computeResources.descriptorSetLayout, nullptr);
+        vkDestroyPipelineLayout(device, computeResources.pipelineLayout, nullptr);
+        vkDestroyPipeline(device, computeResources.pipelines[0], nullptr);
+        vkDestroyCommandPool(device, computeResources.commandPool, nullptr);
+        for (auto fence : computeResources.inFlightFences) {
+            vkDestroyFence(device, fence, nullptr);
+        }
+        for (auto semaphore : computeResources.finishedSemaphores) {
+            vkDestroySemaphore(device, semaphore, nullptr);
+        }
+
         // Cleanup DearImGui
         ImGui_ImplVulkan_Shutdown();
         ImGui_ImplGlfw_Shutdown();
@@ -335,7 +367,7 @@ private:
         vkDestroyImageView(device, backFaceImageView, nullptr);
         vkDestroyImage(device, backFaceImage, nullptr);
         vkFreeMemory(device, backFaceImageMemory, nullptr);
-        
+
         vkDestroyImageView(device, lutImageView, nullptr);
         vkDestroyImage(device, lutImage, nullptr);
         vkFreeMemory(device, lutImageMemory, nullptr);
@@ -736,12 +768,20 @@ private:
         lutLayoutBinding.stageFlags = VK_SHADER_STAGE_FRAGMENT_BIT;
         lutLayoutBinding.pImmutableSamplers = nullptr;
 
-        std::array<VkDescriptorSetLayoutBinding, 5> bindings = {
+        VkDescriptorSetLayoutBinding extCoefBingding{};
+        extCoefBingding.binding = 5;
+        extCoefBingding.descriptorType = VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER;
+        extCoefBingding.descriptorCount = 1;
+        extCoefBingding.stageFlags = VK_SHADER_STAGE_FRAGMENT_BIT;
+        extCoefBingding.pImmutableSamplers = nullptr;
+
+        std::array<VkDescriptorSetLayoutBinding, 6> bindings = {
             uboLayoutBinding,
             samplerLayoutBinding,
             backFaceLayoutBinding,
             dicomUboLayoutBinding,
-            lutLayoutBinding
+            lutLayoutBinding,
+            extCoefBingding
         };
 
         // 创建描述符布局
@@ -1167,7 +1207,7 @@ private:
 
     void createDescriptorPool() {
         // 创建描述符池
-        std::array<VkDescriptorPoolSize, 3> poolSize{};
+        std::array<VkDescriptorPoolSize, 4> poolSize{};
         poolSize[0].type = VK_DESCRIPTOR_TYPE_UNIFORM_BUFFER; // 描述符类型
         poolSize[0].descriptorCount = static_cast<uint32_t>(MAX_FRAMES_IN_FLIGHT * 2); // 描述符数量
 
@@ -1177,12 +1217,15 @@ private:
         poolSize[2].type = VK_DESCRIPTOR_TYPE_INPUT_ATTACHMENT; // 描述符类型
         poolSize[2].descriptorCount = static_cast<uint32_t>(MAX_FRAMES_IN_FLIGHT * 2);
 
+        poolSize[3].type = VK_DESCRIPTOR_TYPE_STORAGE_IMAGE; // 描述符类型
+        poolSize[3].descriptorCount = static_cast<uint32_t>(MAX_FRAMES_IN_FLIGHT * 2);
+
         // 描述符池信息
         VkDescriptorPoolCreateInfo poolInfo{};
         poolInfo.sType = VK_STRUCTURE_TYPE_DESCRIPTOR_POOL_CREATE_INFO;
         poolInfo.poolSizeCount = static_cast<uint32_t>(poolSize.size()); // 描述符池大小
         poolInfo.pPoolSizes = poolSize.data();
-        poolInfo.maxSets = static_cast<uint32_t>(MAX_FRAMES_IN_FLIGHT * 2); // 描述符集数量
+        poolInfo.maxSets = static_cast<uint32_t>(MAX_FRAMES_IN_FLIGHT * 3); // 描述符集数量
 
         if (vkCreateDescriptorPool(device, &poolInfo, nullptr, &descriptorPool) != VK_SUCCESS) {
             throw std::runtime_error("failed to create descriptor pool!");
@@ -1259,7 +1302,12 @@ private:
             dicomBufferInfo.offset = 0; // 偏移量
             dicomBufferInfo.range = sizeof(DicomUniformBufferObject); // 范围
 
-            std::array<VkWriteDescriptorSet, 5> descriptorWrite{};
+            VkDescriptorImageInfo extCoefImageInfo{};
+            extCoefImageInfo.imageLayout = VK_IMAGE_LAYOUT_GENERAL; // 图像布局
+            extCoefImageInfo.imageView = textureTarget.imageView;
+            extCoefImageInfo.sampler = textureSampler; // 纹理采样器
+
+            std::array<VkWriteDescriptorSet, 6> descriptorWrite{};
             descriptorWrite[0].sType = VK_STRUCTURE_TYPE_WRITE_DESCRIPTOR_SET;
             descriptorWrite[0].dstSet = descriptorSets.compositionDescriptorSets[i]; // 描述符集
             descriptorWrite[0].dstBinding = 0; // 描述符绑定
@@ -1309,6 +1357,16 @@ private:
             descriptorWrite[4].pBufferInfo = nullptr;
             descriptorWrite[4].pImageInfo = &lutImageInfo; // 图像信息
             descriptorWrite[4].pTexelBufferView = nullptr; // 缓冲区视图
+
+            descriptorWrite[5].sType = VK_STRUCTURE_TYPE_WRITE_DESCRIPTOR_SET;
+            descriptorWrite[5].dstSet = descriptorSets.compositionDescriptorSets[i]; // 描述符集
+            descriptorWrite[5].dstBinding = 5; // 描述符绑定
+            descriptorWrite[5].dstArrayElement = 0; // 描述符数组元素
+            descriptorWrite[5].descriptorType = VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER; // 描述符类型
+            descriptorWrite[5].descriptorCount = 1; // 描述符数量
+            descriptorWrite[5].pBufferInfo = nullptr;
+            descriptorWrite[5].pImageInfo = &extCoefImageInfo; // 图像信息
+            descriptorWrite[5].pTexelBufferView = nullptr; // 缓冲区视图
 
             vkUpdateDescriptorSets(device, static_cast<uint32_t>(descriptorWrite.size()), descriptorWrite.data(), 0, nullptr);
         }
@@ -1486,13 +1544,38 @@ private:
         memcpy(dicomUniformBuffersMapped[currentFrame], &dicomUbo, sizeof(dicomUbo));
 
     }
-
+    
+    // https://vulkan-tutorial.com/Compute_Shader#page_Synchronizing-graphics-and-compute
     void drawFrame() {
-        vkWaitForFences(device, 1, &inFlightFences[currentFrame], VK_TRUE, UINT64_MAX);
-
         uint32_t imageIndex;
         VkResult result = vkAcquireNextImageKHR(device, swapChain, UINT64_MAX, imageAvailableSemaphores[currentFrame], VK_NULL_HANDLE, &imageIndex);
 
+        // --------------------Compute submission-----------------
+        vkWaitForFences(device, 1, &computeResources.inFlightFences[currentFrame], VK_TRUE, UINT64_MAX);
+
+        // update uniform buffer
+        // ...
+
+        vkResetFences(device, 1, &computeResources.inFlightFences[currentFrame]);
+
+        vkResetCommandBuffer(computeResources.commandBuffers[currentFrame], 0);
+        // Build a single command buffer containing the compute dispatch commands
+        recordComputeCommandBuffer(currentFrame);
+
+        // Submit to the compute queue
+        VkSubmitInfo computeSubmitInfo = {};
+        computeSubmitInfo.sType = VK_STRUCTURE_TYPE_SUBMIT_INFO;
+        computeSubmitInfo.commandBufferCount = 1;
+        computeSubmitInfo.pCommandBuffers = &computeResources.commandBuffers[currentFrame];
+        computeSubmitInfo.signalSemaphoreCount = 1;
+        computeSubmitInfo.pSignalSemaphores = &computeResources.finishedSemaphores[currentFrame];
+
+        if (vkQueueSubmit(computeResources.queue, 1, &computeSubmitInfo, computeResources.inFlightFences[currentFrame]) != VK_SUCCESS) {
+            throw std::runtime_error("failed to submit compute command buffer!");
+        }
+
+        // --------------------Graphics submission-----------------
+        vkWaitForFences(device, 1, &inFlightFences[currentFrame], VK_TRUE, UINT64_MAX);
         if (result == VK_ERROR_OUT_OF_DATE_KHR) {
             recreateSwapChain();
             return;
@@ -1500,6 +1583,8 @@ private:
         else if (result != VK_SUCCESS && result != VK_SUBOPTIMAL_KHR) {
             throw std::runtime_error("failed to acquire swap chain image!");
         }
+
+        // update uniform buffer
         camera->updateCameraMove(window);
         updateUniformBuffer(currentFrame);
 
@@ -1509,29 +1594,31 @@ private:
 
         // record UI command buffer
         recordImGuiCommandBuffer(imageIndex);
+        // Submit graphics commands
         recordCommandBuffer(commandBuffers[currentFrame], imageIndex);
 
-        VkSubmitInfo submitInfo{};
-        submitInfo.sType = VK_STRUCTURE_TYPE_SUBMIT_INFO;
+        VkSemaphore waitSemaphores[] = { computeResources.finishedSemaphores[currentFrame], imageAvailableSemaphores[currentFrame] };
+        VkPipelineStageFlags waitStages[] = { VK_PIPELINE_STAGE_COMPUTE_SHADER_BIT , VK_PIPELINE_STAGE_COLOR_ATTACHMENT_OUTPUT_BIT };
 
-        VkSemaphore waitSemaphores[] = { imageAvailableSemaphores[currentFrame] };
-        VkPipelineStageFlags waitStages[] = { VK_PIPELINE_STAGE_COLOR_ATTACHMENT_OUTPUT_BIT };
+        VkSubmitInfo graphicsSubmitInfo{};
+        graphicsSubmitInfo.sType = VK_STRUCTURE_TYPE_SUBMIT_INFO;
+
         std::array<VkCommandBuffer, 2> submitCommandBuffers = { commandBuffers[currentFrame], imguiCommandBuffers[imageIndex] };
-        submitInfo.waitSemaphoreCount = 1;
-        submitInfo.pWaitSemaphores = waitSemaphores;
-        submitInfo.pWaitDstStageMask = waitStages;
-
-        submitInfo.commandBufferCount = static_cast<uint32_t>(submitCommandBuffers.size());
-        submitInfo.pCommandBuffers = submitCommandBuffers.data();
+        graphicsSubmitInfo.waitSemaphoreCount = 2;
+        graphicsSubmitInfo.pWaitSemaphores = waitSemaphores;
+        graphicsSubmitInfo.pWaitDstStageMask = waitStages;
+        graphicsSubmitInfo.commandBufferCount = static_cast<uint32_t>(submitCommandBuffers.size());
+        graphicsSubmitInfo.pCommandBuffers = submitCommandBuffers.data();
 
         VkSemaphore signalSemaphores[] = { renderFinishedSemaphores[currentFrame] };
-        submitInfo.signalSemaphoreCount = 1;
-        submitInfo.pSignalSemaphores = signalSemaphores;
+        graphicsSubmitInfo.signalSemaphoreCount = 1;
+        graphicsSubmitInfo.pSignalSemaphores = signalSemaphores;
 
-        if (vkQueueSubmit(graphicsQueue, 1, &submitInfo, inFlightFences[currentFrame]) != VK_SUCCESS) {
+        if (vkQueueSubmit(graphicsQueue, 1, &graphicsSubmitInfo, inFlightFences[currentFrame]) != VK_SUCCESS) {
             throw std::runtime_error("failed to submit draw command buffer!");
         }
 
+        // --------------------将渲染结果提交到交换链，以便将图像显示到屏幕上--------------------
         VkPresentInfoKHR presentInfo{};
         presentInfo.sType = VK_STRUCTURE_TYPE_PRESENT_INFO_KHR;
 
@@ -1681,8 +1768,10 @@ private:
 
         int i = 0;
         for (const auto& queueFamily : queueFamilies) {
-            if (queueFamily.queueFlags & VK_QUEUE_GRAPHICS_BIT) {
+            // 检查队列族是否支持 VK_QUEUE_GRAPHICS_BIT 标志和 VK_QUEUE_COMPUTE_BIT 标志
+            if ((queueFamily.queueFlags & VK_QUEUE_GRAPHICS_BIT) && (queueFamily.queueFlags & VK_QUEUE_COMPUTE_BIT)) {
                 indices.graphicsFamily = i;
+                indices.computeFamily = i;
             }
 
             VkBool32 presentSupport = false;

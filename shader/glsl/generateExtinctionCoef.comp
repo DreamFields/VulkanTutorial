@@ -1,0 +1,21 @@
+#version 430
+
+layout(binding=0)uniform sampler3D TexInputVolume;
+layout(binding=1,rgba8)uniform image3D TexOutputVolume;
+
+// 假设每个工作组的大小为8x8x8
+layout(local_size_x=8,local_size_y=8,local_size_z=8)in;
+
+void main(){
+    // 获取当前工作组的全局索引
+    uvec3 globalIdx=gl_GlobalInvocationID.xyz;// 计算着色器在3D图像中的位置
+    
+    // 采样位置为当前全局索引除以3D纹理的尺寸，以保证采样坐标在[0, 1]的范围内
+    vec3 samplePos=vec3(globalIdx)/vec3(textureSize(TexInputVolume,0));
+    
+    // 根据全局索引在3D纹理中采样颜色值
+    vec4 color=texture(TexInputVolume,samplePos);
+    
+    // 将颜色值写入输出的3D图像
+    imageStore(TexOutputVolume,ivec3(globalIdx),color);
+}

@@ -12,7 +12,7 @@ void VulkanApplication::run() {
     cleanup();
 }
 
-void VulkanApplication::initVolume(){
+void VulkanApplication::initVolume() {
     volumeRender = std::make_shared<VolumeRender>();
     volumeRender->loadDicom("C:\\Users\\Dream\\Documents\\00.Dicom\\ede6fe9eda6e44a98b3ad20da6f9116a Anonymized29\\Unknown Study\\CT Head 5.0000\\", 41);
 }
@@ -161,13 +161,13 @@ void VulkanApplication::create2DTextureImage() {
         VK_IMAGE_TILING_OPTIMAL,
         VK_IMAGE_USAGE_TRANSFER_DST_BIT | VK_IMAGE_USAGE_SAMPLED_BIT,
         VK_MEMORY_PROPERTY_DEVICE_LOCAL_BIT,
-        texture3DImage,
-        texture3DImageMemory,
+        test2DImage,
+        test2DImageMemory,
         VK_SAMPLE_COUNT_1_BIT);
 
     // 将纹理图像转换为 VK_IMAGE_LAYOUT_TRANSFER_DST_OPTIMAL
     transitionImageLayout(
-        texture3DImage,
+        test2DImage,
         VK_FORMAT_R8G8B8A8_UNORM,
         VK_IMAGE_LAYOUT_UNDEFINED,
         VK_IMAGE_LAYOUT_TRANSFER_DST_OPTIMAL);
@@ -175,7 +175,7 @@ void VulkanApplication::create2DTextureImage() {
     // 将缓冲区数据复制到图像对象
     copyBufferToImage(
         stagingBuffer,
-        texture3DImage,
+        test2DImage,
         static_cast<uint32_t>(texWidth),
         static_cast<uint32_t>(texHeight),
         1);
@@ -183,7 +183,7 @@ void VulkanApplication::create2DTextureImage() {
     // 为了能够在着色器中开始从纹理图像中采样，我们需要最后一次转换，为着色器访问纹理图像做好准备。
     // 将纹理图像转换为 VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL
     transitionImageLayout(
-        texture3DImage,
+        test2DImage,
         VK_FORMAT_R8G8B8A8_UNORM,
         VK_IMAGE_LAYOUT_TRANSFER_DST_OPTIMAL,
         VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL);
@@ -240,7 +240,7 @@ void VulkanApplication::create3DTextureImage() {
         VK_FORMAT_R8G8B8A8_UNORM,
         VK_IMAGE_TYPE_3D,
         VK_IMAGE_TILING_OPTIMAL,
-        VK_IMAGE_USAGE_TRANSFER_DST_BIT | VK_IMAGE_USAGE_SAMPLED_BIT,
+        VK_IMAGE_USAGE_TRANSFER_DST_BIT | VK_IMAGE_USAGE_SAMPLED_BIT | VK_IMAGE_USAGE_STORAGE_BIT,
         VK_MEMORY_PROPERTY_DEVICE_LOCAL_BIT,
         texture3DImage,
         texture3DImageMemory,
@@ -494,6 +494,12 @@ void VulkanApplication::transitionImageLayout(    // 图像布局转换
         barrier.dstAccessMask = VK_ACCESS_SHADER_READ_BIT;   // 读取前访问图像的哪些操作。我们不关心旧数据，因为我们将完全覆盖它
         sourceStage = VK_PIPELINE_STAGE_TRANSFER_BIT;
         destinationStage = VK_PIPELINE_STAGE_FRAGMENT_SHADER_BIT;    // 指定在屏障后执行的管线阶段
+    }
+    else if (oldLayout == VK_IMAGE_LAYOUT_UNDEFINED && newLayout == VK_IMAGE_LAYOUT_GENERAL) {
+        barrier.srcAccessMask = 0;
+        barrier.dstAccessMask = VK_ACCESS_SHADER_WRITE_BIT;
+        sourceStage = VK_PIPELINE_STAGE_TOP_OF_PIPE_BIT; // 在管线开始之前执行转换
+        destinationStage = VK_PIPELINE_STAGE_COMPUTE_SHADER_BIT;    // 计算着色器阶段等待布局转换完成
     }
     else {
         throw std::invalid_argument("unsupported layout transition!");
@@ -873,4 +879,260 @@ void VulkanApplication::recordImGuiCommandBuffer(uint32_t imageIndex) {
     if (vkEndCommandBuffer(imguiCommandBuffers[imageIndex]) != VK_SUCCESS) {
         throw std::runtime_error("failed to record imgui command buffer!");
     }
+}
+
+void VulkanApplication::prepareTextureTarget() {
+    VkFormatProperties formatProperties;
+
+    // Get device properties for the requested texture format
+    vkGetPhysicalDeviceFormatProperties(physicalDevice, VK_FORMAT_R8G8B8A8_UNORM, &formatProperties);
+    // Check if requested image format supports image storage operations
+    assert(formatProperties.optimalTilingFeatures & VK_FORMAT_FEATURE_STORAGE_IMAGE_BIT);
+
+    // Prepare blit target texture
+    VkImageCreateInfo imageCreateInfo = {};
+    imageCreateInfo.sType = VK_STRUCTURE_TYPE_IMAGE_CREATE_INFO;
+    imageCreateInfo.imageType = VK_IMAGE_TYPE_3D;
+    imageCreateInfo.format = VK_FORMAT_R8G8B8A8_UNORM;
+    imageCreateInfo.extent = { static_cast<unsigned int>(volumeRender->getDicomTags().voxelResolution[0])
+        , static_cast<unsigned int>(volumeRender->getDicomTags().voxelResolution[1])
+        , static_cast<unsigned int>(volumeRender->getDicomTags().voxelResolution[2]) };
+    imageCreateInfo.mipLevels = 1;
+    imageCreateInfo.arrayLayers = 1;
+    imageCreateInfo.samples = VK_SAMPLE_COUNT_1_BIT;
+    imageCreateInfo.tiling = VK_IMAGE_TILING_OPTIMAL;
+    // Image will be sampled in the fragment shader and used as storage target in the compute shader
+    imageCreateInfo.usage = VK_IMAGE_USAGE_SAMPLED_BIT | VK_IMAGE_USAGE_STORAGE_BIT;
+    imageCreateInfo.flags = 0;
+    imageCreateInfo.sharingMode = VK_SHARING_MODE_EXCLUSIVE;
+    imageCreateInfo.initialLayout = VK_IMAGE_LAYOUT_UNDEFINED;
+
+    // If compute and graphics queue family indices differ, we create an image that can be shared between them
+    // This can result in worse performance than exclusive sharing mode, but save some synchronization to keep the sample simple
+    QueueFamilyIndices indices = findQueueFamilies(physicalDevice);
+    if (indices.graphicsFamily.value() != indices.computeFamily.value()) {
+        uint32_t queueFamilyIndices[] = { (uint32_t)indices.graphicsFamily.value(), (uint32_t)indices.computeFamily.value() };
+
+        imageCreateInfo.sharingMode = VK_SHARING_MODE_CONCURRENT;
+        imageCreateInfo.queueFamilyIndexCount = 2;
+        imageCreateInfo.pQueueFamilyIndices = queueFamilyIndices;
+    }
+
+    if (vkCreateImage(device, &imageCreateInfo, nullptr, &textureTarget.image) != VK_SUCCESS) {
+        throw std::runtime_error("failed to create texture image!");
+    }
+
+    VkMemoryRequirements memReqs;
+    vkGetImageMemoryRequirements(device, textureTarget.image, &memReqs);
+
+    VkMemoryAllocateInfo memAllocInfo{};
+    memAllocInfo.sType = VK_STRUCTURE_TYPE_MEMORY_ALLOCATE_INFO;
+    memAllocInfo.allocationSize = memReqs.size;
+    // Request a host visible memory type that can be used to copy our data do
+    memAllocInfo.memoryTypeIndex = findMemoryType(memReqs.memoryTypeBits, VK_MEMORY_PROPERTY_DEVICE_LOCAL_BIT);
+
+    if (vkAllocateMemory(device, &memAllocInfo, nullptr, &textureTarget.memory) != VK_SUCCESS) {
+        throw std::runtime_error("failed to allocate memory!");
+    }
+
+    if (vkBindImageMemory(device, textureTarget.image, textureTarget.memory, 0) != VK_SUCCESS) {
+        throw std::runtime_error("failed to bind image memory!");
+    }
+
+    // 将图像布局转换为VK_IMAGE_LAYOUT_GENERAL
+    textureTarget.imageLayout = VK_IMAGE_LAYOUT_GENERAL;
+    transitionImageLayout(textureTarget.image, VK_FORMAT_R8G8B8A8_UNORM, VK_IMAGE_LAYOUT_UNDEFINED, VK_IMAGE_LAYOUT_GENERAL);
+
+    // Create sampler
+    textureTarget.sampler = textureSampler;
+
+    // Create image view
+    textureTarget.imageView = createImageView(textureTarget.image, VK_FORMAT_R8G8B8A8_UNORM, VK_IMAGE_VIEW_TYPE_3D);
+}
+
+void VulkanApplication::prepareCompute()
+{
+    // 创建纹理目标
+    prepareTextureTarget();
+
+    // Get a compute queue from the device
+    QueueFamilyIndices indices = findQueueFamilies(physicalDevice);
+    vkGetDeviceQueue(device, indices.computeFamily.value(), 0, &computeResources.queue);
+
+    // Create compute pipeline
+    // Compute pipelines are created separate from graphics pipelines even if they use the same queue
+    VkDescriptorSetLayoutBinding inputImageLayoutBinding{};
+    inputImageLayoutBinding.binding = 0; // 绑定点
+    inputImageLayoutBinding.descriptorType = VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER; // 描述符类型
+    inputImageLayoutBinding.descriptorCount = 1; // 描述符数量
+    inputImageLayoutBinding.stageFlags = VK_SHADER_STAGE_COMPUTE_BIT; // 着色器阶段
+    inputImageLayoutBinding.pImmutableSamplers = nullptr; // 不使用采样器
+
+    VkDescriptorSetLayoutBinding outputImageLayoutBinding{};
+    outputImageLayoutBinding.binding = 1; // 绑定点
+    outputImageLayoutBinding.descriptorType = VK_DESCRIPTOR_TYPE_STORAGE_IMAGE; // 描述符类型
+    outputImageLayoutBinding.descriptorCount = 1; // 描述符数量
+    outputImageLayoutBinding.stageFlags = VK_SHADER_STAGE_COMPUTE_BIT; // 着色器阶段
+    outputImageLayoutBinding.pImmutableSamplers = nullptr; // 不使用采样器
+
+    std::array<VkDescriptorSetLayoutBinding, 2> bindings = { inputImageLayoutBinding, outputImageLayoutBinding };
+
+    VkDescriptorSetLayoutCreateInfo layoutInfo{};
+    layoutInfo.sType = VK_STRUCTURE_TYPE_DESCRIPTOR_SET_LAYOUT_CREATE_INFO;
+    layoutInfo.bindingCount = static_cast<uint32_t>(bindings.size()); // 描述符绑定数量
+    layoutInfo.pBindings = bindings.data(); // 描述符绑定
+
+    if (vkCreateDescriptorSetLayout(device, &layoutInfo, nullptr, &computeResources.descriptorSetLayout) != VK_SUCCESS) { // 创建描述符集布局
+        throw std::runtime_error("failed to create descriptor set layout!");
+    }
+
+    VkPipelineLayoutCreateInfo pipelineLayoutInfo{};
+    pipelineLayoutInfo.sType = VK_STRUCTURE_TYPE_PIPELINE_LAYOUT_CREATE_INFO;
+    pipelineLayoutInfo.setLayoutCount = 1; // 描述符集布局数量
+    pipelineLayoutInfo.pSetLayouts = &computeResources.descriptorSetLayout; // 描述符集布局
+
+    if (vkCreatePipelineLayout(device, &pipelineLayoutInfo, nullptr, &computeResources.pipelineLayout) != VK_SUCCESS) { // 创建管线布局
+        throw std::runtime_error("failed to create pipeline layout!");
+    }
+
+    std::vector<VkDescriptorSetLayout> layouts(MAX_FRAMES_IN_FLIGHT, computeResources.descriptorSetLayout); // 描述符集布局
+    VkDescriptorSetAllocateInfo allocInfo{};
+    allocInfo.sType = VK_STRUCTURE_TYPE_DESCRIPTOR_SET_ALLOCATE_INFO;
+    allocInfo.descriptorPool = descriptorPool; // 描述符池
+    allocInfo.descriptorSetCount = static_cast<uint32_t>(MAX_FRAMES_IN_FLIGHT); // 描述符集数量
+    allocInfo.pSetLayouts = layouts.data(); // 描述符集布局
+
+    computeResources.descriptorSets.resize(MAX_FRAMES_IN_FLIGHT);
+    if (vkAllocateDescriptorSets(device, &allocInfo, computeResources.descriptorSets.data()) != VK_SUCCESS) { // 分配描述符集
+        throw std::runtime_error("failed to allocate computeResources descriptor sets!");
+    }
+
+    // 更新描述符集
+    for (size_t i = 0; i < MAX_FRAMES_IN_FLIGHT; i++) {
+        // 输入的是3D的纹理
+        VkDescriptorImageInfo inputImageInfo{};
+        inputImageInfo.imageLayout = VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL; // 图像布局
+        inputImageInfo.imageView = texture3DImageView; // 图像视图
+        inputImageInfo.sampler = textureSampler; // 纹理采样器
+
+        VkWriteDescriptorSet inputImageDescriptorWrite{};
+        inputImageDescriptorWrite.sType = VK_STRUCTURE_TYPE_WRITE_DESCRIPTOR_SET;
+        inputImageDescriptorWrite.dstSet = computeResources.descriptorSets[i]; // 目标描述符集
+        inputImageDescriptorWrite.dstBinding = 0; // 目标绑定点
+        inputImageDescriptorWrite.dstArrayElement = 0; // 目标数组元素
+        inputImageDescriptorWrite.descriptorType = VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER; // 描述符类型
+        inputImageDescriptorWrite.descriptorCount = 1; // 描述符数量
+        inputImageDescriptorWrite.pBufferInfo = nullptr; // 缓冲区信息
+        inputImageDescriptorWrite.pImageInfo = &inputImageInfo; // 图像信息
+
+        // 输出的是3D的纹理
+        VkDescriptorImageInfo outputImageInfo{};
+        outputImageInfo.imageLayout = VK_IMAGE_LAYOUT_GENERAL; // 图像布局
+        outputImageInfo.imageView = textureTarget.imageView; // 图像视图
+        outputImageInfo.sampler = textureTarget.sampler; // 纹理采样器
+
+        VkWriteDescriptorSet outputImageDescriptorWrite{};
+        outputImageDescriptorWrite.sType = VK_STRUCTURE_TYPE_WRITE_DESCRIPTOR_SET;
+        outputImageDescriptorWrite.dstSet = computeResources.descriptorSets[i]; // 目标描述符集
+        outputImageDescriptorWrite.dstBinding = 1; // 目标绑定点
+        outputImageDescriptorWrite.dstArrayElement = 0; // 目标数组元素
+        outputImageDescriptorWrite.descriptorType = VK_DESCRIPTOR_TYPE_STORAGE_IMAGE; // 描述符类型
+        outputImageDescriptorWrite.descriptorCount = 1; // 描述符数量
+        outputImageDescriptorWrite.pBufferInfo = nullptr; // 缓冲区信息
+        outputImageDescriptorWrite.pImageInfo = &outputImageInfo; // 图像信息
+
+        std::array<VkWriteDescriptorSet, 2> computeWrites = { inputImageDescriptorWrite, outputImageDescriptorWrite };
+
+        vkUpdateDescriptorSets(device, static_cast<uint32_t>(computeWrites.size()), computeWrites.data(), 0, nullptr); // 更新描述符集
+    }
+
+    // Create compute shader pipelines
+    VkComputePipelineCreateInfo computePipelineCreateInfo{};
+    computePipelineCreateInfo.sType = VK_STRUCTURE_TYPE_COMPUTE_PIPELINE_CREATE_INFO;
+    computePipelineCreateInfo.layout = computeResources.pipelineLayout; // 管线布局
+
+    // Create shader modules
+    VkShaderModule computeShaderModule = createShaderModule(GENERATEEXTINCTIONCOEF_COMP);
+    computePipelineCreateInfo.stage.sType = VK_STRUCTURE_TYPE_PIPELINE_SHADER_STAGE_CREATE_INFO;
+    computePipelineCreateInfo.stage.stage = VK_SHADER_STAGE_COMPUTE_BIT; // 着色器阶段
+    computePipelineCreateInfo.stage.module = computeShaderModule; // 着色器模块
+    computePipelineCreateInfo.stage.pName = "main"; // 着色器入口函数名称
+
+    VkPipeline pipeline;
+    if (vkCreateComputePipelines(device, VK_NULL_HANDLE, 1, &computePipelineCreateInfo, nullptr, &pipeline) != VK_SUCCESS) { // 创建管线
+        throw std::runtime_error("failed to create compute pipeline!");
+    }
+    computeResources.pipelines.push_back(pipeline);
+
+    // Destroy shader modules
+    vkDestroyShaderModule(device, computeShaderModule, nullptr);
+
+    // create command pool
+    VkCommandPoolCreateInfo poolInfo{};
+    poolInfo.sType = VK_STRUCTURE_TYPE_COMMAND_POOL_CREATE_INFO;
+    poolInfo.queueFamilyIndex = indices.computeFamily.value(); // 指定队列族
+    poolInfo.flags = VK_COMMAND_POOL_CREATE_RESET_COMMAND_BUFFER_BIT;  // 指定命令缓冲区的标志
+
+    if (vkCreateCommandPool(device, &poolInfo, nullptr, &computeResources.commandPool) != VK_SUCCESS) { // 创建命令池
+        throw std::runtime_error("failed to create command pool!");
+    }
+
+    // Create a command buffer for compute operations
+    computeResources.commandBuffers.resize(swapChainFramebuffers.size());
+    VkCommandBufferAllocateInfo cmdBufAllocateInfo{};
+    cmdBufAllocateInfo.sType = VK_STRUCTURE_TYPE_COMMAND_BUFFER_ALLOCATE_INFO;
+    cmdBufAllocateInfo.commandPool = computeResources.commandPool; // 命令池
+    cmdBufAllocateInfo.level = VK_COMMAND_BUFFER_LEVEL_PRIMARY; // 命令缓冲区级别
+    cmdBufAllocateInfo.commandBufferCount = (uint32_t)computeResources.commandBuffers.size(); // 命令缓冲区数量
+
+    if (vkAllocateCommandBuffers(device, &cmdBufAllocateInfo, computeResources.commandBuffers.data()) != VK_SUCCESS) { // 分配命令缓冲区
+        throw std::runtime_error("failed to allocate command buffers!");
+    }
+
+    // fence and semaphores
+    VkFenceCreateInfo fenceCreateInfo{};
+    fenceCreateInfo.sType = VK_STRUCTURE_TYPE_FENCE_CREATE_INFO;
+    fenceCreateInfo.flags = VK_FENCE_CREATE_SIGNALED_BIT; // 创建时已经处于信号状态
+
+    VkSemaphoreCreateInfo semaphoreCreateInfo{};
+    semaphoreCreateInfo.sType = VK_STRUCTURE_TYPE_SEMAPHORE_CREATE_INFO;
+
+    computeResources.inFlightFences.resize(MAX_FRAMES_IN_FLIGHT);
+    computeResources.finishedSemaphores.resize(MAX_FRAMES_IN_FLIGHT);
+    for (size_t i = 0; i < MAX_FRAMES_IN_FLIGHT; i++) {
+        if (vkCreateFence(device, &fenceCreateInfo, nullptr, &computeResources.inFlightFences[i]) != VK_SUCCESS) { // 创建栅栏
+            throw std::runtime_error("failed to create synchronization object for a frame!");
+        }
+        if(vkCreateSemaphore(device, &semaphoreCreateInfo, nullptr, &computeResources.finishedSemaphores[i]) != VK_SUCCESS) { // 创建信号量
+            throw std::runtime_error("failed to create synchronization object for a frame!");
+        }
+    }
+}
+
+void VulkanApplication::recordComputeCommandBuffer(uint32_t currentFrame) {
+    // Flush the queue if we're rebuilding the command buffer after a pipeline change to ensure it's not currently in use
+    vkQueueWaitIdle(computeResources.queue);
+
+    // Create a command buffer for compute operations
+    VkCommandBufferBeginInfo cmdBufBeginInfo{};
+    cmdBufBeginInfo.sType = VK_STRUCTURE_TYPE_COMMAND_BUFFER_BEGIN_INFO;
+
+    if (vkBeginCommandBuffer(computeResources.commandBuffers[currentFrame], &cmdBufBeginInfo) != VK_SUCCESS) { // 开始记录命令缓冲区
+        throw std::runtime_error("failed to begin command buffer!");
+    }
+
+    // Bind compute pipeline
+    vkCmdBindPipeline(computeResources.commandBuffers[currentFrame], VK_PIPELINE_BIND_POINT_COMPUTE, computeResources.pipelines[0]);
+
+    // Bind descriptor sets
+    vkCmdBindDescriptorSets(computeResources.commandBuffers[currentFrame], VK_PIPELINE_BIND_POINT_COMPUTE, computeResources.pipelineLayout, 0, 1, &computeResources.descriptorSets[currentFrame], 0, 0);
+
+    // Dispatch the compute job
+    vkCmdDispatch(computeResources.commandBuffers[currentFrame], volumeRender->getDicomTags().voxelResolution[0] / 8, volumeRender->getDicomTags().voxelResolution[1] / 8, volumeRender->getDicomTags().voxelResolution[2] / 8);
+
+    // end recording command buffer
+    if (vkEndCommandBuffer(computeResources.commandBuffers[currentFrame]) != VK_SUCCESS) { // 结束记录命令缓冲区
+        throw std::runtime_error("failed to record command buffer!");
+    }
+
 }

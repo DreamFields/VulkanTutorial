@@ -18,12 +18,13 @@ layout(binding=3)uniform DicomUniformBufferObject{
     float windowCenter;
     float windowWidth;
     float minVal;
-    float alphaCorrection; // 作为透明度的矫正系数
+    float alphaCorrection;// 作为透明度的矫正系数
     float stepLength;
     float glow;
     int steps;
 }dicomUbo;
 layout(binding=4)uniform sampler1D lutTexSampler;
+layout(binding=5)uniform sampler3D extCoeffSampler;
 
 layout(location=0)in vec3 inColor;
 layout(location=1)in vec2 inTexCoord;
@@ -34,7 +35,11 @@ layout(location=0)out vec4 outColor;
 vec4 get3DTextureColor(vec3 worldPos){
     // 将世界坐标转换为纹理坐标,并归一化后再采样
     vec3 texPos=worldPos/dicomUbo.boxSize;
-    vec4 sampleColor=texture(tex3DSampler,texPos); 
+    vec4 sampleColor=texture(tex3DSampler,texPos);
+    // !test
+    // vec4 sampleColor=texture(extCoeffSampler,texPos);
+    // !end test
+    
     float intensity=sampleColor.r*255.+sampleColor.g*255.*255.-abs(dicomUbo.minVal);
     intensity=(intensity-dicomUbo.windowCenter)/dicomUbo.windowWidth+.5;
     intensity=clamp(intensity,0.,1.);
