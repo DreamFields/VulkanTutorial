@@ -1552,7 +1552,7 @@ private:
 
         // --------------------Compute submission-----------------
         // !不必每一帧都提交计算命令，只有在计算命令完成之前才需要提交计算命令，如果之后修改了一些参数，只需要把isComplete设置为false即可
-        if (!computeResources.isComplete) {
+        if (!computeResources.isComplete[currentFrame]) {
             vkWaitForFences(device, 1, &computeResources.inFlightFences[currentFrame], VK_TRUE, UINT64_MAX);
 
             // update uniform buffer
@@ -1576,7 +1576,7 @@ private:
                 throw std::runtime_error("failed to submit compute command buffer!");
             }
 
-            // computeResources.isComplete = true;
+            computeResources.isComplete[currentFrame] = true;
         }
 
         // --------------------Graphics submission-----------------
@@ -1604,7 +1604,7 @@ private:
 
         VkSemaphore signalSemaphores[] = { renderFinishedSemaphores[currentFrame] };
 
-        if (!computeResources.isComplete) {
+        if (!computeResources.isComplete[currentFrame]) {
             VkSemaphore waitSemaphores[] = { computeResources.finishedSemaphores[currentFrame], imageAvailableSemaphores[currentFrame] };
             VkPipelineStageFlags waitStages[] = { VK_PIPELINE_STAGE_COMPUTE_SHADER_BIT , VK_PIPELINE_STAGE_COLOR_ATTACHMENT_OUTPUT_BIT };
 

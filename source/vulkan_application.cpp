@@ -952,6 +952,8 @@ void VulkanApplication::prepareTextureTarget() {
 
 void VulkanApplication::prepareCompute()
 {
+    computeResources.isComplete.resize(MAX_FRAMES_IN_FLIGHT, false);
+
     // 创建纹理目标
     prepareTextureTarget();
 
