@@ -1576,7 +1576,7 @@ private:
                 throw std::runtime_error("failed to submit compute command buffer!");
             }
 
-            computeResources.isComplete = true;
+            // computeResources.isComplete = true;
         }
 
         // --------------------Graphics submission-----------------
