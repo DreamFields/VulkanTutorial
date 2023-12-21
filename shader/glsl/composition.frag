@@ -36,10 +36,6 @@ vec4 get3DTextureColor(vec3 worldPos){
     // 将世界坐标转换为纹理坐标,并归一化后再采样
     vec3 texPos=worldPos/dicomUbo.boxSize;
     vec4 sampleColor=texture(tex3DSampler,texPos);
-    // !test
-    // vec4 sampleColor=texture(extCoeffSampler,texPos);
-    // !end test
-    
     float intensity=sampleColor.r*255.+sampleColor.g*255.*255.-abs(dicomUbo.minVal);
     intensity=(intensity-dicomUbo.windowCenter)/dicomUbo.windowWidth+.5;
     intensity=clamp(intensity,0.,1.);
@@ -50,44 +46,21 @@ vec4 get3DTextureColor(vec3 worldPos){
     return vec4(color,1.-intensity);
 }
 
-vec4 rayplusMethod(float rayLength,vec3 dir,vec3 currentPos){
-    // 设置一个颜色的累积器
-    vec4 accumulatedColor=vec4(0.);
-    
-    // 设置一个 Alpha 的累积器
-    float accumulatedAlpha=0.;
-    
-    // 射线传播了多长的距离
-    float accumulatedLength=0.;
-    
-    vec3 currentPosition=currentPos;
-    
-    float alphaSample=0.;
-    
-    float stepLength=rayLength/float(dicomUbo.steps);
-    
-    for(int i=0;i<dicomUbo.steps;i++)
-    {
-        vec4 sampleColor=get3DTextureColor(currentPosition);
-        if(sampleColor.r!=0.){
-            // 按步长缩放alpha使最终的颜色不变。
-            alphaSample=stepLength*(1.-accumulatedAlpha)*sampleColor.a*dicomUbo.alphaCorrection;
-            
-            // 执行合成
-            accumulatedColor+=sampleColor*alphaSample;
-            
-            // 存储到目前为止积累的alpha。
-            accumulatedAlpha+=alphaSample;
-        }
-        // 推进射线
-        currentPosition+=dir*stepLength;
-        accumulatedLength+=stepLength;
-        // 如果遍历的长度大于射线长度，或者累计的alpha达到1.0，那么退出。
-        if(accumulatedLength>=rayLength||accumulatedAlpha>=1.)
-        break;
-    }
-    
-    return accumulatedColor;
+vec4 getExtCoeff(vec3 worldPos){
+    // 将世界坐标转换为纹理坐标,并归一化后再采样
+    vec3 texPos=worldPos/dicomUbo.boxSize;
+    vec4 sampleColor=texture(extCoeffSampler,texPos);
+    // if(sampleColor.r==0.)return vec4(0.);
+    // return sampleColor;
+
+    float intensity=sampleColor.r*255.+sampleColor.g*255.*255.-abs(dicomUbo.minVal);
+    intensity=(intensity-dicomUbo.windowCenter)/dicomUbo.windowWidth+.5;
+    intensity=clamp(intensity,0.,1.);
+    if(intensity==0.)return vec4(0.);
+    // 通过采样器，从lutTexSampler中加载数据，相当于传递函数的实现
+    vec3 color=texture(lutTexSampler,intensity).rgb;
+    // 将1.0-intensity作为alpha值，即遮光量或者说消光系数，浓度越大，遮光量越大，alpha越小
+    return vec4(color,1.-intensity);
 }
 
 vec4 absorptionMethod(float stepLength,float rayLength,vec3 dir,vec3 currentPos){
@@ -103,7 +76,8 @@ vec4 absorptionMethod(float stepLength,float rayLength,vec3 dir,vec3 currentPos)
         // Get the current position
         vec3 pos=currentPos+dir*(s+h*.5);
         // Get the sampleColor from the 3D texture
-        vec4 sampleColor=get3DTextureColor(pos);
+        // vec4 sampleColor=get3DTextureColor(pos);
+        vec4 sampleColor=getExtCoeff(pos);
         
         if(!isAccurate){
             // ---------Iteration A: tau*h 很小时结果较好---------------
@@ -132,32 +106,6 @@ vec4 absorptionMethod(float stepLength,float rayLength,vec3 dir,vec3 currentPos)
     return E;
 }
 
-vec4 opaqueMethod(float stepLength,float rayLength,vec3 dir,vec3 currentPos){
-    // Initialize Transparency and Radiance sampleColor
-    vec4 dst=vec4(0.);
-    // accmulate alpha
-    float accmulateAlpha=0.;
-    // Evaluate form 0 to D
-    for(float s=0.;s<rayLength;){
-        // Get the current step or the remaining interval
-        float h=min(stepLength,rayLength-s);
-        // Get the current position
-        vec3 pos=currentPos+dir*(s+h*.5);
-        // Get the sampleColor from the 3D texture
-        vec4 sampleColor=get3DTextureColor(pos);
-        
-        if(sampleColor.r!=0.){
-            dst=dst+sampleColor*(1.-accmulateAlpha)*dicomUbo.glow;
-            accmulateAlpha=accmulateAlpha+dicomUbo.alphaCorrection*(1.-accmulateAlpha);
-        }
-        if(accmulateAlpha>.99)break;
-        
-        // Go to the next interval
-        s=s+h;
-    }
-    return dst;
-}
-
 void main(){
     // 通过subpassLoad函数，从subpassInput中加载数据
     vec3 backPos=subpassLoad(inputBackpos).xyz;
@@ -170,10 +118,7 @@ void main(){
     // 控制stepLength
     float stepLength=dicomUbo.stepLength==0.?rayLength/float(dicomUbo.steps):dicomUbo.stepLength;
     
-    // vec4 color=rayplusMethod(rayLength,dir,currentPos);
     vec4 color=absorptionMethod(stepLength,rayLength,dir,currentPos);
-    // vec4 color=opaqueMethod(stepLength,rayLength,dir,currentPos);
     
     outColor=color;
-    // outColor=vec4(backPos,1.);
 }

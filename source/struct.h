@@ -82,6 +82,7 @@ struct Compute {
     std::vector<VkCommandBuffer> commandBuffers;				        // Command buffer storing the dispatch commands and barriers
     std::vector<VkFence> inFlightFences;                // Compute fences to check compute command buffer completion
     std::vector<VkSemaphore> finishedSemaphores;        // Compute semaphore to wait for compute completion
+    bool isComplete = false;                            // judge if compute is complete
 };
 
 struct TextureTarget {

@@ -1544,34 +1544,39 @@ private:
         memcpy(dicomUniformBuffersMapped[currentFrame], &dicomUbo, sizeof(dicomUbo));
 
     }
-    
+
     // https://vulkan-tutorial.com/Compute_Shader#page_Synchronizing-graphics-and-compute
     void drawFrame() {
         uint32_t imageIndex;
         VkResult result = vkAcquireNextImageKHR(device, swapChain, UINT64_MAX, imageAvailableSemaphores[currentFrame], VK_NULL_HANDLE, &imageIndex);
 
         // --------------------Compute submission-----------------
-        vkWaitForFences(device, 1, &computeResources.inFlightFences[currentFrame], VK_TRUE, UINT64_MAX);
+        // !不必每一帧都提交计算命令，只有在计算命令完成之前才需要提交计算命令，如果之后修改了一些参数，只需要把isComplete设置为false即可
+        if (!computeResources.isComplete) {
+            vkWaitForFences(device, 1, &computeResources.inFlightFences[currentFrame], VK_TRUE, UINT64_MAX);
 
-        // update uniform buffer
-        // ...
+            // update uniform buffer
+            // ...
 
-        vkResetFences(device, 1, &computeResources.inFlightFences[currentFrame]);
+            vkResetFences(device, 1, &computeResources.inFlightFences[currentFrame]);
 
-        vkResetCommandBuffer(computeResources.commandBuffers[currentFrame], 0);
-        // Build a single command buffer containing the compute dispatch commands
-        recordComputeCommandBuffer(currentFrame);
+            vkResetCommandBuffer(computeResources.commandBuffers[currentFrame], 0);
+            // Build a single command buffer containing the compute dispatch commands
+            recordComputeCommandBuffer(currentFrame);
 
-        // Submit to the compute queue
-        VkSubmitInfo computeSubmitInfo = {};
-        computeSubmitInfo.sType = VK_STRUCTURE_TYPE_SUBMIT_INFO;
-        computeSubmitInfo.commandBufferCount = 1;
-        computeSubmitInfo.pCommandBuffers = &computeResources.commandBuffers[currentFrame];
-        computeSubmitInfo.signalSemaphoreCount = 1;
-        computeSubmitInfo.pSignalSemaphores = &computeResources.finishedSemaphores[currentFrame];
+            // Submit to the compute queue
+            VkSubmitInfo computeSubmitInfo = {};
+            computeSubmitInfo.sType = VK_STRUCTURE_TYPE_SUBMIT_INFO;
+            computeSubmitInfo.commandBufferCount = 1;
+            computeSubmitInfo.pCommandBuffers = &computeResources.commandBuffers[currentFrame];
+            computeSubmitInfo.signalSemaphoreCount = 1;
+            computeSubmitInfo.pSignalSemaphores = &computeResources.finishedSemaphores[currentFrame];
 
-        if (vkQueueSubmit(computeResources.queue, 1, &computeSubmitInfo, computeResources.inFlightFences[currentFrame]) != VK_SUCCESS) {
-            throw std::runtime_error("failed to submit compute command buffer!");
+            if (vkQueueSubmit(computeResources.queue, 1, &computeSubmitInfo, computeResources.inFlightFences[currentFrame]) != VK_SUCCESS) {
+                throw std::runtime_error("failed to submit compute command buffer!");
+            }
+
+            computeResources.isComplete = true;
         }
 
         // --------------------Graphics submission-----------------
@@ -1597,25 +1602,47 @@ private:
         // Submit graphics commands
         recordCommandBuffer(commandBuffers[currentFrame], imageIndex);
 
-        VkSemaphore waitSemaphores[] = { computeResources.finishedSemaphores[currentFrame], imageAvailableSemaphores[currentFrame] };
-        VkPipelineStageFlags waitStages[] = { VK_PIPELINE_STAGE_COMPUTE_SHADER_BIT , VK_PIPELINE_STAGE_COLOR_ATTACHMENT_OUTPUT_BIT };
-
-        VkSubmitInfo graphicsSubmitInfo{};
-        graphicsSubmitInfo.sType = VK_STRUCTURE_TYPE_SUBMIT_INFO;
-
-        std::array<VkCommandBuffer, 2> submitCommandBuffers = { commandBuffers[currentFrame], imguiCommandBuffers[imageIndex] };
-        graphicsSubmitInfo.waitSemaphoreCount = 2;
-        graphicsSubmitInfo.pWaitSemaphores = waitSemaphores;
-        graphicsSubmitInfo.pWaitDstStageMask = waitStages;
-        graphicsSubmitInfo.commandBufferCount = static_cast<uint32_t>(submitCommandBuffers.size());
-        graphicsSubmitInfo.pCommandBuffers = submitCommandBuffers.data();
-
         VkSemaphore signalSemaphores[] = { renderFinishedSemaphores[currentFrame] };
-        graphicsSubmitInfo.signalSemaphoreCount = 1;
-        graphicsSubmitInfo.pSignalSemaphores = signalSemaphores;
 
-        if (vkQueueSubmit(graphicsQueue, 1, &graphicsSubmitInfo, inFlightFences[currentFrame]) != VK_SUCCESS) {
-            throw std::runtime_error("failed to submit draw command buffer!");
+        if (!computeResources.isComplete) {
+            VkSemaphore waitSemaphores[] = { computeResources.finishedSemaphores[currentFrame], imageAvailableSemaphores[currentFrame] };
+            VkPipelineStageFlags waitStages[] = { VK_PIPELINE_STAGE_COMPUTE_SHADER_BIT , VK_PIPELINE_STAGE_COLOR_ATTACHMENT_OUTPUT_BIT };
+
+            VkSubmitInfo graphicsSubmitInfo{};
+            graphicsSubmitInfo.sType = VK_STRUCTURE_TYPE_SUBMIT_INFO;
+
+            std::array<VkCommandBuffer, 2> submitCommandBuffers = { commandBuffers[currentFrame], imguiCommandBuffers[imageIndex] };
+            graphicsSubmitInfo.waitSemaphoreCount = 2;
+            graphicsSubmitInfo.pWaitSemaphores = waitSemaphores;
+            graphicsSubmitInfo.pWaitDstStageMask = waitStages;
+            graphicsSubmitInfo.commandBufferCount = static_cast<uint32_t>(submitCommandBuffers.size());
+            graphicsSubmitInfo.pCommandBuffers = submitCommandBuffers.data();
+            graphicsSubmitInfo.signalSemaphoreCount = 1;
+            graphicsSubmitInfo.pSignalSemaphores = signalSemaphores;
+
+            if (vkQueueSubmit(graphicsQueue, 1, &graphicsSubmitInfo, inFlightFences[currentFrame]) != VK_SUCCESS) {
+                throw std::runtime_error("failed to submit draw command buffer!");
+            }
+        }
+        else {
+            VkSemaphore waitSemaphores[] = {imageAvailableSemaphores[currentFrame] };
+            VkPipelineStageFlags waitStages[] = {VK_PIPELINE_STAGE_COLOR_ATTACHMENT_OUTPUT_BIT };
+
+            VkSubmitInfo graphicsSubmitInfo{};
+            graphicsSubmitInfo.sType = VK_STRUCTURE_TYPE_SUBMIT_INFO;
+
+            std::array<VkCommandBuffer, 2> submitCommandBuffers = { commandBuffers[currentFrame], imguiCommandBuffers[imageIndex] };
+            graphicsSubmitInfo.waitSemaphoreCount = 1;
+            graphicsSubmitInfo.pWaitSemaphores = waitSemaphores;
+            graphicsSubmitInfo.pWaitDstStageMask = waitStages;
+            graphicsSubmitInfo.commandBufferCount = static_cast<uint32_t>(submitCommandBuffers.size());
+            graphicsSubmitInfo.pCommandBuffers = submitCommandBuffers.data();
+            graphicsSubmitInfo.signalSemaphoreCount = 1;
+            graphicsSubmitInfo.pSignalSemaphores = signalSemaphores;
+
+            if (vkQueueSubmit(graphicsQueue, 1, &graphicsSubmitInfo, inFlightFences[currentFrame]) != VK_SUCCESS) {
+                throw std::runtime_error("failed to submit draw command buffer!");
+            }
         }
 
         // --------------------将渲染结果提交到交换链，以便将图像显示到屏幕上--------------------

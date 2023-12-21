@@ -975,7 +975,26 @@ void VulkanApplication::prepareCompute()
     outputImageLayoutBinding.stageFlags = VK_SHADER_STAGE_COMPUTE_BIT; // 着色器阶段
     outputImageLayoutBinding.pImmutableSamplers = nullptr; // 不使用采样器
 
-    std::array<VkDescriptorSetLayoutBinding, 2> bindings = { inputImageLayoutBinding, outputImageLayoutBinding };
+    VkDescriptorSetLayoutBinding dicomUboLayoutBinding{};
+    dicomUboLayoutBinding.binding = 2;
+    dicomUboLayoutBinding.descriptorType = VK_DESCRIPTOR_TYPE_UNIFORM_BUFFER;
+    dicomUboLayoutBinding.descriptorCount = 1;
+    dicomUboLayoutBinding.stageFlags = VK_SHADER_STAGE_COMPUTE_BIT;
+    dicomUboLayoutBinding.pImmutableSamplers = nullptr;
+
+    VkDescriptorSetLayoutBinding lutLayoutBinding{};
+    lutLayoutBinding.binding = 3;
+    lutLayoutBinding.descriptorType = VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER;
+    lutLayoutBinding.descriptorCount = 1;
+    lutLayoutBinding.stageFlags = VK_SHADER_STAGE_COMPUTE_BIT;
+    lutLayoutBinding.pImmutableSamplers = nullptr;
+
+    std::array<VkDescriptorSetLayoutBinding, 4> bindings = {
+        inputImageLayoutBinding,
+        outputImageLayoutBinding,
+        dicomUboLayoutBinding,
+        lutLayoutBinding
+    };
 
     VkDescriptorSetLayoutCreateInfo layoutInfo{};
     layoutInfo.sType = VK_STRUCTURE_TYPE_DESCRIPTOR_SET_LAYOUT_CREATE_INFO;
@@ -1041,7 +1060,42 @@ void VulkanApplication::prepareCompute()
         outputImageDescriptorWrite.pBufferInfo = nullptr; // 缓冲区信息
         outputImageDescriptorWrite.pImageInfo = &outputImageInfo; // 图像信息
 
-        std::array<VkWriteDescriptorSet, 2> computeWrites = { inputImageDescriptorWrite, outputImageDescriptorWrite };
+        VkDescriptorBufferInfo dicomBufferInfo{};
+        dicomBufferInfo.buffer = dicomUniformBuffers[i]; // 缓冲区
+        dicomBufferInfo.offset = 0; // 偏移量
+        dicomBufferInfo.range = sizeof(DicomUniformBufferObject); // 范围
+
+        VkWriteDescriptorSet dicomBufferDescriptorWrite{};
+        dicomBufferDescriptorWrite.sType = VK_STRUCTURE_TYPE_WRITE_DESCRIPTOR_SET;
+        dicomBufferDescriptorWrite.dstSet = computeResources.descriptorSets[i]; // 目标描述符集
+        dicomBufferDescriptorWrite.dstBinding = 2; // 目标绑定点
+        dicomBufferDescriptorWrite.dstArrayElement = 0; // 目标数组元素
+        dicomBufferDescriptorWrite.descriptorType = VK_DESCRIPTOR_TYPE_UNIFORM_BUFFER; // 描述符类型
+        dicomBufferDescriptorWrite.descriptorCount = 1; // 描述符数量
+        dicomBufferDescriptorWrite.pBufferInfo = &dicomBufferInfo; // 缓冲区信息
+        dicomBufferDescriptorWrite.pImageInfo = nullptr; // 图像信息
+
+        VkDescriptorImageInfo lutImageInfo{};
+        lutImageInfo.imageLayout = VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL; // 图像布局
+        lutImageInfo.imageView = lutImageView; // 图像视图
+        lutImageInfo.sampler = textureSampler; // 纹理采样器
+
+        VkWriteDescriptorSet lutImageDescriptorWrite{};
+        lutImageDescriptorWrite.sType = VK_STRUCTURE_TYPE_WRITE_DESCRIPTOR_SET;
+        lutImageDescriptorWrite.dstSet = computeResources.descriptorSets[i]; // 目标描述符集
+        lutImageDescriptorWrite.dstBinding = 3; // 目标绑定点
+        lutImageDescriptorWrite.dstArrayElement = 0; // 目标数组元素
+        lutImageDescriptorWrite.descriptorType = VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER; // 描述符类型
+        lutImageDescriptorWrite.descriptorCount = 1; // 描述符数量
+        lutImageDescriptorWrite.pBufferInfo = nullptr; // 缓冲区信息
+        lutImageDescriptorWrite.pImageInfo = &lutImageInfo; // 图像信息
+
+        std::array<VkWriteDescriptorSet, 4> computeWrites = {
+            inputImageDescriptorWrite,
+            outputImageDescriptorWrite,
+            dicomBufferDescriptorWrite,
+            lutImageDescriptorWrite
+        };
 
         vkUpdateDescriptorSets(device, static_cast<uint32_t>(computeWrites.size()), computeWrites.data(), 0, nullptr); // 更新描述符集
     }
@@ -1103,7 +1157,7 @@ void VulkanApplication::prepareCompute()
         if (vkCreateFence(device, &fenceCreateInfo, nullptr, &computeResources.inFlightFences[i]) != VK_SUCCESS) { // 创建栅栏
             throw std::runtime_error("failed to create synchronization object for a frame!");
         }
-        if(vkCreateSemaphore(device, &semaphoreCreateInfo, nullptr, &computeResources.finishedSemaphores[i]) != VK_SUCCESS) { // 创建信号量
+        if (vkCreateSemaphore(device, &semaphoreCreateInfo, nullptr, &computeResources.finishedSemaphores[i]) != VK_SUCCESS) { // 创建信号量
             throw std::runtime_error("failed to create synchronization object for a frame!");
         }
     }

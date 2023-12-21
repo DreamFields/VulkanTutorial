@@ -1,21 +1,96 @@
 #version 430
 
+// 设置精度
+precision highp float;
+precision highp int;
+precision highp sampler3D;
+precision highp image3D;
+
 layout(binding=0)uniform sampler3D TexInputVolume;
 layout(binding=1,rgba8)uniform image3D TexOutputVolume;
+layout(binding=2)uniform DicomUniformBufferObject{
+    vec3 voxelSize;
+    vec3 voxelResolution;
+    vec3 boxSize;
+    float windowCenter;
+    float windowWidth;
+    float minVal;
+    float alphaCorrection;// 作为透明度的矫正系数
+    float stepLength;
+    float glow;
+    int steps;
+}dicomUbo;
+layout(binding=3)uniform sampler1D lutTexSampler;
 
 // 假设每个工作组的大小为8x8x8
 layout(local_size_x=8,local_size_y=8,local_size_z=8)in;
 
+vec4 get3DTextureColor(vec3 texPos){
+    if(texPos.x<0.f||texPos.y<0.f||texPos.z<0.f
+    ||texPos.x>1.f||texPos.y>1.f||texPos.z>1.f)
+    return vec4(0.f);
+    
+    vec4 sampleColor=texture(TexInputVolume,texPos);
+    float intensity=sampleColor.r*255.+sampleColor.g*255.*255.-abs(dicomUbo.minVal);
+    intensity=(intensity-dicomUbo.windowCenter)/dicomUbo.windowWidth+.5;
+    intensity=clamp(intensity,0.,1.);
+    if(intensity==0.)return vec4(0.);
+    // 通过采样器，从lutTexSampler中加载数据，相当于传递函数的实现
+    vec3 color=texture(lutTexSampler,intensity).rgb;
+    // 将1.0-intensity作为alpha值，即遮光量或者说消光系数，浓度越大，遮光量越大，alpha越小
+    return vec4(color,1.-intensity);
+}
+
+vec4 GaussianFilter(uvec3 globalIdx){
+    vec4 sumOfColor=vec4(0.f);
+    float sumOfWeight=0.f;
+    
+    // Compute the current Gaussian filter from [-vtk, vtk]
+    int vtk=3;
+    float sigma=1.;
+    for(int ptx=-vtk;ptx<=vtk;ptx++){
+        for(int pty=-vtk;pty<=vtk;pty++){
+            for(int ptz=-vtk;ptz<=vtk;ptz++){
+                // https://en.wikipedia.org/wiki/Gaussian_filter
+                // Get interpolated samples maintaining the defined standard deviation
+                float fx=float(ptx)*sigma;
+                float fy=float(pty)*sigma;
+                float fz=float(ptz)*sigma;
+                // 计算当前位置的高斯权重
+                float weight=(sigma*sigma*sigma)*exp(-(fx*fx+fy*fy+fz*fz)/(2.*sigma*sigma));
+                // 计算采样位置，采样位置为当前全局索引除以3D纹理的尺寸，以保证采样坐标在[0, 1]的范围内
+                vec3 samplePos=(vec3(globalIdx)+vec3(fx,fy,fz)+vec3(.5))/dicomUbo.voxelResolution;
+                // 采样当前位置的颜色值
+                vec4 color=texture(TexInputVolume,samplePos); // 存储原始像素值的高八位和第八位,这样会对边界进行平滑,从而在计算intensity后截断,使得边界更加清晰
+                // vec4 color=get3DTextureColor(samplePos); // !不能存储intensity的高斯滤波,因为这样会模糊边界(边界外的intensity是0),之后可以考虑使用联合双边滤波
+                
+                // 计算当前位置的高斯权重与颜色值的乘积
+                sumOfColor+=weight*color;
+                
+                // 计算当前位置的高斯权重之和
+                sumOfWeight+=weight;
+            }
+        }
+    }
+    
+    return sumOfColor/sumOfWeight;
+}
+
 void main(){
     // 获取当前工作组的全局索引
-    uvec3 globalIdx=gl_GlobalInvocationID.xyz;// 计算着色器在3D图像中的位置
+    ivec3 globalIdx=ivec3(gl_GlobalInvocationID.xyz);// 计算着色器在3D图像中的位置
+    
+    if(globalIdx.x>dicomUbo.voxelResolution.x-1
+        ||globalIdx.y>dicomUbo.voxelResolution.y-1
+    ||globalIdx.z>dicomUbo.voxelResolution.z-1)
+    return;
     
     // 采样位置为当前全局索引除以3D纹理的尺寸，以保证采样坐标在[0, 1]的范围内
-    vec3 samplePos=vec3(globalIdx)/vec3(textureSize(TexInputVolume,0));
-    
-    // 根据全局索引在3D纹理中采样颜色值
-    vec4 color=texture(TexInputVolume,samplePos);
+    // !需要加上.5 否则会出现锯齿
+    vec3 samplePos=(vec3(globalIdx)+vec3(.5))/dicomUbo.voxelResolution;
     
     // 将颜色值写入输出的3D图像
-    imageStore(TexOutputVolume,ivec3(globalIdx),color);
+    imageStore(TexOutputVolume,ivec3(globalIdx),GaussianFilter(globalIdx));
+    // imageStore(TexOutputVolume,ivec3(globalIdx),get3DTextureColor(samplePos));
+    // imageStore(TexOutputVolume,ivec3(globalIdx),texture(TexInputVolume,samplePos));
 }
