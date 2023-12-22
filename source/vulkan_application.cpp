@@ -630,6 +630,7 @@ void VulkanApplication::initImGui() {
     createImGuiCommandPool();
     createImGuiCommandBuffers();
     createImGuiFramebuffers();
+    createImGuiSyncObjects();
 
     // init imgui for vulkan
     ImGui_ImplGlfw_InitForVulkan(window, true);
@@ -752,8 +753,8 @@ void VulkanApplication::createImGuiCommandPool() {
 }
 
 void VulkanApplication::createImGuiCommandBuffers() {
-    // create a command buffer for each swapchain image
-    imguiCommandBuffers.resize(swapChainFramebuffers.size());
+    // create a command buffer for max number of frames in flight
+    imguiCommandBuffers.resize(MAX_FRAMES_IN_FLIGHT);
 
     VkCommandBufferAllocateInfo allocInfo{};
     allocInfo.sType = VK_STRUCTURE_TYPE_COMMAND_BUFFER_ALLOCATE_INFO;
@@ -768,10 +769,10 @@ void VulkanApplication::createImGuiCommandBuffers() {
 
 void VulkanApplication::createImGuiFramebuffers() {
     // create a framebuffer for each swapchain image
-    imguiFramebuffers.resize(swapChainFramebuffers.size());
+    imguiFramebuffers.resize(swapChainImageViews.size());
 
     // create a framebuffer for each swapchain image
-    for (size_t i = 0; i < swapChainFramebuffers.size(); i++) {
+    for (size_t i = 0; i < swapChainImageViews.size(); i++) {
         VkImageView attachments[] = {
             swapChainImageViews[i]
         };
@@ -791,6 +792,26 @@ void VulkanApplication::createImGuiFramebuffers() {
     }
 }
 
+void VulkanApplication::createImGuiSyncObjects() {
+    // fence and semaphores
+    VkFenceCreateInfo fenceCreateInfo{};
+    fenceCreateInfo.sType = VK_STRUCTURE_TYPE_FENCE_CREATE_INFO;
+    fenceCreateInfo.flags = VK_FENCE_CREATE_SIGNALED_BIT; // 创建时已经处于信号状态
+
+    VkSemaphoreCreateInfo semaphoreCreateInfo{};
+    semaphoreCreateInfo.sType = VK_STRUCTURE_TYPE_SEMAPHORE_CREATE_INFO;
+
+    imguiInFlightFences.resize(MAX_FRAMES_IN_FLIGHT);
+    imguiFinishedSemaphores.resize(MAX_FRAMES_IN_FLIGHT);
+    for (size_t i = 0; i < MAX_FRAMES_IN_FLIGHT; i++) {
+        if (vkCreateFence(device, &fenceCreateInfo, nullptr, &imguiInFlightFences[i]) != VK_SUCCESS) { // 创建栅栏
+            throw std::runtime_error("failed to create synchronization object for a frame!");
+        }
+        if (vkCreateSemaphore(device, &semaphoreCreateInfo, nullptr, &imguiFinishedSemaphores[i]) != VK_SUCCESS) { // 创建信号量
+            throw std::runtime_error("failed to create synchronization object for a frame!");
+        }
+    }
+}
 
 void VulkanApplication::drawImGui() {
     // start the Dear ImGui frame
@@ -845,14 +866,14 @@ void VulkanApplication::drawImGui() {
     ImGui::Render();
 }
 
-void VulkanApplication::recordImGuiCommandBuffer(uint32_t imageIndex) {
+void VulkanApplication::recordImGuiCommandBuffer(VkCommandBuffer commandBuffer,uint32_t imageIndex) {
     // record imgui commands into command buffer
     VkCommandBufferBeginInfo beginInfo{};
     beginInfo.sType = VK_STRUCTURE_TYPE_COMMAND_BUFFER_BEGIN_INFO;
     // we're only submitting the ui commands once, so we use the one time submit bit
     beginInfo.flags = VK_COMMAND_BUFFER_USAGE_ONE_TIME_SUBMIT_BIT;
 
-    if (vkBeginCommandBuffer(imguiCommandBuffers[imageIndex], &beginInfo) != VK_SUCCESS) {
+    if (vkBeginCommandBuffer(commandBuffer, &beginInfo) != VK_SUCCESS) {
         throw std::runtime_error("failed to begin recording imgui command buffer!");
     }
 
@@ -868,15 +889,15 @@ void VulkanApplication::recordImGuiCommandBuffer(uint32_t imageIndex) {
     renderPassInfo.pClearValues = &clearColor;
 
     // start the renderpass
-    vkCmdBeginRenderPass(imguiCommandBuffers[imageIndex], &renderPassInfo, VK_SUBPASS_CONTENTS_INLINE);
+    vkCmdBeginRenderPass(commandBuffer, &renderPassInfo, VK_SUBPASS_CONTENTS_INLINE);
 
     // record imgui draw data and draw funcs into command buffer
-    ImGui_ImplVulkan_RenderDrawData(ImGui::GetDrawData(), imguiCommandBuffers[imageIndex]);
+    ImGui_ImplVulkan_RenderDrawData(ImGui::GetDrawData(), commandBuffer);
 
     // end the renderpass
-    vkCmdEndRenderPass(imguiCommandBuffers[imageIndex]);
+    vkCmdEndRenderPass(commandBuffer);
 
-    if (vkEndCommandBuffer(imguiCommandBuffers[imageIndex]) != VK_SUCCESS) {
+    if (vkEndCommandBuffer(commandBuffer) != VK_SUCCESS) {
         throw std::runtime_error("failed to record imgui command buffer!");
     }
 }
