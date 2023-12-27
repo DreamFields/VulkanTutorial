@@ -61,7 +61,7 @@ vec4 GaussianFilter(uvec3 globalIdx){
                 // 计算采样位置，采样位置为当前全局索引除以3D纹理的尺寸，以保证采样坐标在[0, 1]的范围内
                 vec3 samplePos=(vec3(globalIdx)+vec3(fx,fy,fz)+vec3(.5))/dicomUbo.voxelResolution;
                 // 采样当前位置的颜色值
-                vec4 color=texture(TexInputVolume,samplePos); // 存储原始像素值的高八位和第八位,这样会对边界进行平滑,从而在计算intensity后截断,使得边界更加清晰
+                vec4 color=texture(TexInputVolume,samplePos);// 存储原始像素值的高八位和第八位,这样会对边界进行平滑,从而在计算intensity后截断,使得边界更加清晰
                 // vec4 color=get3DTextureColor(samplePos); // !不能存储intensity的高斯滤波,因为这样会模糊边界(边界外的intensity是0),之后可以考虑使用联合双边滤波
                 
                 // 计算当前位置的高斯权重与颜色值的乘积
@@ -74,6 +74,73 @@ vec4 GaussianFilter(uvec3 globalIdx){
     }
     
     return sumOfColor/sumOfWeight;
+}
+
+// 生成距离场
+vec4 genDistanceField(uvec3 globalIdx){
+    // 计算采样位置，采样位置为当前全局索引除以3D纹理的尺寸，以保证采样坐标在[0, 1]的范围内
+    vec3 samplePos=(vec3(globalIdx)+vec3(.5))/dicomUbo.voxelResolution;
+    
+    // return texture(TexInputVolume,samplePos);
+    vec4 color=get3DTextureColor(samplePos);
+    
+    // 计算当前位置的距离场
+    if(color.r==0.){
+        // 非空体素
+        float minDistance=100.;// 初始距离设为一个较大值
+        
+        // 三维体素的对角线长度
+        float diagonalLength=sqrt(3);
+                
+        // ! 遍历所有体素,效率太低,且无法进行同步
+        // for(int x=0;x<dicomUbo.voxelResolution.x;x++){
+        //     for(int y=0;y<dicomUbo.voxelResolution.y;y++){
+        //         for(int z=0;z<dicomUbo.voxelResolution.z;z++){
+        //             ivec3 neighborPosition=ivec3(x,y,z);
+        //             vec3 sampleNeighborPos=(vec3(neighborPosition)+vec3(.5))/dicomUbo.voxelResolution;
+        //             vec4 neighborColor=get3DTextureColor(sampleNeighborPos);
+        //             if(neighborColor.r>0.){
+        //                 float dis=length(samplePos-sampleNeighborPos);
+        //                 if(dis<minDistance){
+        //                     minDistance=dis;
+        //                 }
+        //             }
+        //         }
+        //     }
+        // }
+        // return vec4(minDistance/diagonalLength);
+        // return vec4(1.);
+        // return vec4(minDistance/100.);
+        
+        
+        // 遍历一定范围内的体素
+        int vtk=30;
+        for(int ptx=-vtk;ptx<=vtk;ptx++){
+            for(int pty=-vtk;pty<=vtk;pty++){
+                for(int ptz=-vtk;ptz<=vtk;ptz++){
+                    ivec3 neighborPosition=ivec3(globalIdx)+ivec3(ptx,pty,ptz);
+                    if(neighborPosition.x>dicomUbo.voxelResolution.x-1
+                        ||neighborPosition.y>dicomUbo.voxelResolution.y-1
+                        ||neighborPosition.z>dicomUbo.voxelResolution.z-1
+                        ||neighborPosition.x<0||neighborPosition.y<0||neighborPosition.z<0
+                    )continue;
+                    vec3 sampleNeighborPos=(vec3(neighborPosition)+vec3(.5))/dicomUbo.voxelResolution;
+                    vec4 neighborColor=get3DTextureColor(sampleNeighborPos);
+                    if(neighborColor.r>0.){
+                        float dis=length(samplePos-sampleNeighborPos);
+                        if(dis<minDistance){
+                            minDistance=dis;
+                        }
+                    }
+                }
+            }
+            
+        }
+        if(minDistance==100.)return vec4(0.);
+        return vec4(minDistance/diagonalLength);
+    }
+    return texture(TexInputVolume,samplePos);
+    
 }
 
 void main(){
@@ -90,7 +157,8 @@ void main(){
     vec3 samplePos=(vec3(globalIdx)+vec3(.5))/dicomUbo.voxelResolution;
     
     // 将颜色值写入输出的3D图像
-    imageStore(TexOutputVolume,ivec3(globalIdx),GaussianFilter(globalIdx));
+    imageStore(TexOutputVolume,ivec3(globalIdx),genDistanceField(globalIdx));
+    // imageStore(TexOutputVolume,ivec3(globalIdx),vec4(GaussianFilter(globalIdx).rgba));
     // imageStore(TexOutputVolume,ivec3(globalIdx),get3DTextureColor(samplePos));
     // imageStore(TexOutputVolume,ivec3(globalIdx),texture(TexInputVolume,samplePos));
 }

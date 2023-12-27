@@ -82,6 +82,7 @@ struct Compute {
     std::vector<VkCommandBuffer> commandBuffers;				        // Command buffer storing the dispatch commands and barriers
     std::vector<VkFence> inFlightFences;                // Compute fences to check compute command buffer completion
     std::vector<VkSemaphore> finishedSemaphores;        // Compute semaphore to wait for compute completion
+    std::vector<VkSemaphore> finishedGenMipmapSemaphores; // Compute semaphore to wait for generate mipmap completion
     std::vector<bool> isComplete;                            // judge if compute is complete
 };
 
@@ -91,5 +92,6 @@ struct TextureTarget {
     VkImageLayout imageLayout;
     VkSampler sampler;
     VkDeviceMemory memory;
+    uint32_t mipLevels;
     // VkDescriptorImageInfo descriptor;
 };

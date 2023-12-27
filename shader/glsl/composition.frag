@@ -50,9 +50,10 @@ vec4 getExtCoeff(vec3 worldPos){
     // 将世界坐标转换为纹理坐标,并归一化后再采样
     vec3 texPos=worldPos/dicomUbo.boxSize;
     vec4 sampleColor=texture(extCoeffSampler,texPos);
+    // vec4 sampleColor=textureLod(extCoeffSampler,texPos,7);
     // if(sampleColor.r==0.)return vec4(0.);
     // return sampleColor;
-
+    
     float intensity=sampleColor.r*255.+sampleColor.g*255.*255.-abs(dicomUbo.minVal);
     intensity=(intensity-dicomUbo.windowCenter)/dicomUbo.windowWidth+.5;
     intensity=clamp(intensity,0.,1.);
@@ -61,6 +62,19 @@ vec4 getExtCoeff(vec3 worldPos){
     vec3 color=texture(lutTexSampler,intensity).rgb;
     // 将1.0-intensity作为alpha值，即遮光量或者说消光系数，浓度越大，遮光量越大，alpha越小
     return vec4(color,1.-intensity);
+}
+
+// todo 目前距离场可视化暂时采用直接体绘制的方法，需改进
+vec4 getDistanceField(vec3 worldPos){
+    // 将世界坐标转换为纹理坐标,并归一化后再采样
+    vec3 texPos=worldPos/dicomUbo.boxSize;
+    
+    vec4 volumeColor=get3DTextureColor(worldPos);
+    
+    if(volumeColor.r==0.){
+        return texture(extCoeffSampler,texPos);
+    }
+    return vec4(0.,0.,0.,0.);
 }
 
 vec4 absorptionMethod(float stepLength,float rayLength,vec3 dir,vec3 currentPos){
@@ -77,7 +91,8 @@ vec4 absorptionMethod(float stepLength,float rayLength,vec3 dir,vec3 currentPos)
         vec3 pos=currentPos+dir*(s+h*.5);
         // Get the sampleColor from the 3D texture
         // vec4 sampleColor=get3DTextureColor(pos);
-        vec4 sampleColor=getExtCoeff(pos);
+        // vec4 sampleColor=getExtCoeff(pos);
+        vec4 sampleColor=getDistanceField(pos);
         
         if(!isAccurate){
             // ---------Iteration A: tau*h 很小时结果较好---------------
@@ -121,4 +136,8 @@ void main(){
     vec4 color=absorptionMethod(stepLength,rayLength,dir,currentPos);
     
     outColor=color;
+    vec3 testPos=vec3(inTexCoord.y,27./41.,inTexCoord.x);// todo 由于立方体尺寸改变，这里需要重新计算纹理坐标
+    // outColor = get3DTextureColor(testPos);
+    // outColor = getExtCoeff(testPos);
+    // outColor=getDistanceField(testPos);
 }

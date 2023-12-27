@@ -185,10 +185,10 @@ private:
     void create3DTextureImage();
     void createTextureImageView();
     void createImage(uint32_t width, uint32_t height, uint32_t depth, VkFormat format, VkImageType imageType, VkImageTiling tiling, VkImageUsageFlags usage,
-        VkMemoryPropertyFlags properties, VkImage& image, VkDeviceMemory& imageMemory, VkSampleCountFlagBits numSamples);
-    VkImageView createImageView(VkImage image, VkFormat format, VkImageViewType viewType);
+        VkMemoryPropertyFlags properties, VkImage& image, VkDeviceMemory& imageMemory, VkSampleCountFlagBits numSamples, uint32_t mipLevels = 1);
+    VkImageView createImageView(VkImage image, VkFormat format, VkImageViewType viewType, uint32_t mipLevels = 1);
     void createTextureSampler();
-    void transitionImageLayout(VkImage image, VkFormat format, VkImageLayout oldLayout, VkImageLayout newLayout);
+    void transitionImageLayout(VkImage image, VkFormat format, VkImageLayout oldLayout, VkImageLayout newLayout, uint32_t mipLevels = 1);
     void copyBufferToImage(VkBuffer buffer, VkImage image, uint32_t width, uint32_t height, uint32_t depth);
     void createBackposAttachmentImage();
 
@@ -210,6 +210,7 @@ private:
     void prepareTextureTarget();
     void prepareCompute();
     void recordComputeCommandBuffer(uint32_t currentFrame);
+    void recordGenExtCoffMipmaps(uint32_t currentFrame);
     // end compute
 
     // https://vulkan-tutorial.com/Texture_mapping/Images#page_Layout-transitions
@@ -345,6 +346,9 @@ private:
             vkDestroyFence(device, fence, nullptr);
         }
         for (auto semaphore : computeResources.finishedSemaphores) {
+            vkDestroySemaphore(device, semaphore, nullptr);
+        }
+        for(auto semaphore: computeResources.finishedGenMipmapSemaphores) {
             vkDestroySemaphore(device, semaphore, nullptr);
         }
 
@@ -1582,6 +1586,9 @@ private:
                 throw std::runtime_error("failed to submit compute command buffer!");
             }
 
+            // todo generate mipmaps
+            // recordGenExtCoffMipmaps(currentFrame); 
+
             computeResources.isComplete[currentFrame] = true;
         }
 
@@ -1614,7 +1621,7 @@ private:
         if (!computeResources.isComplete[currentFrame]) {
             VkSemaphore graphicWaitSemaphores[] = { computeResources.finishedSemaphores[currentFrame], imageAvailableSemaphores[currentFrame] };
             VkPipelineStageFlags graphicWaitStages[] = { VK_PIPELINE_STAGE_COMPUTE_SHADER_BIT , VK_PIPELINE_STAGE_COLOR_ATTACHMENT_OUTPUT_BIT };
-            
+
             VkSubmitInfo graphicsSubmitInfo{};
             graphicsSubmitInfo.sType = VK_STRUCTURE_TYPE_SUBMIT_INFO;
             std::array<VkCommandBuffer, 1> submitCommandBuffers = { commandBuffers[currentFrame] };

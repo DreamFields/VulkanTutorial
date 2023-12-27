@@ -285,7 +285,8 @@ void VulkanApplication::createImage(    // 创建图像对象
     VkMemoryPropertyFlags properties,   // 内存属性
     VkImage& image,
     VkDeviceMemory& imageMemory,
-    VkSampleCountFlagBits numSamples) {
+    VkSampleCountFlagBits numSamples,
+    uint32_t mipLevels) {
     // 创建图像对象
     VkImageCreateInfo imageInfo{};
     imageInfo.sType = VK_STRUCTURE_TYPE_IMAGE_CREATE_INFO;
@@ -293,7 +294,7 @@ void VulkanApplication::createImage(    // 创建图像对象
     imageInfo.extent.width = static_cast<uint32_t>(width);    // 图像的宽度和高度，以像素为单位
     imageInfo.extent.height = static_cast<uint32_t>(height);
     imageInfo.extent.depth = static_cast<uint32_t>(depth); // 图像的深度，对于 2D 图像，其值必须为 1
-    imageInfo.mipLevels = 1;    // 图像的 mipmap 级别数
+    imageInfo.mipLevels = mipLevels;    // 图像的 mipmap 级别数
     imageInfo.arrayLayers = 1;  // 图像的数组层数
     imageInfo.format = format;  // 图像数据的格式
     imageInfo.tiling = tiling;  // 图像数据的布局
@@ -385,7 +386,7 @@ void VulkanApplication::createTextureImageView() {
 }
 
 
-VkImageView VulkanApplication::createImageView(VkImage image, VkFormat format, VkImageViewType viewType) {
+VkImageView VulkanApplication::createImageView(VkImage image, VkFormat format, VkImageViewType viewType, uint32_t mipLevels) {
     VkImageViewCreateInfo viewInfo{};
     viewInfo.sType = VK_STRUCTURE_TYPE_IMAGE_VIEW_CREATE_INFO; // 指定结构体类型
     viewInfo.image = image; // 指定图像对象
@@ -393,7 +394,7 @@ VkImageView VulkanApplication::createImageView(VkImage image, VkFormat format, V
     viewInfo.format = format;   // 指定图像数据的格式
     viewInfo.subresourceRange.aspectMask = VK_IMAGE_ASPECT_COLOR_BIT; // 指定图像的哪些方面将受到屏障的影响。我们使用颜色位，因为我们只关心颜色数据
     viewInfo.subresourceRange.baseMipLevel = 0;    // 指定图像的哪些 mipmap 级别将受到屏障的影响。我们将其设置为 0，以便它可以影响所有级别
-    viewInfo.subresourceRange.levelCount = 1; // 指定图像的 mipmap 级别数量
+    viewInfo.subresourceRange.levelCount = mipLevels; // 指定图像的 mipmap 级别数量
     viewInfo.subresourceRange.baseArrayLayer = 0; // 指定图像的哪些数组层将受到屏障的影响。我们将其设置为 0，以便它可以影响所有层
     viewInfo.subresourceRange.layerCount = 1;  // 指定图像的数组层数量
 
@@ -456,7 +457,8 @@ void VulkanApplication::transitionImageLayout(    // 图像布局转换
     VkImage image,
     VkFormat format,
     VkImageLayout oldLayout,
-    VkImageLayout newLayout) {
+    VkImageLayout newLayout,
+    uint32_t mipLevels) {
     VkCommandBuffer commandBuffer = beginSingleTimeCommands(commandPool); // 开始记录命令缓冲区
 
     // VkImageMemoryBarrier（流水线屏障的一种）通常用于同步资源访问，例如确保在从缓冲区读取数据之前完成对缓冲区的写入
@@ -471,7 +473,7 @@ void VulkanApplication::transitionImageLayout(    // 图像布局转换
     // 图像和 subresourceRange 指定了受影响的图像和图像的特定部分
     barrier.subresourceRange.aspectMask = VK_IMAGE_ASPECT_COLOR_BIT;  // 图像的哪些方面将受到屏障的影响。我们使用颜色位，因为我们只关心颜色数据
     barrier.subresourceRange.baseMipLevel = 0;  // 图像的哪些 mipmap 级别将受到屏障的影响。我们将其设置为 0，以便它可以影响所有级别
-    barrier.subresourceRange.levelCount = 1; // 图像的 mipmap 级别数量
+    barrier.subresourceRange.levelCount = mipLevels; // 图像的 mipmap 级别数量
     barrier.subresourceRange.baseArrayLayer = 0; // 图像的哪些数组层将受到屏障的影响。我们将其设置为 0，以便它可以影响所有层
     barrier.subresourceRange.layerCount = 1;  // 图像的数组层数量
 
@@ -500,6 +502,18 @@ void VulkanApplication::transitionImageLayout(    // 图像布局转换
         barrier.dstAccessMask = VK_ACCESS_SHADER_WRITE_BIT;
         sourceStage = VK_PIPELINE_STAGE_TOP_OF_PIPE_BIT; // 在管线开始之前执行转换
         destinationStage = VK_PIPELINE_STAGE_COMPUTE_SHADER_BIT;    // 计算着色器阶段等待布局转换完成
+    }
+    else if (oldLayout == VK_IMAGE_LAYOUT_GENERAL && newLayout == VK_IMAGE_LAYOUT_TRANSFER_SRC_OPTIMAL) {
+        barrier.srcAccessMask = VK_ACCESS_SHADER_WRITE_BIT;
+        barrier.dstAccessMask = VK_ACCESS_TRANSFER_WRITE_BIT;
+        sourceStage = VK_PIPELINE_STAGE_COMPUTE_SHADER_BIT;    // 计算着色器阶段等待布局转换完成
+        destinationStage = VK_PIPELINE_STAGE_TRANSFER_BIT;
+    }
+    else if (oldLayout == VK_IMAGE_LAYOUT_TRANSFER_DST_OPTIMAL && newLayout == VK_IMAGE_LAYOUT_GENERAL) {
+        barrier.srcAccessMask = VK_ACCESS_TRANSFER_WRITE_BIT;
+        barrier.dstAccessMask = VK_ACCESS_SHADER_WRITE_BIT;
+        sourceStage = VK_PIPELINE_STAGE_TRANSFER_BIT;
+        destinationStage = VK_PIPELINE_STAGE_FRAGMENT_SHADER_BIT;
     }
     else {
         throw std::invalid_argument("unsupported layout transition!");
@@ -866,7 +880,7 @@ void VulkanApplication::drawImGui() {
     ImGui::Render();
 }
 
-void VulkanApplication::recordImGuiCommandBuffer(VkCommandBuffer commandBuffer,uint32_t imageIndex) {
+void VulkanApplication::recordImGuiCommandBuffer(VkCommandBuffer commandBuffer, uint32_t imageIndex) {
     // record imgui commands into command buffer
     VkCommandBufferBeginInfo beginInfo{};
     beginInfo.sType = VK_STRUCTURE_TYPE_COMMAND_BUFFER_BEGIN_INFO;
@@ -918,12 +932,18 @@ void VulkanApplication::prepareTextureTarget() {
     imageCreateInfo.extent = { static_cast<unsigned int>(volumeRender->getDicomTags().voxelResolution[0])
         , static_cast<unsigned int>(volumeRender->getDicomTags().voxelResolution[1])
         , static_cast<unsigned int>(volumeRender->getDicomTags().voxelResolution[2]) };
-    imageCreateInfo.mipLevels = 1;
+    textureTarget.mipLevels = static_cast<uint32_t>(std::floor(
+        std::log2(
+            std::max(
+                std::max(volumeRender->getDicomTags().voxelResolution[0], volumeRender->getDicomTags().voxelResolution[1]),
+                volumeRender->getDicomTags().voxelResolution[2])
+        ))) + 1;  // mipmap 级别  
+    imageCreateInfo.mipLevels = textureTarget.mipLevels;
     imageCreateInfo.arrayLayers = 1;
     imageCreateInfo.samples = VK_SAMPLE_COUNT_1_BIT;
     imageCreateInfo.tiling = VK_IMAGE_TILING_OPTIMAL;
     // Image will be sampled in the fragment shader and used as storage target in the compute shader
-    imageCreateInfo.usage = VK_IMAGE_USAGE_SAMPLED_BIT | VK_IMAGE_USAGE_STORAGE_BIT;
+    imageCreateInfo.usage = VK_IMAGE_USAGE_SAMPLED_BIT | VK_IMAGE_USAGE_STORAGE_BIT | VK_IMAGE_USAGE_TRANSFER_DST_BIT | VK_IMAGE_USAGE_TRANSFER_SRC_BIT;
     imageCreateInfo.flags = 0;
     imageCreateInfo.sharingMode = VK_SHARING_MODE_EXCLUSIVE;
     imageCreateInfo.initialLayout = VK_IMAGE_LAYOUT_UNDEFINED;
@@ -962,13 +982,13 @@ void VulkanApplication::prepareTextureTarget() {
 
     // 将图像布局转换为VK_IMAGE_LAYOUT_GENERAL
     textureTarget.imageLayout = VK_IMAGE_LAYOUT_GENERAL;
-    transitionImageLayout(textureTarget.image, VK_FORMAT_R8G8B8A8_UNORM, VK_IMAGE_LAYOUT_UNDEFINED, VK_IMAGE_LAYOUT_GENERAL);
+    transitionImageLayout(textureTarget.image, VK_FORMAT_R8G8B8A8_UNORM, VK_IMAGE_LAYOUT_UNDEFINED, VK_IMAGE_LAYOUT_GENERAL, textureTarget.mipLevels);
 
     // Create sampler
     textureTarget.sampler = textureSampler;
 
     // Create image view
-    textureTarget.imageView = createImageView(textureTarget.image, VK_FORMAT_R8G8B8A8_UNORM, VK_IMAGE_VIEW_TYPE_3D);
+    textureTarget.imageView = createImageView(textureTarget.image, VK_FORMAT_R8G8B8A8_UNORM, VK_IMAGE_VIEW_TYPE_3D, textureTarget.mipLevels);
 }
 
 void VulkanApplication::prepareCompute()
@@ -1176,11 +1196,15 @@ void VulkanApplication::prepareCompute()
 
     computeResources.inFlightFences.resize(MAX_FRAMES_IN_FLIGHT);
     computeResources.finishedSemaphores.resize(MAX_FRAMES_IN_FLIGHT);
+    computeResources.finishedGenMipmapSemaphores.resize(MAX_FRAMES_IN_FLIGHT);
     for (size_t i = 0; i < MAX_FRAMES_IN_FLIGHT; i++) {
         if (vkCreateFence(device, &fenceCreateInfo, nullptr, &computeResources.inFlightFences[i]) != VK_SUCCESS) { // 创建栅栏
             throw std::runtime_error("failed to create synchronization object for a frame!");
         }
         if (vkCreateSemaphore(device, &semaphoreCreateInfo, nullptr, &computeResources.finishedSemaphores[i]) != VK_SUCCESS) { // 创建信号量
+            throw std::runtime_error("failed to create synchronization object for a frame!");
+        }
+        if (vkCreateSemaphore(device, &semaphoreCreateInfo, nullptr, &computeResources.finishedGenMipmapSemaphores[i]) != VK_SUCCESS) { // 创建信号量
             throw std::runtime_error("failed to create synchronization object for a frame!");
         }
     }
@@ -1212,4 +1236,142 @@ void VulkanApplication::recordComputeCommandBuffer(uint32_t currentFrame) {
         throw std::runtime_error("failed to record command buffer!");
     }
 
+}
+
+void VulkanApplication::recordGenExtCoffMipmaps(uint32_t currentFrame) {
+    // --------------------------Generate mipmaps -----------------------------------
+
+    // Check if image format supports linear blitting
+    VkFormatProperties formatProperties;
+    vkGetPhysicalDeviceFormatProperties(physicalDevice, VK_FORMAT_R8G8B8A8_UNORM, &formatProperties);
+
+    if (!(formatProperties.optimalTilingFeatures & VK_FORMAT_FEATURE_SAMPLED_IMAGE_FILTER_LINEAR_BIT)) {
+        throw std::runtime_error("texture image format does not support linear blitting!");
+    }
+
+    // Create command buffer for submitting the image barrier commands
+    VkCommandBufferBeginInfo beginInfo{};
+    beginInfo.sType = VK_STRUCTURE_TYPE_COMMAND_BUFFER_BEGIN_INFO;
+    // we're only submitting the ui commands once, so we use the one time submit bit
+    beginInfo.flags = VK_COMMAND_BUFFER_USAGE_ONE_TIME_SUBMIT_BIT;
+
+    VkCommandBuffer blitCommandBuffer = computeResources.commandBuffers[currentFrame];
+
+    if (vkBeginCommandBuffer(blitCommandBuffer, &beginInfo) != VK_SUCCESS) {
+        throw std::runtime_error("failed to begin recording imgui command buffer!");
+    }
+
+    // transitioned to VK_IMAGE_LAYOUT_TRANSFER_SRC_OPTIMAL while generating mipmaps
+    VkImageMemoryBarrier barrier{};
+    barrier.sType = VK_STRUCTURE_TYPE_IMAGE_MEMORY_BARRIER;
+    barrier.image = textureTarget.image;
+    barrier.srcQueueFamilyIndex = VK_QUEUE_FAMILY_IGNORED;
+    barrier.dstQueueFamilyIndex = VK_QUEUE_FAMILY_IGNORED;
+    barrier.subresourceRange.aspectMask = VK_IMAGE_ASPECT_COLOR_BIT;
+    barrier.subresourceRange.baseArrayLayer = 0;
+    barrier.subresourceRange.layerCount = 1;
+    barrier.subresourceRange.levelCount = textureTarget.mipLevels;
+    barrier.srcAccessMask = VK_ACCESS_SHADER_WRITE_BIT;
+    barrier.dstAccessMask = VK_ACCESS_TRANSFER_READ_BIT;
+    barrier.oldLayout = VK_IMAGE_LAYOUT_GENERAL;
+    barrier.newLayout = VK_IMAGE_LAYOUT_TRANSFER_SRC_OPTIMAL;
+
+    vkCmdPipelineBarrier(
+        blitCommandBuffer,
+        VK_PIPELINE_STAGE_COMPUTE_SHADER_BIT,
+        VK_PIPELINE_STAGE_TRANSFER_BIT,
+        0,
+        0, nullptr,
+        0, nullptr,
+        1, &barrier);
+
+    int32_t mipWidth = volumeRender->getDicomTags().voxelResolution[0];
+    int32_t mipHeight = volumeRender->getDicomTags().voxelResolution[1];
+    int32_t mipDepth = volumeRender->getDicomTags().voxelResolution[2];
+
+    // Copy down mips from n-1 to n
+    for (uint32_t i = 1; i < textureTarget.mipLevels; i++) {
+        // Transition current mip level to transfer dest
+        barrier.subresourceRange.baseMipLevel = i;
+        barrier.subresourceRange.levelCount = 1;
+        barrier.oldLayout = VK_IMAGE_LAYOUT_TRANSFER_SRC_OPTIMAL;
+        barrier.newLayout = VK_IMAGE_LAYOUT_TRANSFER_DST_OPTIMAL;
+        barrier.srcAccessMask = VK_PIPELINE_STAGE_TRANSFER_BIT;
+        barrier.dstAccessMask = VK_PIPELINE_STAGE_TRANSFER_BIT;
+
+        vkCmdPipelineBarrier(
+            blitCommandBuffer,
+            VK_PIPELINE_STAGE_TRANSFER_BIT,
+            VK_PIPELINE_STAGE_TRANSFER_BIT,
+            0,
+            0, nullptr,
+            0, nullptr,
+            1, &barrier);
+
+        VkImageBlit imageBlit{};
+
+        // Source
+        imageBlit.srcSubresource.aspectMask = VK_IMAGE_ASPECT_COLOR_BIT; // 颜色位
+        imageBlit.srcSubresource.layerCount = 1; // 图像层数
+        imageBlit.srcSubresource.mipLevel = i - 1; // 图像mip级别
+        imageBlit.srcOffsets[1].x = int32_t(mipWidth); // 图像宽度
+        imageBlit.srcOffsets[1].y = int32_t(mipHeight); // 图像高度
+        imageBlit.srcOffsets[1].z = int32_t(mipDepth); // 图像深度
+
+        // Destination
+        imageBlit.dstSubresource.aspectMask = VK_IMAGE_ASPECT_COLOR_BIT; // 颜色位
+        imageBlit.dstSubresource.layerCount = 1; // 图像层数
+        imageBlit.dstSubresource.mipLevel = i; // 图像mip级别
+        imageBlit.dstOffsets[1].x = mipWidth > 1 ? int32_t(mipWidth / 2) : 1; // 图像宽度
+        imageBlit.dstOffsets[1].y = mipHeight > 1 ? int32_t(mipHeight / 2) : 1; // 图像高度
+        imageBlit.dstOffsets[1].z = mipDepth > 1 ? int32_t(mipDepth / 2) : 1; // 图像深度
+
+        // Blit from previous level
+        vkCmdBlitImage(
+            blitCommandBuffer,
+            textureTarget.image, VK_IMAGE_LAYOUT_TRANSFER_SRC_OPTIMAL,
+            textureTarget.image, VK_IMAGE_LAYOUT_TRANSFER_DST_OPTIMAL,
+            1, &imageBlit,
+            VK_FILTER_LINEAR);
+
+        // Transition current mip level to transfer source for read in next iteration
+        barrier.oldLayout = VK_IMAGE_LAYOUT_TRANSFER_DST_OPTIMAL;
+        barrier.newLayout = VK_IMAGE_LAYOUT_TRANSFER_SRC_OPTIMAL;
+        barrier.srcAccessMask = VK_ACCESS_TRANSFER_WRITE_BIT;
+        barrier.dstAccessMask = VK_ACCESS_TRANSFER_READ_BIT;
+
+        vkCmdPipelineBarrier(
+            blitCommandBuffer,
+            VK_PIPELINE_STAGE_TRANSFER_BIT,
+            VK_PIPELINE_STAGE_TRANSFER_BIT,
+            0,
+            0, nullptr,
+            0, nullptr,
+            1, &barrier);
+
+        if (mipWidth > 1) mipWidth /= 2;
+        if (mipHeight > 1) mipHeight /= 2;
+        if (mipDepth > 1) mipDepth /= 2;
+    }
+
+    // After the loop, all mip layers are in TRANSFER_SRC layout, so transition all to GENERAL for compute shader read access
+    barrier.subresourceRange.baseMipLevel = 0;
+    barrier.subresourceRange.levelCount = textureTarget.mipLevels;
+    barrier.oldLayout = VK_IMAGE_LAYOUT_TRANSFER_SRC_OPTIMAL;
+    barrier.newLayout = VK_IMAGE_LAYOUT_GENERAL;
+    barrier.srcAccessMask = VK_PIPELINE_STAGE_TRANSFER_BIT;
+    barrier.dstAccessMask = VK_PIPELINE_STAGE_FRAGMENT_SHADER_BIT;
+
+    vkCmdPipelineBarrier(
+        blitCommandBuffer,
+        VK_PIPELINE_STAGE_TRANSFER_BIT,
+        VK_PIPELINE_STAGE_FRAGMENT_SHADER_BIT,
+        0,
+        0, nullptr,
+        0, nullptr,
+        1, &barrier);
+
+    if (vkEndCommandBuffer(blitCommandBuffer) != VK_SUCCESS) {
+        throw std::runtime_error("failed to record command buffer!");
+    }
 }
