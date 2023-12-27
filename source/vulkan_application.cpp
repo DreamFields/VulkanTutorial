@@ -1175,7 +1175,7 @@ void VulkanApplication::prepareCompute()
     }
 
     // Create a command buffer for compute operations
-    computeResources.commandBuffers.resize(swapChainFramebuffers.size());
+    computeResources.commandBuffers.resize(MAX_FRAMES_IN_FLIGHT);
     VkCommandBufferAllocateInfo cmdBufAllocateInfo{};
     cmdBufAllocateInfo.sType = VK_STRUCTURE_TYPE_COMMAND_BUFFER_ALLOCATE_INFO;
     cmdBufAllocateInfo.commandPool = computeResources.commandPool; // 命令池

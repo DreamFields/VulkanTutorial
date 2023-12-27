@@ -94,6 +94,18 @@ vec4 absorptionMethod(float stepLength,float rayLength,vec3 dir,vec3 currentPos)
         // vec4 sampleColor=getExtCoeff(pos);
         vec4 sampleColor=getDistanceField(pos);
         
+        // Go to the next interval
+        s=s+h;
+
+        if(sampleColor.r==0.){
+            // vec3 texPos=pos/dicomUbo.boxSize;
+            // // float minForwardDis = texture(extCoeffSampler,texPos).r * length(dicomUbo.boxSize);
+            // float minForwardDis =  getDistanceField(pos).r * length(dicomUbo.boxSize);
+            // getDistanceField(pos);
+            // s = s - h + minForwardDis;
+            continue;
+        }
+        
         if(!isAccurate){
             // ---------Iteration A: tau*h 很小时结果较好---------------
             // Accumulate the sampleColor
@@ -113,9 +125,6 @@ vec4 absorptionMethod(float stepLength,float rayLength,vec3 dir,vec3 currentPos)
         }
         
         if((1.-T)>.99)break;
-        
-        // Go to the next interval
-        s=s+h;
     }
     
     return E;
