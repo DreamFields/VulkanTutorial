@@ -72,7 +72,7 @@ vec4 getDistanceField(vec3 worldPos){
     vec4 volumeColor=get3DTextureColor(worldPos);
     
     if(volumeColor.r==0.){
-        return texture(extCoeffSampler,texPos);
+        return vec4(texture(extCoeffSampler,texPos).a);
     }
     return vec4(0.,0.,0.,0.);
 }
@@ -83,8 +83,10 @@ vec4 absorptionMethod(float stepLength,float rayLength,vec3 dir,vec3 currentPos)
     // T
     float T=1.;
     bool isAccurate=true;
+    float sampleCnt=0.;
     // Evaluate form 0 to D
-    for(float s=0.;s<rayLength;){
+    for(float s=0.;s<rayLength;){\
+        sampleCnt+=1.;
         // Get the current step or the remaining interval
         float h=min(stepLength,rayLength-s);
         // Get the current position
@@ -96,13 +98,14 @@ vec4 absorptionMethod(float stepLength,float rayLength,vec3 dir,vec3 currentPos)
         
         // Go to the next interval
         s=s+h;
-
+        
         if(sampleColor.r==0.){
             // vec3 texPos=pos/dicomUbo.boxSize;
-            // // float minForwardDis = texture(extCoeffSampler,texPos).r * length(dicomUbo.boxSize);
-            // float minForwardDis =  getDistanceField(pos).r * length(dicomUbo.boxSize);
-            // getDistanceField(pos);
-            // s = s - h + minForwardDis;
+            // float minForwardDis=texture(extCoeffSampler,texPos).a*length(dicomUbo.boxSize);
+            // if(minForwardDis/4.>h){
+                //     s=s+minForwardDis/5.-h;
+                //     continue;
+            // }
             continue;
         }
         
@@ -127,7 +130,8 @@ vec4 absorptionMethod(float stepLength,float rayLength,vec3 dir,vec3 currentPos)
         if((1.-T)>.99)break;
     }
     
-    return E;
+    // return E;
+    return vec4(E.rgb,sampleCnt*stepLength/rayLength);
 }
 
 void main(){
@@ -145,8 +149,9 @@ void main(){
     vec4 color=absorptionMethod(stepLength,rayLength,dir,currentPos);
     
     outColor=color;
-    vec3 testPos=vec3(inTexCoord.y,27./41.,inTexCoord.x);// todo 由于立方体尺寸改变，这里需要重新计算纹理坐标
-    // outColor = get3DTextureColor(testPos);
-    // outColor = getExtCoeff(testPos);
+    // vec3 testPos=vec3(inTexCoord.y,27./41.,inTexCoord.x);// todo 由于立方体尺寸改变，这里需要重新计算纹理坐标
+    // outColor=get3DTextureColor(testPos);
+    // outColor=getExtCoeff(testPos);
     // outColor=getDistanceField(testPos);
+    // outColor=vec4(color.a);// test 测试步进的次数
 }

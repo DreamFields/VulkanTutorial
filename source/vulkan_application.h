@@ -348,7 +348,7 @@ private:
         for (auto semaphore : computeResources.finishedSemaphores) {
             vkDestroySemaphore(device, semaphore, nullptr);
         }
-        for(auto semaphore: computeResources.finishedGenMipmapSemaphores) {
+        for (auto semaphore : computeResources.finishedGenMipmapSemaphores) {
             vkDestroySemaphore(device, semaphore, nullptr);
         }
 
@@ -1563,12 +1563,12 @@ private:
         // --------------------Compute submission-----------------
         // !不必每一帧都提交计算命令，只有在计算命令完成之前才需要提交计算命令，如果之后修改了一些参数，只需要把isComplete设置为false即可
         if (!computeResources.isComplete[currentFrame]) {
-            vkWaitForFences(device, 1, &computeResources.inFlightFences[currentFrame], VK_TRUE, UINT64_MAX);
+            // vkWaitForFences(device, 1, &computeResources.inFlightFences[currentFrame], VK_TRUE, UINT64_MAX);
 
             // update uniform buffer
             // ...
 
-            vkResetFences(device, 1, &computeResources.inFlightFences[currentFrame]);
+            // vkResetFences(device, 1, &computeResources.inFlightFences[currentFrame]);
 
             vkResetCommandBuffer(computeResources.commandBuffers[currentFrame], 0);
             // Build a single command buffer containing the compute dispatch commands
@@ -1582,7 +1582,7 @@ private:
             computeSubmitInfo.signalSemaphoreCount = 1;
             computeSubmitInfo.pSignalSemaphores = &computeResources.finishedSemaphores[currentFrame]; // 计算命令完成时发送信号
 
-            if (vkQueueSubmit(computeResources.queue, 1, &computeSubmitInfo, computeResources.inFlightFences[currentFrame]) != VK_SUCCESS) {
+            if (vkQueueSubmit(computeResources.queue, 1, &computeSubmitInfo, VK_NULL_HANDLE) != VK_SUCCESS) {
                 throw std::runtime_error("failed to submit compute command buffer!");
             }
 
@@ -1595,7 +1595,10 @@ private:
         // --------------------Graphics submission-----------------
         uint32_t imageIndex;
         VkResult result = vkAcquireNextImageKHR(device, swapChain, UINT64_MAX, imageAvailableSemaphores[currentFrame], VK_NULL_HANDLE, &imageIndex);
-        vkWaitForFences(device, 1, &inFlightFences[currentFrame], VK_TRUE, UINT64_MAX);
+        VkResult waitRes = vkWaitForFences(device, 1, &inFlightFences[currentFrame], VK_TRUE, UINT64_MAX);
+        if(waitRes != VK_SUCCESS) {
+            throw std::runtime_error("failed to wait for inFlightFences[currentFrame]!");
+        }
 
         if (result == VK_ERROR_OUT_OF_DATE_KHR) {
             recreateSwapChain();
@@ -1657,7 +1660,10 @@ private:
             }
         }
         // --------------------ImGui submission-----------------
-        vkWaitForFences(device, 1, &imguiInFlightFences[currentFrame], VK_TRUE, UINT64_MAX);
+        VkResult waitImguiRes = vkWaitForFences(device, 1, &imguiInFlightFences[currentFrame], VK_TRUE, UINT64_MAX);
+        if(waitImguiRes != VK_SUCCESS) {
+            throw std::runtime_error("failed to wait for imguiInFlightFences[currentFrame]!");
+        }
 
         vkResetFences(device, 1, &imguiInFlightFences[currentFrame]);
 

@@ -76,7 +76,7 @@ vec4 GaussianFilter(uvec3 globalIdx){
     return sumOfColor/sumOfWeight;
 }
 
-// 生成距离场
+// todo 生成距离场的精度太低，导致渲染有噪点
 vec4 genDistanceField(uvec3 globalIdx){
     // 计算采样位置，采样位置为当前全局索引除以3D纹理的尺寸，以保证采样坐标在[0, 1]的范围内
     vec3 samplePos=(vec3(globalIdx)+vec3(.5))/dicomUbo.voxelResolution;
@@ -140,8 +140,8 @@ void main(){
     vec3 samplePos=(vec3(globalIdx)+vec3(.5))/dicomUbo.voxelResolution;
     
     // 将颜色值写入输出的3D图像
-    imageStore(TexOutputVolume,ivec3(globalIdx),genDistanceField(globalIdx));
-    // imageStore(TexOutputVolume,ivec3(globalIdx),vec4(GaussianFilter(globalIdx).rgba));
+    // imageStore(TexOutputVolume,ivec3(globalIdx),genDistanceField(globalIdx));
+    imageStore(TexOutputVolume,ivec3(globalIdx),vec4(GaussianFilter(globalIdx).rgb,genDistanceField(globalIdx).r));
     // imageStore(TexOutputVolume,ivec3(globalIdx),get3DTextureColor(samplePos));
     // imageStore(TexOutputVolume,ivec3(globalIdx),texture(TexInputVolume,samplePos));
 }
