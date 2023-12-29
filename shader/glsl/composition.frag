@@ -32,6 +32,15 @@ layout(location=2)in vec3 inFrontPos;
 
 layout(location=0)out vec4 outColor;
 
+#define CONSIDER_BORDERS
+//#define USE_EARLY_TERMINATION
+//#define ALWAYS_SPLIT_CONES
+//#define USE_FALLOFF_FUNCTION
+
+#ifdef USE_EARLY_TERMINATION
+const float max_ext=log(1./.05);
+#endif
+
 vec4 get3DTextureColor(vec3 worldPos){
     // 将世界坐标转换为纹理坐标,并归一化后再采样
     vec3 texPos=worldPos/dicomUbo.boxSize;
@@ -77,6 +86,93 @@ vec4 getDistanceField(vec3 worldPos){
     return vec4(0.,0.,0.,0.);
 }
 
+// Evaluating sections that are approximated with only one sample
+/* float Cone1RayOcclusion(vec3 pos_from_zero,vec3 coneDir,vec3 cameraUp,vec3 cameraRight)
+{
+    float track_distance=OccInitialStep;
+    occ_rays[0]=0.;
+    last_amptau[0]=0.;
+    
+    // For each section... do...
+    int ith_step=0;
+    while(ith_step<OccConeIntegrationSamples[0])
+    {
+        // vec4 [ distance_to_next_integration | radius_cone | coef_rescale ]
+        vec4 section_info=GetOcclusionSectionInfo(ith_step);
+        
+        float interval_distance=section_info.r;// interval间隔的步长
+        float mipmap_level=section_info.g;// mipmap level
+        float d_integral=section_info.b;// 系数
+        float gaussian_amp=section_info.a;// 当前项的高斯积分结果 \frac{\left(p_r\sigma\sqrt{2\pi}\right)^2}{A_c} ，未乘以 \tau_s
+        
+        vec3 pos=pos_from_zero+coneDir*track_distance;
+        
+        float Tau_s=GetGaussianExtinction(pos,mipmap_level);
+        
+        float amptau=Tau_s*gaussian_amp;
+        
+        #ifdef USE_FALLOFF_FUNCTION
+        occ_rays[0]+=(last_amptau[0]+amptau)*d_integral*falloffunction(track_distance);
+        #else
+        occ_rays[0]+=(last_amptau[0]+amptau)*d_integral*OccUIWeight;
+        #endif
+        
+        last_amptau[0]=amptau;
+        
+        #ifdef USE_EARLY_TERMINATION
+        // if the occlusion cone reaches a certain amount of remaining light, return
+        if(occ_rays[0]>max_ext)return exp(-occ_rays[0]);
+        #endif
+        
+        // update tracked distance
+        track_distance+=section_info.r;
+        
+        // Next section
+        ith_step=ith_step+1;
+    }
+    
+    #ifdef ALWAYS_SPLIT_CONES
+    return Cone3RayOcclusion(pos_from_zero,track_distance,coneDir,cameraUp,cameraRight);
+    #else
+    // If we have more integration steps to resolve, then...
+    if(OccConeIntegrationSamples[1]+OccConeIntegrationSamples[2]>0)
+    return Cone3RayOcclusion(pos_from_zero,track_distance,coneDir,cameraUp,cameraRight);
+    #endif
+    
+    // Return the how much non shadowed is the sample color
+    return exp(-occ_rays[0]);
+} */
+
+vec4 ShadeSample(vec3 worldPos,vec3 dir,vec3 v_up,vec3 v_right){
+    // 将世界坐标转换为纹理坐标,并归一化后再采样
+    vec3 texPos=worldPos/dicomUbo.boxSize;
+    
+    vec4 L=get3DTextureColor(worldPos);
+    float ka=0.,kd=0.,ks=0.;
+    
+    // Directional Ambient Occlusion
+    float IOcclusion=.5;
+    int ApplyOcclusion=1;
+    if(ApplyOcclusion==1)
+    {
+        ka=.5f;
+        // IOcclusion=Cone1RayOcclusion(worldPos,-dir,v_up,v_right);
+    }
+    
+    // Shadows
+    float IShadow=0.;
+    int ApplyShadow=0;
+    if(ApplyShadow==1)
+    {
+        // kd=Kdiffuse;
+        // ks=Kspecular;
+        // IShadow=ShadowEvaluationKernel(tx_pos);
+    }
+    
+    L.rgb=(1./(ka+kd))*(L.rgb*IOcclusion*ka+L.rgb*IShadow*kd);
+    return L;
+}
+
 vec4 absorptionMethod(float stepLength,float rayLength,vec3 dir,vec3 currentPos){
     // Initialize Transparency and Radiance sampleColor
     vec4 E=vec4(0.);
@@ -85,7 +181,7 @@ vec4 absorptionMethod(float stepLength,float rayLength,vec3 dir,vec3 currentPos)
     bool isAccurate=true;
     float sampleCnt=0.;
     // Evaluate form 0 to D
-    for(float s=0.;s<rayLength;){\
+    for(float s=0.;s<rayLength;){
         sampleCnt+=1.;
         // Get the current step or the remaining interval
         float h=min(stepLength,rayLength-s);
@@ -94,7 +190,9 @@ vec4 absorptionMethod(float stepLength,float rayLength,vec3 dir,vec3 currentPos)
         // Get the sampleColor from the 3D texture
         // vec4 sampleColor=get3DTextureColor(pos);
         // vec4 sampleColor=getExtCoeff(pos);
-        vec4 sampleColor=getDistanceField(pos);
+        // vec4 sampleColor=getDistanceField(pos);
+        
+        vec4 sampleColor=ShadeSample(pos,dir,vec3(0.,1.,0.),vec3(1.,0.,0.));
         
         // Go to the next interval
         s=s+h;

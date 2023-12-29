@@ -3,6 +3,7 @@
 #include "dcmtk/dcmdata/dctk.h"
 #include "dcmtk/dcmimgle/dcmimage.h"
 #include "struct.h"
+#include "coneGaussianSampler.h"
 
 #include <glm.hpp>
 #include <string>
@@ -38,12 +39,22 @@ struct DicomParamControl {
     float glow;
 };
 
+
+
 class VolumeRender
 {
 private:
     DicomTags dicomTags;
 public:
     DicomParamControl dicomParamControl;
+
+    // Ext Coefficients
+    float basegaussianlevel;
+
+    // Cone Lighting Parameters
+    bool glsl_apply_occlusion;
+    // gl::Texture1D* glsl_occ_sectionsinfo;
+    ConeGaussianSampler sampler_occlusion;
 public:
     VolumeRender(/* args */);
     ~VolumeRender();
@@ -52,6 +63,13 @@ public:
     bool getPixelRGBA(int& width, int& height, int& numSlice, unsigned char*& rgba);
     DicomTags getDicomTags();
     const std::vector<Vertex> getBoxVertices();
+
+    // Ext Coefficients
+    void initExtCoefficients();
+
+    // Cone Lighting
+    void GenerateConeSamples();
+    void DestroyConeSamples();
 };
 
 

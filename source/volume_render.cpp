@@ -1,6 +1,15 @@
 #include "volume_render.h"
 VolumeRender::VolumeRender(/* args */)
 {
+	initExtCoefficients();
+
+	// Cone Occlusion
+	// bind_cone_occlusion_vars = true;
+	glsl_apply_occlusion = true;
+	// glsl_occ_sectionsinfo = nullptr
+	// sampler_occlusion.SetUIWeightPercentage(0.350f);
+	sampler_occlusion.SetConeHalfAngle(20.0);
+	sampler_occlusion.SetMaxGaussianPacking(ConeGaussianSampler::CONEPACKING::_3);
 }
 
 VolumeRender::~VolumeRender()
@@ -283,4 +292,21 @@ const std::vector<Vertex> VolumeRender::getBoxVertices() {
 	// };
 
 	return vertices;
+}
+
+void VolumeRender::initExtCoefficients() {
+	basegaussianlevel = 1.0f;
+}
+
+void VolumeRender::GenerateConeSamples() {
+	DestroyConeSamples();
+
+	// 1. generate cone sections info
+	sampler_occlusion.ComputeConeIntegrationSteps(basegaussianlevel);
+	// glsl_occ_sectionsinfo = sampler_occlusion.GetConeSectionsInfoTex();
+
+}
+
+void VolumeRender::DestroyConeSamples() {
+
 }
