@@ -44,7 +44,8 @@ const float max_ext=log(1./.05);
 vec4 get3DTextureColor(vec3 worldPos){
     // 将世界坐标转换为纹理坐标,并归一化后再采样
     vec3 texPos=worldPos/dicomUbo.boxSize;
-    vec4 sampleColor=texture(tex3DSampler,texPos);
+    // vec4 sampleColor=texture(tex3DSampler,texPos);
+    vec4 sampleColor=textureLod(tex3DSampler,texPos,2.);
     float intensity=sampleColor.r*255.+sampleColor.g*255.*255.-abs(dicomUbo.minVal);
     intensity=(intensity-dicomUbo.windowCenter)/dicomUbo.windowWidth+.5;
     intensity=clamp(intensity,0.,1.);
@@ -58,8 +59,8 @@ vec4 get3DTextureColor(vec3 worldPos){
 vec4 getExtCoeff(vec3 worldPos){
     // 将世界坐标转换为纹理坐标,并归一化后再采样
     vec3 texPos=worldPos/dicomUbo.boxSize;
-    vec4 sampleColor=texture(extCoeffSampler,texPos);
-    // vec4 sampleColor=textureLod(extCoeffSampler,texPos,7);
+    // vec4 sampleColor=texture(extCoeffSampler,texPos);
+    vec4 sampleColor=textureLod(extCoeffSampler,texPos,7);
     // if(sampleColor.r==0.)return vec4(0.);
     // return sampleColor;
     
@@ -188,11 +189,11 @@ vec4 absorptionMethod(float stepLength,float rayLength,vec3 dir,vec3 currentPos)
         // Get the current position
         vec3 pos=currentPos+dir*(s+h*.5);
         // Get the sampleColor from the 3D texture
-        // vec4 sampleColor=get3DTextureColor(pos);
+        vec4 sampleColor=get3DTextureColor(pos);
         // vec4 sampleColor=getExtCoeff(pos);
         // vec4 sampleColor=getDistanceField(pos);
         
-        vec4 sampleColor=ShadeSample(pos,dir,vec3(0.,1.,0.),vec3(1.,0.,0.));
+        // vec4 sampleColor=ShadeSample(pos,dir,vec3(0.,1.,0.),vec3(1.,0.,0.));
         
         // Go to the next interval
         s=s+h;

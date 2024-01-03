@@ -235,7 +235,14 @@ void VulkanApplication::create3DTextureImage() {
     首先，图像对象允许我们使用二维坐标，这将使我们更容易、更快速地检索颜色。图像对象中的像素被称为 texels
      */
 
-     // 创建纹理图像
+    uint32_t mipLevels = static_cast<uint32_t>(std::floor(
+        std::log2(
+            std::max(
+                std::max(volumeRender->getDicomTags().voxelResolution[0], volumeRender->getDicomTags().voxelResolution[1]),
+                volumeRender->getDicomTags().voxelResolution[2])
+        ))) + 1;  // mipmap 级别 s
+
+    // 创建纹理图像
     createImage(
         texWidth,
         texHeight,
@@ -243,18 +250,18 @@ void VulkanApplication::create3DTextureImage() {
         VK_FORMAT_R8G8B8A8_UNORM,
         VK_IMAGE_TYPE_3D,
         VK_IMAGE_TILING_OPTIMAL,
-        VK_IMAGE_USAGE_TRANSFER_DST_BIT | VK_IMAGE_USAGE_SAMPLED_BIT | VK_IMAGE_USAGE_STORAGE_BIT,
+        VK_IMAGE_USAGE_TRANSFER_DST_BIT | VK_IMAGE_USAGE_SAMPLED_BIT | VK_IMAGE_USAGE_STORAGE_BIT | VK_IMAGE_USAGE_TRANSFER_SRC_BIT,
         VK_MEMORY_PROPERTY_DEVICE_LOCAL_BIT,
         texture3DImage,
         texture3DImageMemory,
-        VK_SAMPLE_COUNT_1_BIT);
+        VK_SAMPLE_COUNT_1_BIT, mipLevels);
 
     // 将纹理图像转换为 VK_IMAGE_LAYOUT_TRANSFER_DST_OPTIMAL
     transitionImageLayout(
         texture3DImage,
         VK_FORMAT_R8G8B8A8_UNORM,
         VK_IMAGE_LAYOUT_UNDEFINED,
-        VK_IMAGE_LAYOUT_TRANSFER_DST_OPTIMAL);
+        VK_IMAGE_LAYOUT_TRANSFER_DST_OPTIMAL,mipLevels);
 
     // 将缓冲区数据复制到图像对象
     copyBufferToImage(
@@ -264,17 +271,139 @@ void VulkanApplication::create3DTextureImage() {
         static_cast<uint32_t>(texHeight),
         static_cast<uint32_t>(texDepth));
 
-    // 为了能够在着色器中开始从纹理图像中采样，我们需要最后一次转换，为着色器访问纹理图像做好准备。
-    // 将纹理图像转换为 VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL
-    transitionImageLayout(
-        texture3DImage,
-        VK_FORMAT_R8G8B8A8_UNORM,
-        VK_IMAGE_LAYOUT_TRANSFER_DST_OPTIMAL,
-        VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL);
+    // // 为了能够在着色器中开始从纹理图像中采样，我们需要最后一次转换，为着色器访问纹理图像做好准备。
+    // // 将纹理图像转换为 VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL
+    // transitionImageLayout(
+    //     texture3DImage,
+    //     VK_FORMAT_R8G8B8A8_UNORM,
+    //     VK_IMAGE_LAYOUT_TRANSFER_DST_OPTIMAL,
+    //     VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL);
 
     // 清理临时缓冲区
     vkDestroyBuffer(device, stagingBuffer, nullptr);
     vkFreeMemory(device, stagingBufferMemory, nullptr);
+
+
+    // ------------------------- generate mipmaps -------------------------
+    VkCommandBuffer blitCommandBuffer = beginSingleTimeCommands(commandPool);
+
+
+    std::cout << "mipLevels = " << mipLevels << std::endl;
+
+    // transitioned to VK_IMAGE_LAYOUT_TRANSFER_SRC_OPTIMAL while generating mipmaps
+    VkImageMemoryBarrier barrier{};
+    barrier.sType = VK_STRUCTURE_TYPE_IMAGE_MEMORY_BARRIER;
+    barrier.image = texture3DImage;
+    barrier.srcQueueFamilyIndex = VK_QUEUE_FAMILY_IGNORED;
+    barrier.dstQueueFamilyIndex = VK_QUEUE_FAMILY_IGNORED;
+    barrier.subresourceRange.aspectMask = VK_IMAGE_ASPECT_COLOR_BIT;
+    barrier.subresourceRange.baseArrayLayer = 0;
+    barrier.subresourceRange.layerCount = 1;
+    barrier.subresourceRange.levelCount = mipLevels;
+    barrier.srcAccessMask = VK_ACCESS_TRANSFER_WRITE_BIT;
+    barrier.dstAccessMask = VK_ACCESS_TRANSFER_READ_BIT;
+    barrier.oldLayout = VK_IMAGE_LAYOUT_TRANSFER_DST_OPTIMAL;
+    barrier.newLayout = VK_IMAGE_LAYOUT_TRANSFER_SRC_OPTIMAL;
+
+    vkCmdPipelineBarrier(
+        blitCommandBuffer,
+        VK_PIPELINE_STAGE_TRANSFER_BIT,
+        VK_PIPELINE_STAGE_TRANSFER_BIT,
+        0,
+        0, nullptr,
+        0, nullptr,
+        1, &barrier);
+
+    int32_t mipWidth = volumeRender->getDicomTags().voxelResolution[0];
+    int32_t mipHeight = volumeRender->getDicomTags().voxelResolution[1];
+    int32_t mipDepth = volumeRender->getDicomTags().voxelResolution[2];
+
+    // Copy down mips from n-1 to n
+    for (uint32_t i = 1; i < mipLevels; i++) {
+        // Transition current mip level to transfer dest
+        barrier.subresourceRange.baseMipLevel = i;
+        barrier.subresourceRange.levelCount = 1;
+        barrier.oldLayout = VK_IMAGE_LAYOUT_TRANSFER_SRC_OPTIMAL;
+        barrier.newLayout = VK_IMAGE_LAYOUT_TRANSFER_DST_OPTIMAL;
+        barrier.srcAccessMask = VK_ACCESS_TRANSFER_READ_BIT;
+        barrier.dstAccessMask = VK_ACCESS_TRANSFER_WRITE_BIT;
+
+        vkCmdPipelineBarrier(
+            blitCommandBuffer,
+            VK_PIPELINE_STAGE_TRANSFER_BIT,
+            VK_PIPELINE_STAGE_TRANSFER_BIT,
+            0,
+            0, nullptr,
+            0, nullptr,
+            1, &barrier);
+
+        VkImageBlit imageBlit{};
+
+        // Source
+        imageBlit.srcSubresource.aspectMask = VK_IMAGE_ASPECT_COLOR_BIT; // 颜色位
+        imageBlit.srcSubresource.layerCount = 1; // 图像层数
+        imageBlit.srcSubresource.mipLevel = i - 1; // 图像mip级别
+        imageBlit.srcOffsets[1].x = int32_t(mipWidth); // 图像宽度
+        imageBlit.srcOffsets[1].y = int32_t(mipHeight); // 图像高度
+        imageBlit.srcOffsets[1].z = int32_t(mipDepth); // 图像深度
+
+        // Destination
+        imageBlit.dstSubresource.aspectMask = VK_IMAGE_ASPECT_COLOR_BIT; // 颜色位
+        imageBlit.dstSubresource.layerCount = 1; // 图像层数
+        imageBlit.dstSubresource.mipLevel = i; // 图像mip级别
+        imageBlit.dstOffsets[1].x = mipWidth > 1 ? int32_t(mipWidth / 2) : 1; // 图像宽度
+        imageBlit.dstOffsets[1].y = mipHeight > 1 ? int32_t(mipHeight / 2) : 1; // 图像高度
+        imageBlit.dstOffsets[1].z = mipDepth > 1 ? int32_t(mipDepth / 2) : 1; // 图像深度
+
+        // Blit from previous level
+        vkCmdBlitImage(
+            blitCommandBuffer,
+            texture3DImage, VK_IMAGE_LAYOUT_TRANSFER_SRC_OPTIMAL,
+            texture3DImage, VK_IMAGE_LAYOUT_TRANSFER_DST_OPTIMAL,
+            1, &imageBlit,
+            VK_FILTER_LINEAR);
+
+        // Transition current mip level to transfer source for read in next iteration
+        barrier.oldLayout = VK_IMAGE_LAYOUT_TRANSFER_DST_OPTIMAL;
+        barrier.newLayout = VK_IMAGE_LAYOUT_TRANSFER_SRC_OPTIMAL;
+        barrier.srcAccessMask = VK_ACCESS_TRANSFER_WRITE_BIT;
+        barrier.dstAccessMask = VK_ACCESS_TRANSFER_READ_BIT;
+
+        vkCmdPipelineBarrier(
+            blitCommandBuffer,
+            VK_PIPELINE_STAGE_TRANSFER_BIT,
+            VK_PIPELINE_STAGE_TRANSFER_BIT,
+            0,
+            0, nullptr,
+            0, nullptr,
+            1, &barrier);
+
+        if (mipWidth > 1) mipWidth /= 2;
+        if (mipHeight > 1) mipHeight /= 2;
+        if (mipDepth > 1) mipDepth /= 2;
+    }
+
+    // After the loop, all mip layers are in TRANSFER_SRC layout, so transition all to GENERAL for compute shader read access
+    barrier.subresourceRange.baseMipLevel = 0;
+    barrier.subresourceRange.levelCount = mipLevels;
+    barrier.oldLayout = VK_IMAGE_LAYOUT_TRANSFER_SRC_OPTIMAL;
+    barrier.newLayout = VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL;
+    barrier.srcAccessMask = VK_ACCESS_TRANSFER_READ_BIT;
+    barrier.dstAccessMask = VK_ACCESS_SHADER_READ_BIT;
+
+    vkCmdPipelineBarrier(
+        blitCommandBuffer,
+        VK_PIPELINE_STAGE_TRANSFER_BIT,
+        VK_PIPELINE_STAGE_FRAGMENT_SHADER_BIT,
+        0,
+        0, nullptr,
+        0, nullptr,
+        1, &barrier);
+
+    // end recording command buffer
+    endSingleTimeCommands(blitCommandBuffer, commandPool);
+    
+    maxMipLevels = mipLevels; // 记录最大的mipmap级别数
 }
 
 void VulkanApplication::createImage(    // 创建图像对象
@@ -384,7 +513,7 @@ void VulkanApplication::createTextureImageView() {
 
     // 创建纹理的图像视图
     // textureImageView = createImageView(textureImage, VK_FORMAT_R8G8B8A8_UNORM, VK_IMAGE_VIEW_TYPE_2D);
-    texture3DImageView = createImageView(texture3DImage, VK_FORMAT_R8G8B8A8_UNORM, VK_IMAGE_VIEW_TYPE_3D);
+    texture3DImageView = createImageView(texture3DImage, VK_FORMAT_R8G8B8A8_UNORM, VK_IMAGE_VIEW_TYPE_3D, maxMipLevels);
     lutImageView = createImageView(lutImage, VK_FORMAT_R8G8B8A8_UNORM, VK_IMAGE_VIEW_TYPE_1D);
 }
 
@@ -447,7 +576,7 @@ void VulkanApplication::createTextureSampler() {
     samplerInfo.mipmapMode = VK_SAMPLER_MIPMAP_MODE_LINEAR; // 指定 mipmap 的过滤方式
     samplerInfo.mipLodBias = 0.0f;  // 指定 mipmap 的 LOD 偏移量
     samplerInfo.minLod = 0.0f;  // 指定 mipmap 的最小 LOD
-    samplerInfo.maxLod = 0.0f;  // 指定 mipmap 的最大 LOD
+    samplerInfo.maxLod = maxMipLevels;  // 指定 mipmap 的最大 LOD
 
     // 采样器不会在任何地方引用 VkImage。采样器是一个独特的对象，它提供了一个从纹理中提取颜色的接口。它可以应用于任何图像，无论是一维、二维还是三维图像。
     if (vkCreateSampler(device, &samplerInfo, nullptr, &textureSampler) != VK_SUCCESS) {   // 创建纹理采样器
@@ -1252,17 +1381,9 @@ void VulkanApplication::recordGenExtCoffMipmaps(uint32_t currentFrame) {
         throw std::runtime_error("texture image format does not support linear blitting!");
     }
 
-    // Create command buffer for submitting the image barrier commands
-    VkCommandBufferBeginInfo beginInfo{};
-    beginInfo.sType = VK_STRUCTURE_TYPE_COMMAND_BUFFER_BEGIN_INFO;
-    // we're only submitting the ui commands once, so we use the one time submit bit
-    beginInfo.flags = VK_COMMAND_BUFFER_USAGE_ONE_TIME_SUBMIT_BIT;
+    VkCommandBuffer blitCommandBuffer = beginSingleTimeCommands(commandPool);
 
-    VkCommandBuffer blitCommandBuffer = computeResources.commandBuffers[currentFrame];
-
-    if (vkBeginCommandBuffer(blitCommandBuffer, &beginInfo) != VK_SUCCESS) {
-        throw std::runtime_error("failed to begin recording imgui command buffer!");
-    }
+    std::cout << "mipLevels = " << textureTarget.mipLevels << std::endl;
 
     // transitioned to VK_IMAGE_LAYOUT_TRANSFER_SRC_OPTIMAL while generating mipmaps
     VkImageMemoryBarrier barrier{};
@@ -1362,8 +1483,8 @@ void VulkanApplication::recordGenExtCoffMipmaps(uint32_t currentFrame) {
     barrier.subresourceRange.levelCount = textureTarget.mipLevels;
     barrier.oldLayout = VK_IMAGE_LAYOUT_TRANSFER_SRC_OPTIMAL;
     barrier.newLayout = VK_IMAGE_LAYOUT_GENERAL;
-    barrier.srcAccessMask = VK_PIPELINE_STAGE_TRANSFER_BIT;
-    barrier.dstAccessMask = VK_PIPELINE_STAGE_FRAGMENT_SHADER_BIT;
+    barrier.srcAccessMask = VK_ACCESS_TRANSFER_READ_BIT;
+    barrier.dstAccessMask = VK_ACCESS_SHADER_READ_BIT;
 
     vkCmdPipelineBarrier(
         blitCommandBuffer,
@@ -1374,7 +1495,6 @@ void VulkanApplication::recordGenExtCoffMipmaps(uint32_t currentFrame) {
         0, nullptr,
         1, &barrier);
 
-    if (vkEndCommandBuffer(blitCommandBuffer) != VK_SUCCESS) {
-        throw std::runtime_error("failed to record command buffer!");
-    }
+    // end recording command buffer
+    endSingleTimeCommands(blitCommandBuffer, commandPool);
 }
