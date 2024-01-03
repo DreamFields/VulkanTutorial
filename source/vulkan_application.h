@@ -1645,6 +1645,7 @@ private:
         // }
         // else {
         // std::cout << "compute complete" << std::endl;
+        recordGenExtCoffMipmaps(currentFrame);
         VkSemaphore graphicWaitSemaphores[] = { imageAvailableSemaphores[currentFrame] };
         VkPipelineStageFlags graphicWaitStages[] = { VK_PIPELINE_STAGE_COLOR_ATTACHMENT_OUTPUT_BIT };
 
@@ -1662,8 +1663,8 @@ private:
         if (vkQueueSubmit(graphicsQueue, 1, &graphicsSubmitInfo, inFlightFences[currentFrame]) != VK_SUCCESS) {
             throw std::runtime_error("failed to submit draw command buffer!");
         }
-    // }
-    // --------------------ImGui submission-----------------
+        // }
+        // --------------------ImGui submission-----------------
         VkResult waitImguiRes = vkWaitForFences(device, 1, &imguiInFlightFences[currentFrame], VK_TRUE, UINT64_MAX);
         if (waitImguiRes != VK_SUCCESS) {
             throw std::runtime_error("failed to wait for imguiInFlightFences[currentFrame]!");
