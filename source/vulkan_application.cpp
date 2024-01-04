@@ -261,7 +261,7 @@ void VulkanApplication::create3DTextureImage() {
         texture3DImage,
         VK_FORMAT_R8G8B8A8_UNORM,
         VK_IMAGE_LAYOUT_UNDEFINED,
-        VK_IMAGE_LAYOUT_TRANSFER_DST_OPTIMAL,mipLevels);
+        VK_IMAGE_LAYOUT_TRANSFER_DST_OPTIMAL, mipLevels);
 
     // 将缓冲区数据复制到图像对象
     copyBufferToImage(
@@ -402,7 +402,7 @@ void VulkanApplication::create3DTextureImage() {
 
     // end recording command buffer
     endSingleTimeCommands(blitCommandBuffer, commandPool);
-    
+
     maxMipLevels = mipLevels; // 记录最大的mipmap级别数
 }
 
@@ -986,7 +986,9 @@ void VulkanApplication::drawImGui() {
         ImGui::SliderFloat("stepLength", &volumeRender->dicomParamControl.stepLength, 0.0f, 0.002f);
         ImGui::SliderFloat("WindowWidth", &volumeRender->dicomParamControl.windowWidth, 0.0f, 200.0f);
         ImGui::SliderFloat("WindowCenter", &volumeRender->dicomParamControl.windowCenter, 0.0f, 1000.0f);
-        ImGui::SliderFloat("glow", &volumeRender->dicomParamControl.glow, 0.0f, 3.0f);
+        ImGui::SliderFloat("glow", &volumeRender->dicomParamControl.glow, 0.0f, 30.0f);
+
+        // ImGui::SliderInt("method", &volumeRender->dicomParamControl.renderMethod, 0, 3);
 
         ImGui::Checkbox("Demo Window", &showDemoWindow);      // Edit bools storing our window open/close state
         ImGui::Checkbox("Another Window", &showAnotherWindow);
@@ -1383,7 +1385,7 @@ void VulkanApplication::recordGenExtCoffMipmaps(uint32_t currentFrame) {
 
     VkCommandBuffer blitCommandBuffer = beginSingleTimeCommands(commandPool);
 
-    std::cout << "mipLevels = " << textureTarget.mipLevels << std::endl;
+    // std::cout << "mipLevels = " << textureTarget.mipLevels << std::endl;
 
     // transitioned to VK_IMAGE_LAYOUT_TRANSFER_SRC_OPTIMAL while generating mipmaps
     VkImageMemoryBarrier barrier{};
@@ -1497,4 +1499,86 @@ void VulkanApplication::recordGenExtCoffMipmaps(uint32_t currentFrame) {
 
     // end recording command buffer
     endSingleTimeCommands(blitCommandBuffer, commandPool);
+}
+
+void VulkanApplication::prepareTexOccConeSectionsInfo() {
+    float* pixels = nullptr;
+    volumeRender->sampler_occlusion.GetConeSectionsInfoTex(pixels);
+    int texWidth = volumeRender->sampler_occlusion.GetNumberOfComputedConeSections();
+    // todo 每一个像素存4个float，16字节，但是改为16字节却没有了效果
+    VkDeviceSize imageSize = texWidth * 4;
+
+    std::cout << "texWidth = " << texWidth << std::endl;
+
+    if (!pixels) {
+        throw std::runtime_error("failed to load texture image!");
+    }
+
+    // 创建临时缓冲区
+    VkBuffer stagingBuffer;
+    VkDeviceMemory stagingBufferMemory;
+    createBuffer(
+        imageSize,
+        VK_BUFFER_USAGE_TRANSFER_SRC_BIT,
+        VK_MEMORY_PROPERTY_HOST_VISIBLE_BIT | VK_MEMORY_PROPERTY_HOST_COHERENT_BIT,
+        stagingBuffer,
+        stagingBufferMemory);
+
+    // 将数据复制到临时缓冲区
+    void* data;
+    vkMapMemory(device, stagingBufferMemory, 0, imageSize, 0, &data);
+    memcpy(data, pixels, static_cast<size_t>(imageSize));
+    vkUnmapMemory(device, stagingBufferMemory);
+
+    // 释放像素数组
+    stbi_image_free(pixels);
+
+    /*
+    虽然我们可以设置着色器来访问缓冲区中的像素值，但最好还是使用 Vulkan 中的图像对象来实现这一目的。
+    首先，图像对象允许我们使用二维坐标，这将使我们更容易、更快速地检索颜色。图像对象中的像素被称为 texels
+     */
+
+     // 创建纹理图像
+    createImage(
+        texWidth,
+        1,
+        1,
+        VK_FORMAT_R32G32B32A32_SFLOAT,
+        VK_IMAGE_TYPE_1D,
+        VK_IMAGE_TILING_OPTIMAL,
+        VK_IMAGE_USAGE_TRANSFER_DST_BIT | VK_IMAGE_USAGE_SAMPLED_BIT,
+        VK_MEMORY_PROPERTY_DEVICE_LOCAL_BIT,
+        texOccConeSectionsInfo.image,
+        texOccConeSectionsInfo.memory,
+        VK_SAMPLE_COUNT_1_BIT);
+
+    // 将纹理图像转换为 VK_IMAGE_LAYOUT_TRANSFER_DST_OPTIMAL
+    transitionImageLayout(
+        texOccConeSectionsInfo.image,
+        VK_FORMAT_R32G32B32A32_SFLOAT,
+        VK_IMAGE_LAYOUT_UNDEFINED,
+        VK_IMAGE_LAYOUT_TRANSFER_DST_OPTIMAL);
+
+    // 将缓冲区数据复制到图像对象
+    copyBufferToImage(
+        stagingBuffer,
+        texOccConeSectionsInfo.image,
+        static_cast<uint32_t>(texWidth),
+        static_cast<uint32_t>(1),
+        1);
+
+    // 为了能够在着色器中开始从纹理图像中采样，我们需要最后一次转换，为着色器访问纹理图像做好准备。
+    // 将纹理图像转换为 VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL
+    transitionImageLayout(
+        texOccConeSectionsInfo.image,
+        VK_FORMAT_R32G32B32A32_SFLOAT,
+        VK_IMAGE_LAYOUT_TRANSFER_DST_OPTIMAL,
+        VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL);
+
+    // 清理临时缓冲区
+    vkDestroyBuffer(device, stagingBuffer, nullptr);
+    vkFreeMemory(device, stagingBufferMemory, nullptr);
+
+    // 创建图像视图
+    texOccConeSectionsInfo.imageView = createImageView(texOccConeSectionsInfo.image, VK_FORMAT_R32G32B32A32_SFLOAT, VK_IMAGE_VIEW_TYPE_1D);
 }

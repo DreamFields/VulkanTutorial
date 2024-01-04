@@ -109,13 +109,19 @@ public:
     int GetNumberOfComputedConeSections();
 
     // cone sections info texture
-    // gl::Texture1D* GetConeSectionsInfoTex();
+    void GetConeSectionsInfoTex(float*& rgba);
 
     // cone sections info vector
     std::vector<SectionInfo> GetConeSectionsInfoVec();
 
     // compute cone integration steps
     void ComputeConeIntegrationSteps(double min_sg_gaussian);
+
+    double GetRay3AdjacentWeight();
+    double GetRay7AdjacentWeight();
+
+    glm::vec3 Get3ConeRayID(int i);
+    glm::vec3 Get7ConeRayID(int i);
 
 private:
     void ComputeAdditionalInfo(double min_sg_gaussian);

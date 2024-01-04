@@ -1,15 +1,6 @@
 #include "volume_render.h"
 VolumeRender::VolumeRender(/* args */)
 {
-	initExtCoefficients();
-
-	// Cone Occlusion
-	// bind_cone_occlusion_vars = true;
-	glsl_apply_occlusion = true;
-	// glsl_occ_sectionsinfo = nullptr
-	// sampler_occlusion.SetUIWeightPercentage(0.350f);
-	sampler_occlusion.SetConeHalfAngle(20.0);
-	sampler_occlusion.SetMaxGaussianPacking(ConeGaussianSampler::CONEPACKING::_3);
 }
 
 VolumeRender::~VolumeRender()
@@ -176,9 +167,9 @@ bool VolumeRender::loadDicom(std::string path, int numSlice /*= 0*/)
 	dicomParamControl.windowCenter = static_cast<float>(dicomTags.windowCenter);
 	dicomParamControl.windowWidth = static_cast<float>(dicomTags.windowWidth);
 	dicomParamControl.alphaCorrection = 25.0f;
-	dicomParamControl.steps = 800;
-	dicomParamControl.stepLength = 0.001f;
-	dicomParamControl.glow = 1.5f;
+	dicomParamControl.steps = 130;
+	dicomParamControl.stepLength = 0.0f;
+	dicomParamControl.glow = 3.5f;
 
 	return true;
 }
@@ -294,12 +285,31 @@ const std::vector<Vertex> VolumeRender::getBoxVertices() {
 	return vertices;
 }
 
+double VolumeRender::GetDiagonal() {
+	return glm::sqrt(dicomTags.realSize[0] * dicomTags.realSize[0] + dicomTags.realSize[1] * dicomTags.realSize[1] + dicomTags.realSize[2] * dicomTags.realSize[2]);
+}
+
 void VolumeRender::initExtCoefficients() {
 	basegaussianlevel = 1.0f;
 }
 
 void VolumeRender::GenerateConeSamples() {
 	DestroyConeSamples();
+
+	// init cone sampler
+	initExtCoefficients();
+
+	// Cone Occlusion
+	// bind_cone_occlusion_vars = true;
+	glsl_apply_occlusion = true;
+	// glsl_occ_sectionsinfo = nullptr
+	// sampler_occlusion.SetUIWeightPercentage(0.350f);
+	sampler_occlusion.SetConeHalfAngle(20.0);
+	sampler_occlusion.SetMaxGaussianPacking(ConeGaussianSampler::CONEPACKING::_3);
+	sampler_occlusion.SetCoveredDistance(GetDiagonal() * 0.5f);
+	sampler_occlusion.SetInitialStep(3.0f * basegaussianlevel);
+
+	std::cout<<"size of OcclusionUniformBufferObject"<<sizeof(OcclusionUniformBufferObject)<<std::endl;
 
 	// 1. generate cone sections info
 	sampler_occlusion.ComputeConeIntegrationSteps(basegaussianlevel);

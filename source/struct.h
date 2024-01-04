@@ -62,6 +62,7 @@ struct DicomUniformBufferObject {
     glm::vec3 voxelSize;
     alignas(16) glm::vec3 voxelResolution;
     alignas(16) glm::vec3 boxSize;
+    alignas(16) glm::vec3 realSize;
     glm::vec1 windowCenter;
     glm::vec1 windowWidth;
     glm::vec1 minVal;
@@ -69,7 +70,15 @@ struct DicomUniformBufferObject {
     glm::vec1 stepLength;
     glm::vec1 glow;
     glm::int32 steps;
+    //glm::int32 renderMethod;
+};
 
+// 环境光遮蔽的uniform
+struct OcclusionUniformBufferObject {
+    //alignas(16) float OccInitialStep; // 3
+    //alignas(16) float OccRay7AdjWeight; // 0.972955
+    alignas(16) glm::vec4 OccConeRayAxes[10];
+    //alignas(16) glm::int32 OccConeIntegrationSamples[3]; // 1,14,0
 };
 
 struct Compute {

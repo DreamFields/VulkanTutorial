@@ -2,8 +2,8 @@
 #version 450
 
 // 设置精度
-precision highp float;
-precision highp int;
+// precision highp float;
+// precision highp int;
 precision highp sampler3D;
 
 layout(binding=1)uniform sampler3D tex3DSampler;
@@ -15,6 +15,7 @@ layout(binding=3)uniform DicomUniformBufferObject{
     vec3 voxelSize;
     vec3 voxelResolution;
     vec3 boxSize;
+    vec3 realSize;
     float windowCenter;
     float windowWidth;
     float minVal;
@@ -25,6 +26,13 @@ layout(binding=3)uniform DicomUniformBufferObject{
 }dicomUbo;
 layout(binding=4)uniform sampler1D lutTexSampler;
 layout(binding=5)uniform sampler3D extCoeffSampler;
+layout(binding=6)uniform sampler1D TexOccConeSectionsInfo;
+layout(std140,binding=7)uniform OcclusionUniformBufferObject{
+    // float OccInitialStep;
+    // float OccRay7AdjWeight;
+    vec4 OccConeRayAxes[10];
+    // int OccConeIntegrationSamples[3];
+}occlusionUbo;
 
 layout(location=0)in vec3 inColor;
 layout(location=1)in vec2 inTexCoord;
@@ -41,11 +49,20 @@ layout(location=0)out vec4 outColor;
 const float max_ext=log(1./.05);
 #endif
 
+// volume的真实最大边
+float maxVolumeRealEdge=dicomUbo.realSize.r/dicomUbo.boxSize.r;
+
+vec3 worldPos2VolumePos(vec3 worldPos){
+    // 将世界坐标转换为归一化的纹理坐标
+    vec3 texPos=worldPos/dicomUbo.boxSize;
+    return texPos*dicomUbo.realSize;
+}
+
 vec4 get3DTextureColor(vec3 worldPos){
     // 将世界坐标转换为纹理坐标,并归一化后再采样
     vec3 texPos=worldPos/dicomUbo.boxSize;
-    // vec4 sampleColor=texture(tex3DSampler,texPos);
-    vec4 sampleColor=textureLod(tex3DSampler,texPos,2.);
+    vec4 sampleColor=texture(tex3DSampler,texPos);
+    // vec4 sampleColor=textureLod(tex3DSampler,texPos,2.);
     float intensity=sampleColor.r*255.+sampleColor.g*255.*255.-abs(dicomUbo.minVal);
     intensity=(intensity-dicomUbo.windowCenter)/dicomUbo.windowWidth+.5;
     intensity=clamp(intensity,0.,1.);
@@ -87,8 +104,174 @@ vec4 getDistanceField(vec3 worldPos){
     return vec4(0.,0.,0.,0.);
 }
 
+///////////////////////////////////////////////////////////
+// Occlusion
+float occ_rays[7];
+float last_amptau[7];
+float OccInitialStep=3.;
+float OccRay7AdjWeight=.972955;
+// vec4 OccConeRayAxes[10];
+int OccConeIntegrationSamples[3]=int[](1,14,0);
+
+vec4 GetOcclusionSectionInfo(int id)
+{
+    return texelFetch(TexOccConeSectionsInfo,id,0).rgba;
+}
+
+float GetGaussianExtinction(vec3 volume_pos,float mipmaplevel){
+    vec3 tex_pos=volume_pos/dicomUbo.realSize;
+    vec4 sampleColor=textureLod(extCoeffSampler,tex_pos,mipmaplevel);
+    float intensity=sampleColor.r*255.+sampleColor.g*255.*255.-abs(dicomUbo.minVal);
+    intensity=(intensity-dicomUbo.windowCenter)/dicomUbo.windowWidth+.5;
+    intensity=clamp(intensity,0.,1.);
+    return 1.-intensity;
+}
+
+float Cone7RayOcclusion(vec3 volume_pos_from_zero,float track_distance,vec3 coneDir,vec3 cameraUp,vec3 cameraRight)
+{
+    // transform 3 to 7
+    occ_rays[6]=occ_rays[5]=occ_rays[2];
+    occ_rays[4]=occ_rays[3]=occ_rays[1];
+    float avg=(occ_rays[2]+occ_rays[1]+occ_rays[0])/3.;
+    occ_rays[2]=occ_rays[1]=occ_rays[0];
+    occ_rays[0]=avg;
+    
+    last_amptau[6]=last_amptau[5]=last_amptau[2];
+    last_amptau[4]=last_amptau[3]=last_amptau[1];
+    float avgt=(last_amptau[2]+last_amptau[1]+last_amptau[0])/3.;
+    last_amptau[2]=last_amptau[1]=last_amptau[0];
+    last_amptau[0]=avgt;
+    
+    vec3 vk[7]={coneDir*occlusionUbo.OccConeRayAxes[3].z+cameraUp*occlusionUbo.OccConeRayAxes[3].y+cameraRight*occlusionUbo.OccConeRayAxes[3].x,
+        coneDir*occlusionUbo.OccConeRayAxes[4].z+cameraUp*occlusionUbo.OccConeRayAxes[4].y+cameraRight*occlusionUbo.OccConeRayAxes[4].x,
+        coneDir*occlusionUbo.OccConeRayAxes[5].z+cameraUp*occlusionUbo.OccConeRayAxes[5].y+cameraRight*occlusionUbo.OccConeRayAxes[5].x,
+        coneDir*occlusionUbo.OccConeRayAxes[6].z+cameraUp*occlusionUbo.OccConeRayAxes[6].y+cameraRight*occlusionUbo.OccConeRayAxes[6].x,
+        coneDir*occlusionUbo.OccConeRayAxes[7].z+cameraUp*occlusionUbo.OccConeRayAxes[7].y+cameraRight*occlusionUbo.OccConeRayAxes[7].x,
+        coneDir*occlusionUbo.OccConeRayAxes[8].z+cameraUp*occlusionUbo.OccConeRayAxes[8].y+cameraRight*occlusionUbo.OccConeRayAxes[8].x,
+    coneDir*occlusionUbo.OccConeRayAxes[9].z+cameraUp*occlusionUbo.OccConeRayAxes[9].y+cameraRight*occlusionUbo.OccConeRayAxes[9].x};
+    
+    int step0=OccConeIntegrationSamples[0]+OccConeIntegrationSamples[1];
+    // For each section... do...
+    int ith_step=0;
+    while(ith_step<OccConeIntegrationSamples[2])
+    {
+        // vec4 [ distance_to_next_integration | radius_cone | trapezoidalinterval | amplitude ]
+        vec4 section_info=GetOcclusionSectionInfo(step0+ith_step);
+        
+        float interval_distance=section_info.r;
+        float mipmap_level=section_info.g;
+        float d_integral=section_info.b;
+        float gaussian_amp=section_info.a;
+        
+        bool oc_term=true;
+        // update occlusion cone
+        for(int i=0;i<7;i++)
+        {
+            vec3 cur_volume_pos=volume_pos_from_zero+vk[i]*track_distance;
+            
+            float Tau_s=GetGaussianExtinction(cur_volume_pos,mipmap_level);
+            
+            float amptau=gaussian_amp*Tau_s;
+            
+            // #ifdef USE_FALLOFF_FUNCTION
+            // occ_rays[i]+=(last_amptau[i]+amptau)*d_integral*falloffunction(track_distance);
+            // #else
+            occ_rays[i]+=(last_amptau[i]+amptau)*d_integral/* *OccUIWeight */;
+            // #endif
+            last_amptau[i]=amptau;
+        }
+        
+        #ifdef USE_EARLY_TERMINATION
+        // if the occlusion cone reaches a certain amount of remaining light, return
+        if(occ_rays[0]>max_ext&&occ_rays[1]>max_ext&&occ_rays[2]>max_ext
+        &&occ_rays[3]>max_ext&&occ_rays[4]>max_ext&&occ_rays[5]>max_ext&&occ_rays[6]>max_ext)
+        return(exp(-occ_rays[0])+(exp(-occ_rays[1])+exp(-occ_rays[2])+exp(-occ_rays[3])+
+        exp(-occ_rays[4])+exp(-occ_rays[5])+exp(-occ_rays[6]))*OccRay7AdjWeight)/(1.+OccRay7AdjWeight*6.);
+        #endif
+        
+        // update tracked distance
+        track_distance+=section_info.r;
+        
+        // Next section
+        ith_step=ith_step+1;
+    }
+    
+    return(exp(-occ_rays[0])+(exp(-occ_rays[1])+exp(-occ_rays[2])+exp(-occ_rays[3])+
+    exp(-occ_rays[4])+exp(-occ_rays[5])+exp(-occ_rays[6]))*OccRay7AdjWeight)/(1.+OccRay7AdjWeight*6.);
+}
+
+float Cone3RayOcclusion(vec3 volume_pos_from_zero,float track_distance,vec3 coneDir,vec3 cameraUp,vec3 cameraRight)
+{
+    // transform 1 to 3
+    occ_rays[2]=occ_rays[0];
+    occ_rays[1]=occ_rays[0];
+    occ_rays[0]=occ_rays[0];
+    
+    last_amptau[2]=last_amptau[0];
+    last_amptau[1]=last_amptau[0];
+    last_amptau[0]=last_amptau[0];
+    
+    vec3 vk[3]={coneDir*occlusionUbo.OccConeRayAxes[0].z+cameraUp*occlusionUbo.OccConeRayAxes[0].y+cameraRight*occlusionUbo.OccConeRayAxes[0].x,
+        coneDir*occlusionUbo.OccConeRayAxes[1].z+cameraUp*occlusionUbo.OccConeRayAxes[1].y+cameraRight*occlusionUbo.OccConeRayAxes[1].x,
+    coneDir*occlusionUbo.OccConeRayAxes[2].z+cameraUp*occlusionUbo.OccConeRayAxes[2].y+cameraRight*occlusionUbo.OccConeRayAxes[2].x};
+    
+    int step0=OccConeIntegrationSamples[0];
+    // For each section... do...
+    int ith_step=0;
+    while(ith_step<OccConeIntegrationSamples[1])
+    {
+        // vec4 [ distance_to_next_integration | radius_cone | interval | amplitude ]
+        vec4 section_info=GetOcclusionSectionInfo(step0+ith_step);
+        
+        float interval_distance=section_info.r;
+        float mipmap_level=section_info.g;
+        float d_integral=section_info.b;
+        float gaussian_amp=section_info.a;
+        
+        // update occlusion cone
+        for(int i=0;i<3;i++)
+        {
+            vec3 cur_volume_pos=volume_pos_from_zero+vk[i]*track_distance;
+            
+            float Tau_s=GetGaussianExtinction(cur_volume_pos,mipmap_level);
+            
+            float amptau=Tau_s*gaussian_amp;
+            
+            // #ifdef USE_FALLOFF_FUNCTION
+            // occ_rays[i]+=(last_amptau[i]+amptau)*d_integral*falloffunction(track_distance);
+            // #else
+            occ_rays[i]+=(last_amptau[i]+amptau)*d_integral/* *OccUIWeight */;
+            // #endif
+            
+            last_amptau[i]=amptau;
+        }
+        
+        #ifdef USE_EARLY_TERMINATION
+        // if the occlusion cone reaches a certain amount of remaining light, return
+        if(occ_rays[0]>max_ext&&occ_rays[1]>max_ext&&occ_rays[2]>max_ext)
+        return(exp(-occ_rays[0])+exp(-occ_rays[1])+exp(-occ_rays[2]))/3.;
+        #endif
+        
+        // update tracked distance
+        track_distance+=section_info.r;
+        
+        // Next section
+        ith_step=ith_step+1;
+    }
+    
+    #ifdef ALWAYS_SPLIT_CONES
+    return Cone7RayOcclusion(volume_pos_from_zero,track_distance,coneDir,cameraUp,cameraRight);
+    #else
+    // If we have more integration steps to resolve, then...
+    if(OccConeIntegrationSamples[2]>0)
+    return Cone7RayOcclusion(volume_pos_from_zero,track_distance,coneDir,cameraUp,cameraRight);
+    #endif
+    
+    return(exp(-occ_rays[0])+exp(-occ_rays[1])+exp(-occ_rays[2]))/3.;
+}
+
 // Evaluating sections that are approximated with only one sample
-/* float Cone1RayOcclusion(vec3 pos_from_zero,vec3 coneDir,vec3 cameraUp,vec3 cameraRight)
+float Cone1RayOcclusion(vec3 volume_pos_from_zero,vec3 coneDir,vec3 cameraUp,vec3 cameraRight)
 {
     float track_distance=OccInitialStep;
     occ_rays[0]=0.;
@@ -106,17 +289,17 @@ vec4 getDistanceField(vec3 worldPos){
         float d_integral=section_info.b;// 系数
         float gaussian_amp=section_info.a;// 当前项的高斯积分结果 \frac{\left(p_r\sigma\sqrt{2\pi}\right)^2}{A_c} ，未乘以 \tau_s
         
-        vec3 pos=pos_from_zero+coneDir*track_distance;
+        vec3 cur_volume_pos=volume_pos_from_zero+coneDir*track_distance;
         
-        float Tau_s=GetGaussianExtinction(pos,mipmap_level);
+        float Tau_s=GetGaussianExtinction(cur_volume_pos,mipmap_level);
         
         float amptau=Tau_s*gaussian_amp;
         
-        #ifdef USE_FALLOFF_FUNCTION
-        occ_rays[0]+=(last_amptau[0]+amptau)*d_integral*falloffunction(track_distance);
-        #else
-        occ_rays[0]+=(last_amptau[0]+amptau)*d_integral*OccUIWeight;
-        #endif
+        // #ifdef USE_FALLOFF_FUNCTION
+        // occ_rays[0]+=(last_amptau[0]+amptau)*d_integral*falloffunction(track_distance);
+        // #else
+        occ_rays[0]+=(last_amptau[0]+amptau)*d_integral/* *OccUIWeight */;
+        // #endif
         
         last_amptau[0]=amptau;
         
@@ -133,16 +316,16 @@ vec4 getDistanceField(vec3 worldPos){
     }
     
     #ifdef ALWAYS_SPLIT_CONES
-    return Cone3RayOcclusion(pos_from_zero,track_distance,coneDir,cameraUp,cameraRight);
+    return Cone3RayOcclusion(volume_pos_from_zero,track_distance,coneDir,cameraUp,cameraRight);
     #else
     // If we have more integration steps to resolve, then...
     if(OccConeIntegrationSamples[1]+OccConeIntegrationSamples[2]>0)
-    return Cone3RayOcclusion(pos_from_zero,track_distance,coneDir,cameraUp,cameraRight);
+    return Cone3RayOcclusion(volume_pos_from_zero,track_distance,coneDir,cameraUp,cameraRight);
     #endif
     
     // Return the how much non shadowed is the sample color
     return exp(-occ_rays[0]);
-} */
+}
 
 vec4 ShadeSample(vec3 worldPos,vec3 dir,vec3 v_up,vec3 v_right){
     // 将世界坐标转换为纹理坐标,并归一化后再采样
@@ -157,7 +340,7 @@ vec4 ShadeSample(vec3 worldPos,vec3 dir,vec3 v_up,vec3 v_right){
     if(ApplyOcclusion==1)
     {
         ka=.5f;
-        // IOcclusion=Cone1RayOcclusion(worldPos,-dir,v_up,v_right);
+        IOcclusion=Cone1RayOcclusion(worldPos2VolumePos(worldPos),-dir,v_up,v_right);
     }
     
     // Shadows
@@ -190,10 +373,10 @@ vec4 absorptionMethod(float stepLength,float rayLength,vec3 dir,vec3 currentPos)
         vec3 pos=currentPos+dir*(s+h*.5);
         // Get the sampleColor from the 3D texture
         // vec4 sampleColor=get3DTextureColor(pos);
-        vec4 sampleColor=getExtCoeff(pos);
+        // vec4 sampleColor=getExtCoeff(pos);
         // vec4 sampleColor=getDistanceField(pos);
         
-        // vec4 sampleColor=ShadeSample(pos,dir,vec3(0.,1.,0.),vec3(1.,0.,0.));
+        vec4 sampleColor=ShadeSample(pos,dir,vec3(0.,1.,0.),vec3(1.,0.,0.));
         
         // Go to the next interval
         s=s+h;
@@ -253,4 +436,12 @@ void main(){
     // outColor=getExtCoeff(testPos);
     // outColor=getDistanceField(testPos);
     // outColor=vec4(color.a);// test 测试步进的次数
+    // outColor = vec4(OccInitialStep/255.);
+    // outColor=vec4(vec3(OccRay7AdjWeight),1.);
+    // outColor = vec4(vec3(occlusionUbo.OccConeRayAxes[0].x),1.);
+    // outColor = vec4(occlusionUbo.OccConeRayAxes[9],1.);
+    // outColor=vec4(occlusionUbo.OccConeRayAxes[4]);
+    // outColor=vec4(float(OccConeIntegrationSamples[0])/255.,float(OccConeIntegrationSamples[1])/255.,float(OccConeIntegrationSamples[2])/255.,1.);
+    // float a= GetOcclusionSectionInfo(2).a;
+    // outColor = vec4(GetOcclusionSectionInfo(2).rgb,1.);
 }

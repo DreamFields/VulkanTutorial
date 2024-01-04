@@ -95,6 +95,30 @@ void ConeGaussianSampler::ComputeConeIntegrationSteps(double min_sg_gaussian) {
 
 }
 
+double ConeGaussianSampler::GetRay3AdjacentWeight()
+{
+  return ray3_adj_weight;
+}
+
+double ConeGaussianSampler::GetRay7AdjacentWeight()
+{
+  return ray7_adj_weight;
+}
+
+glm::vec3 ConeGaussianSampler::Get3ConeRayID(int i)
+{
+  if (i < 0 || i > 2)
+    return glm::vec3(0);
+  return ray3_axis[i];
+}
+
+glm::vec3 ConeGaussianSampler::Get7ConeRayID(int i)
+{
+  if (i < 0 || i > 6)
+    return glm::vec3(0);
+  return ray7_axis[i];
+}
+
 float ConeGaussianSampler::GetConeHalfAngle()
 {
   return cone_half_angle;
@@ -220,6 +244,18 @@ void ConeGaussianSampler::SetGaussianSigmaLimitMultiplier(float s)
 int ConeGaussianSampler::GetNumberOfComputedConeSections()
 {
   return data_cone_sectionsinfo.size();
+}
+
+void ConeGaussianSampler::GetConeSectionsInfoTex(float*& rgba) {
+  rgba = new float[GetNumberOfComputedConeSections() * 4];
+  for (int i = 0; i < GetNumberOfComputedConeSections(); i++)
+  {
+    // in this case, it is not the "half step"
+    rgba[(i * 4) + 0] = data_cone_intervalsinfo[i].s_distance;
+    rgba[(i * 4) + 1] = data_cone_sectionsinfo[i].mip_map_level;
+    rgba[(i * 4) + 2] = data_cone_sectionsinfo[i].d_integral;
+    rgba[(i * 4) + 3] = data_cone_sectionsinfo[i].amplitude;
+  }
 }
 
 std::vector<ConeGaussianSampler::SectionInfo> ConeGaussianSampler::GetConeSectionsInfoVec()

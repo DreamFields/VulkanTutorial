@@ -37,6 +37,7 @@ struct DicomParamControl {
     int steps;
     float stepLength;
     float glow;
+    // int renderMethod;
 };
 
 
@@ -63,6 +64,7 @@ public:
     bool getPixelRGBA(int& width, int& height, int& numSlice, unsigned char*& rgba);
     DicomTags getDicomTags();
     const std::vector<Vertex> getBoxVertices();
+    double GetDiagonal();
 
     // Ext Coefficients
     void initExtCoefficients();
