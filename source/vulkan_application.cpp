@@ -1505,8 +1505,7 @@ void VulkanApplication::prepareTexOccConeSectionsInfo() {
     float* pixels = nullptr;
     volumeRender->sampler_occlusion.GetConeSectionsInfoTex(pixels);
     int texWidth = volumeRender->sampler_occlusion.GetNumberOfComputedConeSections();
-    // todo 每一个像素存4个float，16字节，但是改为16字节却没有了效果
-    VkDeviceSize imageSize = texWidth * 4;
+    VkDeviceSize imageSize = texWidth * 16;
 
     std::cout << "texWidth = " << texWidth << std::endl;
 

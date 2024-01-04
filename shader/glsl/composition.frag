@@ -111,7 +111,7 @@ float last_amptau[7];
 float OccInitialStep=3.;
 float OccRay7AdjWeight=.972955;
 // vec4 OccConeRayAxes[10];
-int OccConeIntegrationSamples[3]=int[](1,14,0);
+int OccConeIntegrationSamples[3]=int[](1,4,0); // !暂时修改为1,4,0
 
 vec4 GetOcclusionSectionInfo(int id)
 {
