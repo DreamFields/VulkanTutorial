@@ -54,7 +54,6 @@ struct UniformBufferObject {
     glm::mat4 model;
     glm::mat4 view;
     glm::mat4 proj;
-    glm::vec1 slice;
 };
 
 // 在使用时，着色器中的结构体和这里的结构体布局必须一致

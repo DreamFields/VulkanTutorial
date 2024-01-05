@@ -5,7 +5,11 @@
 // precision highp float;
 // precision highp int;
 precision highp sampler3D;
-
+layout(binding = 0) uniform UniformBufferObject {
+    mat4 model;
+    mat4 view;
+    mat4 proj;
+} ubo;
 layout(binding=1)uniform sampler3D tex3DSampler;
 // input_attachment_index对应于subpasses[1].pInputAttachments的索引
 // 也就是说，这里的input_attachment_index=0，对应于subpasses[1].pInputAttachments[0]
@@ -37,6 +41,8 @@ layout(std140,binding=7)uniform OcclusionUniformBufferObject{
 layout(location=0)in vec3 inColor;
 layout(location=1)in vec2 inTexCoord;
 layout(location=2)in vec3 inFrontPos;
+layout(location=3)in vec3 fragCameraUp;
+layout(location=4)in vec3 fragCameraRight;
 
 layout(location=0)out vec4 outColor;
 
@@ -70,7 +76,8 @@ vec4 get3DTextureColor(vec3 worldPos){
     // 通过采样器，从lutTexSampler中加载数据，相当于传递函数的实现
     vec3 color=texture(lutTexSampler,intensity).rgb;
     // 将1.0-intensity作为alpha值，即遮光量或者说消光系数，浓度越大，遮光量越大，alpha越小
-    return vec4(color,1.-intensity);
+    // return vec4(color,1.-intensity);
+    return vec4(color,intensity);
 }
 
 vec4 getExtCoeff(vec3 worldPos){
@@ -124,7 +131,8 @@ float GetGaussianExtinction(vec3 volume_pos,float mipmaplevel){
     float intensity=sampleColor.r*255.+sampleColor.g*255.*255.-abs(dicomUbo.minVal);
     intensity=(intensity-dicomUbo.windowCenter)/dicomUbo.windowWidth+.5;
     intensity=clamp(intensity,0.,1.);
-    return 1.-intensity;
+    // return 1.-intensity;
+    return intensity;
 }
 
 float Cone7RayOcclusion(vec3 volume_pos_from_zero,float track_distance,vec3 coneDir,vec3 cameraUp,vec3 cameraRight)
@@ -372,11 +380,11 @@ vec4 absorptionMethod(float stepLength,float rayLength,vec3 dir,vec3 currentPos)
         // Get the current position
         vec3 pos=currentPos+dir*(s+h*.5);
         // Get the sampleColor from the 3D texture
-        // vec4 sampleColor=get3DTextureColor(pos);
+        vec4 sampleColor=get3DTextureColor(pos);
         // vec4 sampleColor=getExtCoeff(pos);
         // vec4 sampleColor=getDistanceField(pos);
         
-        vec4 sampleColor=ShadeSample(pos,dir,vec3(0.,1.,0.),vec3(1.,0.,0.));
+        // vec4 sampleColor=ShadeSample(pos,dir,normalize(fragCameraUp),normalize(fragCameraRight));
         
         // Go to the next interval
         s=s+h;
@@ -444,4 +452,5 @@ void main(){
     // outColor=vec4(float(OccConeIntegrationSamples[0])/255.,float(OccConeIntegrationSamples[1])/255.,float(OccConeIntegrationSamples[2])/255.,1.);
     // float a= GetOcclusionSectionInfo(2).a;
     // outColor = vec4(GetOcclusionSectionInfo(2).rgb,1.);
+    // outColor= vec4(normalize(fragCameraRight),1.);
 }

@@ -117,6 +117,7 @@
     "streambuf": "cpp",
     "thread": "cpp",
     "typeinfo": "cpp",
-    "functional": "cpp"
+    "functional": "cpp",
+    "codecvt": "cpp"
   }
 }

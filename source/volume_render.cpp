@@ -7,8 +7,10 @@ VolumeRender::~VolumeRender()
 {
 }
 
-bool VolumeRender::loadDicom(std::string path, int numSlice /*= 0*/)
+bool VolumeRender::loadDicom(std::string path)
 {
+	std::vector<std::string> allFiles = GetAllFilesInDirectory(path);
+	int numSlice = allFiles.size();
 	// folder path
 	dicomTags.folderPath = path;
 	dicomTags.numSlice = numSlice;
@@ -23,11 +25,12 @@ bool VolumeRender::loadDicom(std::string path, int numSlice /*= 0*/)
 	std::vector<std::pair<int, int>> fileIndex(numSlice);
 	for (size_t index = 0; index < numSlice; index++)
 	{
-		std::stringstream ss;
-		ss << std::setw(2) << std::setfill('0') << index;
-		std::string fileIdx;
-		ss >> fileIdx;
-		std::string filePath = path + "CT0000" + fileIdx + ".dcm";
+		// std::stringstream ss;
+		// ss << std::setw(2) << std::setfill('0') << index;
+		// std::string fileIdx;
+		// ss >> fileIdx;
+		// std::string filePath = path + "CT0000" + fileIdx + ".dcm";
+		std::string filePath = allFiles[index];
 		DcmFileFormat fileformat;
 		OFCondition status = fileformat.loadFile(filePath.c_str());
 		DcmDataset* dataset = fileformat.getDataset();
@@ -168,7 +171,7 @@ bool VolumeRender::loadDicom(std::string path, int numSlice /*= 0*/)
 	dicomParamControl.windowWidth = static_cast<float>(dicomTags.windowWidth);
 	dicomParamControl.alphaCorrection = 25.0f;
 	dicomParamControl.steps = 130;
-	dicomParamControl.stepLength = 0.0f;
+	dicomParamControl.stepLength = 0.01f;
 	dicomParamControl.glow = 3.5f;
 
 	return true;
@@ -181,14 +184,16 @@ bool VolumeRender::getPixelRGBA(int& width, int& height, int& numSlice, unsigned
 	numSlice = dicomTags.numSlice;
 	rgba = new unsigned char[width * height * numSlice * 4];
 	std::string path = dicomTags.folderPath;
+	std::vector<std::string> allFiles = GetAllFilesInDirectory(path);
 	for (size_t i = 0; i < numSlice; i++)
 	{
 		int index = dicomTags.fileIndex[i];
-		std::stringstream ss;
-		ss << std::setw(2) << std::setfill('0') << index;
-		std::string fileIdx;
-		ss >> fileIdx;
-		std::string filePath = path + "CT0000" + fileIdx + ".dcm";
+		// std::stringstream ss;
+		// ss << std::setw(2) << std::setfill('0') << index;
+		// std::string fileIdx;
+		// ss >> fileIdx;
+		// std::string filePath = path + "CT0000" + fileIdx + ".dcm";
+		std::string filePath = allFiles[i];
 
 		// DICOM读入
 		DicomImage* image = new DicomImage(filePath.c_str());
@@ -233,20 +238,20 @@ bool VolumeRender::getPixelRGBA(int& width, int& height, int& numSlice, unsigned
 		for (int j = 0; j < width * height; ++j)
 		{
 			// 未排序
-			int value = static_cast<int> (pixelData[j]);
-			value += +abs(dicomTags.minVal);
-			rgba[index * width * height * 4 + j * 4 + 0] = static_cast<unsigned char>(value & 0xff);
-			rgba[index * width * height * 4 + j * 4 + 1] = static_cast<unsigned char>((value >> 8) & 0xff);
-			rgba[index * width * height * 4 + j * 4 + 2] = 255;
-			rgba[index * width * height * 4 + j * 4 + 3] = 255;
-
-			// 排序
 			// int value = static_cast<int> (pixelData[j]);
 			// value += +abs(dicomTags.minVal);
-			// rgba[i * width * height * 4 + j * 4 + 0] = static_cast<unsigned char>(value & 0xff);
-			// rgba[i * width * height * 4 + j * 4 + 1] = static_cast<unsigned char>((value >> 8) & 0xff);
-			// rgba[i * width * height * 4 + j * 4 + 2] = 255;
-			// rgba[i * width * height * 4 + j * 4 + 3] = 255;
+			// rgba[index * width * height * 4 + j * 4 + 0] = static_cast<unsigned char>(value & 0xff);
+			// rgba[index * width * height * 4 + j * 4 + 1] = static_cast<unsigned char>((value >> 8) & 0xff);
+			// rgba[index * width * height * 4 + j * 4 + 2] = 255;
+			// rgba[index * width * height * 4 + j * 4 + 3] = 255;
+
+			// 排序
+			int value = static_cast<int> (pixelData[j]);
+			value += +abs(dicomTags.minVal);
+			rgba[i * width * height * 4 + j * 4 + 0] = static_cast<unsigned char>(value & 0xff);
+			rgba[i * width * height * 4 + j * 4 + 1] = static_cast<unsigned char>((value >> 8) & 0xff);
+			rgba[i * width * height * 4 + j * 4 + 2] = 255;
+			rgba[i * width * height * 4 + j * 4 + 3] = 255;
 		}
 
 	}
@@ -309,7 +314,7 @@ void VolumeRender::GenerateConeSamples() {
 	sampler_occlusion.SetCoveredDistance(GetDiagonal() * 0.5f);
 	sampler_occlusion.SetInitialStep(3.0f * basegaussianlevel);
 
-	std::cout<<"size of OcclusionUniformBufferObject"<<sizeof(OcclusionUniformBufferObject)<<std::endl;
+	std::cout << "size of OcclusionUniformBufferObject" << sizeof(OcclusionUniformBufferObject) << std::endl;
 
 	// 1. generate cone sections info
 	sampler_occlusion.ComputeConeIntegrationSteps(basegaussianlevel);
