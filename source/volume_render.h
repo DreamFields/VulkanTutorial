@@ -16,7 +16,7 @@
 
 struct DicomTags {
     std::string folderPath;
-    std::vector<int> fileIndex;
+    std::vector<std::string> fileIndex;
     int numSlice;
     int minVal;
     int maxVal;

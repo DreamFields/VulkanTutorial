@@ -25,7 +25,7 @@ std::vector<std::string> GetAllFilesInDirectory(const std::string& directoryPath
     {
         if (fs::is_regular_file(entry))
         {
-            std::cout << entry.path() << std::endl;
+            // std::cout << entry.path() << std::endl;
             std::string path = entry.path().string();
             files.push_back(path);
         }

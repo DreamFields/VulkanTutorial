@@ -22,7 +22,8 @@ bool VolumeRender::loadDicom(std::string path)
 	dicomTags.realSize = glm::vec3(1.0f, 1.0f, 1.0f);
 	dicomTags.boxSize = glm::vec3(1.0f, 1.0f, 1.0f);
 	dicomTags.voxelResolution = glm::vec3(1.0f, 1.0f, static_cast<float>(numSlice));
-	std::vector<std::pair<int, int>> fileIndex(numSlice);
+	std::vector<std::pair<std::string, float>> fileIndex(numSlice);
+	bool isHaveImageIndex = false;
 	for (size_t index = 0; index < numSlice; index++)
 	{
 		// std::stringstream ss;
@@ -118,7 +119,15 @@ bool VolumeRender::loadDicom(std::string path)
 			dicomTags.boxSize[2] = dicomTags.realSize[2] / maxSize;
 			std::cout << "Box Size = " << dicomTags.boxSize[0] << ", " << dicomTags.boxSize[1] << ", " << dicomTags.boxSize[2] << std::endl;
 
+			// get image index
+			OFString imageIndex;
+			if (!dataset->findAndGetOFString(DCM_ImageIndex, imageIndex).good())
+			{
+				isHaveImageIndex = false;
+			}
+			else isHaveImageIndex = true;
 		}
+
 		// max and min value
 		const DiPixel* pix = (image->getInterData());
 		EP_Representation rep = pix->getRepresentation();
@@ -130,21 +139,53 @@ bool VolumeRender::loadDicom(std::string path)
 			if (value > dicomTags.maxVal) dicomTags.maxVal = value;
 			if (value < dicomTags.minVal) dicomTags.minVal = value;
 		}
-		// ImagePositionPatient
-		OFString imagePositionPatient;
-		if (!dataset->findAndGetOFString(DCM_ImagePositionPatient, imagePositionPatient, 2).good())
-		{
-			std::runtime_error("imagePositionPatient not found.\r\n");
+
+		if (isHaveImageIndex) {
+			// get image index
+			OFString imageIndex;
+			dataset->findAndGetOFString(DCM_ImageIndex, imageIndex);
+			std::cout << "cur file: " << filePath << std::endl;
+			std::cout << "Image Index: " << imageIndex << std::endl;
+
+			fileIndex[index].first = filePath.c_str();
+			fileIndex[index].second = std::stoi(imageIndex.c_str());
 		}
-		fileIndex[index].first = index;
-		fileIndex[index].second = std::stoi(imagePositionPatient.c_str());
+		else {
+			// ImagePositionPatient
+			OFString imagePositionPatient;
+			if (!dataset->findAndGetOFString(DCM_ImagePositionPatient, imagePositionPatient, 2).good())
+			{
+				std::runtime_error("imagePositionPatient not found.\r\n");
+			}
+			// fileIndex[index].second = imagePositionPatient.c_str();
+			fileIndex[index].first = filePath.c_str();
+			fileIndex[index].second = std::stod(imagePositionPatient.c_str());
+		}
+
+		// begin test
+		OFString imagePositionPatient0, imagePositionPatient1, imagePositionPatient2;
+		if (!dataset->findAndGetOFString(DCM_ImagePositionPatient, imagePositionPatient0, 0).good())
+		{
+			std::runtime_error("imagePositionPatient0 not found.\r\n");
+		}
+		if (!dataset->findAndGetOFString(DCM_ImagePositionPatient, imagePositionPatient1, 1).good())
+		{
+			std::runtime_error("imagePositionPatient1 not found.\r\n");
+		}
+		if (!dataset->findAndGetOFString(DCM_ImagePositionPatient, imagePositionPatient2, 2).good())
+		{
+			std::runtime_error("imagePositionPatient2 not found.\r\n");
+		}
+		std::cout << "Image Position Patient = " << imagePositionPatient0 << ", " << imagePositionPatient1 << ", " << imagePositionPatient2 << std::endl;
+		std::cout << "--------------------------------" << std::endl;
+
 	}
-	std::sort(fileIndex.begin(), fileIndex.end(), [](std::pair<int, int> a, std::pair<int, int> b) {return a.second < b.second; });
+	std::sort(fileIndex.begin(), fileIndex.end(), [](std::pair<std::string, int> a, std::pair<std::string, int> b) {return a.second < b.second; });
 	// cout fileIndex
-	// for (size_t index = 0; index < numSlice; index++)
-	// {
-	// 	std::cout << fileIndex[index].first << " " << fileIndex[index].second << std::endl;
-	// }
+	for (size_t index = 0; index < numSlice; index++)
+	{
+		std::cout << fileIndex[index].first << " " << fileIndex[index].second << std::endl;
+	}
 	for (size_t index = 0; index < numSlice; index++)
 	{
 		dicomTags.fileIndex[index] = fileIndex[index].first;
@@ -183,17 +224,17 @@ bool VolumeRender::getPixelRGBA(int& width, int& height, int& numSlice, unsigned
 	height = dicomTags.voxelResolution[1];
 	numSlice = dicomTags.numSlice;
 	rgba = new unsigned char[width * height * numSlice * 4];
-	std::string path = dicomTags.folderPath;
-	std::vector<std::string> allFiles = GetAllFilesInDirectory(path);
+	// std::string path = dicomTags.folderPath;
+	// std::vector<std::string> allFiles = GetAllFilesInDirectory(path);
 	for (size_t i = 0; i < numSlice; i++)
 	{
-		int index = dicomTags.fileIndex[i];
+		// int index = dicomTags.fileIndex[i];
 		// std::stringstream ss;
 		// ss << std::setw(2) << std::setfill('0') << index;
 		// std::string fileIdx;
 		// ss >> fileIdx;
 		// std::string filePath = path + "CT0000" + fileIdx + ".dcm";
-		std::string filePath = allFiles[i];
+		std::string filePath = dicomTags.fileIndex[i];
 
 		// DICOM读入
 		DicomImage* image = new DicomImage(filePath.c_str());
