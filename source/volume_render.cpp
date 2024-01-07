@@ -69,6 +69,9 @@ bool VolumeRender::loadDicom(std::string path)
 				std::runtime_error("windowWidth not found.\r\n");
 			}
 
+			if(dicomTags.windowWidth == 0.0f) dicomTags.windowWidth = 2000.0f;
+			if(dicomTags.windowCenter == 0.0f) dicomTags.windowCenter = 50.0f;
+
 			// slope
 			if (!dataset->findAndGetFloat64(DCM_RescaleSlope, dicomTags.rescaleSlope).good())
 			{
@@ -208,10 +211,8 @@ bool VolumeRender::loadDicom(std::string path)
 		std::cout << dicomTags.fileIndex[index] << " ";
 	}
 
-	// dicomParamControl.windowCenter = static_cast<float>(dicomTags.windowCenter);
-	// dicomParamControl.windowWidth = static_cast<float>(dicomTags.windowWidth);
-	dicomParamControl.windowCenter = static_cast<float>(2000.0f);
-	dicomParamControl.windowWidth = static_cast<float>(2000.0f);
+	dicomParamControl.windowCenter = static_cast<float>(dicomTags.windowCenter);
+	dicomParamControl.windowWidth = static_cast<float>(dicomTags.windowWidth);
 	dicomParamControl.alphaCorrection = 25.0f;
 	dicomParamControl.steps = 130;
 	dicomParamControl.stepLength = 0.01f;

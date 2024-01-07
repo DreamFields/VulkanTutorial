@@ -5,11 +5,11 @@
 // precision highp float;
 // precision highp int;
 precision highp sampler3D;
-layout(binding = 0) uniform UniformBufferObject {
+layout(binding=0)uniform UniformBufferObject{
     mat4 model;
     mat4 view;
     mat4 proj;
-} ubo;
+}ubo;
 layout(binding=1)uniform sampler3D tex3DSampler;
 // input_attachment_index对应于subpasses[1].pInputAttachments的索引
 // 也就是说，这里的input_attachment_index=0，对应于subpasses[1].pInputAttachments[0]
@@ -84,7 +84,7 @@ vec4 getExtCoeff(vec3 worldPos){
     // 将世界坐标转换为纹理坐标,并归一化后再采样
     vec3 texPos=worldPos/dicomUbo.boxSize;
     // vec4 sampleColor=texture(extCoeffSampler,texPos);
-    vec4 sampleColor=textureLod(extCoeffSampler,texPos,2.);
+    vec4 sampleColor=textureLod(extCoeffSampler,texPos,4.);
     // if(sampleColor.r==0.)return vec4(0.);
     // return sampleColor;
     
@@ -95,7 +95,8 @@ vec4 getExtCoeff(vec3 worldPos){
     // 通过采样器，从lutTexSampler中加载数据，相当于传递函数的实现
     vec3 color=texture(lutTexSampler,intensity).rgb;
     // 将1.0-intensity作为alpha值，即遮光量或者说消光系数，浓度越大，遮光量越大，alpha越小
-    return vec4(color,1.-intensity);
+    // return vec4(color,1.-intensity);
+    return vec4(color,intensity);
 }
 
 // todo 目前距离场可视化暂时采用直接体绘制的方法，需改进
@@ -118,7 +119,7 @@ float last_amptau[7];
 float OccInitialStep=3.;
 float OccRay7AdjWeight=.972955;
 // vec4 OccConeRayAxes[10];
-int OccConeIntegrationSamples[3]=int[](1,4,0); // !暂时修改为1,4,0
+int OccConeIntegrationSamples[3]=int[](1,4,0);// !暂时修改为1,4,0
 
 vec4 GetOcclusionSectionInfo(int id)
 {
@@ -380,11 +381,11 @@ vec4 absorptionMethod(float stepLength,float rayLength,vec3 dir,vec3 currentPos)
         // Get the current position
         vec3 pos=currentPos+dir*(s+h*.5);
         // Get the sampleColor from the 3D texture
-        vec4 sampleColor=get3DTextureColor(pos);
+        // vec4 sampleColor=get3DTextureColor(pos);
         // vec4 sampleColor=getExtCoeff(pos);
         // vec4 sampleColor=getDistanceField(pos);
         
-        // vec4 sampleColor=ShadeSample(pos,dir,normalize(fragCameraUp),normalize(fragCameraRight));
+        vec4 sampleColor=ShadeSample(pos,dir,normalize(fragCameraUp),normalize(fragCameraRight));
         
         // Go to the next interval
         s=s+h;
