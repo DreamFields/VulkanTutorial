@@ -208,8 +208,10 @@ bool VolumeRender::loadDicom(std::string path)
 		std::cout << dicomTags.fileIndex[index] << " ";
 	}
 
-	dicomParamControl.windowCenter = static_cast<float>(dicomTags.windowCenter);
-	dicomParamControl.windowWidth = static_cast<float>(dicomTags.windowWidth);
+	// dicomParamControl.windowCenter = static_cast<float>(dicomTags.windowCenter);
+	// dicomParamControl.windowWidth = static_cast<float>(dicomTags.windowWidth);
+	dicomParamControl.windowCenter = static_cast<float>(2000.0f);
+	dicomParamControl.windowWidth = static_cast<float>(2000.0f);
 	dicomParamControl.alphaCorrection = 25.0f;
 	dicomParamControl.steps = 130;
 	dicomParamControl.stepLength = 0.01f;
