@@ -197,8 +197,8 @@ bool VolumeRender::loadDicom(std::string path)
 
 	// 重新设置windowCenter和windowWidth
 	if (isResetWindowWW_WL) {
-		dicomTags.windowCenter = 10.0f;
-		dicomTags.windowWidth = 1600.0f;
+		dicomTags.windowWidth = 2000.0f;
+		dicomTags.windowCenter = 50.0f;
 	}
 
 	// cout dicomtags

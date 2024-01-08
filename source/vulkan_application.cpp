@@ -15,8 +15,8 @@ void VulkanApplication::run() {
 void VulkanApplication::initVolume() {
     volumeRender = std::make_shared<VolumeRender>();
     // std::string path = "C:\\Users\\Dream\\Documents\\00.Dicom\\ede6fe9eda6e44a98b3ad20da6f9116a Anonymized29\\Unknown Study\\CT Head 5.0000\\";
-    // std::string path = "C:\\Users\\Dream\\Documents\\00.Dicom\\mouse512\\";
-    std::string path = "C:\\Users\\Dream\\Documents\\00.Dicom\\liudan_wholebodyls_thorax\\";
+    std::string path = "C:\\Users\\Dream\\Documents\\00.Dicom\\mouse512\\";
+    // std::string path = "C:\\Users\\Dream\\Documents\\00.Dicom\\liudan_wholebodyls_thorax\\";
     volumeRender->loadDicom(path);
 
     // generate gaussian samples
