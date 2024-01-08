@@ -24,6 +24,7 @@ bool VolumeRender::loadDicom(std::string path)
 	dicomTags.voxelResolution = glm::vec3(1.0f, 1.0f, static_cast<float>(numSlice));
 	std::vector<std::pair<std::string, float>> fileIndex(numSlice);
 	bool isHaveImageIndex = false;
+	bool isResetWindowWW_WL = true;
 	for (size_t index = 0; index < numSlice; index++)
 	{
 		// std::stringstream ss;
@@ -194,6 +195,12 @@ bool VolumeRender::loadDicom(std::string path)
 		dicomTags.fileIndex[index] = fileIndex[index].first;
 	}
 
+	// 重新设置windowCenter和windowWidth
+	if (isResetWindowWW_WL) {
+		dicomTags.windowCenter = 10.0f;
+		dicomTags.windowWidth = 1600.0f;
+	}
+
 	// cout dicomtags
 	std::cout << "Folder Path: " << dicomTags.folderPath << std::endl;
 	std::cout << "Num Slice: " << dicomTags.numSlice << std::endl;
@@ -217,6 +224,8 @@ bool VolumeRender::loadDicom(std::string path)
 	dicomParamControl.steps = 130;
 	dicomParamControl.stepLength = 0.01f;
 	dicomParamControl.glow = 3.5f;
+
+	
 
 	return true;
 }
