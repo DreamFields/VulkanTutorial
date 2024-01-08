@@ -341,6 +341,7 @@ vec4 ShadeSample(vec3 worldPos,vec3 dir,vec3 v_up,vec3 v_right){
     vec3 texPos=worldPos/dicomUbo.boxSize;
     
     vec4 L=get3DTextureColor(worldPos);
+    if(L.r==0.)return vec4(0.);
     float ka=0.,kd=0.,ks=0.;
     
     // Directional Ambient Occlusion
