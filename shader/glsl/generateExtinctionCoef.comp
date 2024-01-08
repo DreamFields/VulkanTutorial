@@ -130,10 +130,11 @@ void main(){
     // 获取当前工作组的全局索引
     ivec3 globalIdx=ivec3(gl_GlobalInvocationID.xyz);// 计算着色器在3D图像中的位置
     
-    if(globalIdx.x>dicomUbo.voxelResolution.x-1
-        ||globalIdx.y>dicomUbo.voxelResolution.y-1
-    ||globalIdx.z>dicomUbo.voxelResolution.z-1)
-    return;
+    // todo 如果不注释，计算着色器mouse尾巴部位无法生成，why？？
+    // if(globalIdx.x>dicomUbo.voxelResolution.x-1
+    //     ||globalIdx.y>dicomUbo.voxelResolution.y-1
+    // ||globalIdx.z>dicomUbo.voxelResolution.z-1)
+    // return;
     
     // 采样位置为当前全局索引除以3D纹理的尺寸，以保证采样坐标在[0, 1]的范围内
     // !需要加上.5 否则会出现锯齿
