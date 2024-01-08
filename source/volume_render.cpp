@@ -230,12 +230,12 @@ bool VolumeRender::loadDicom(std::string path)
 	return true;
 }
 
-bool VolumeRender::getPixelRGBA(int& width, int& height, int& numSlice, unsigned char*& rgba)
+bool VolumeRender::getPixelRGBA(int& width, int& height, int& numSlice, unsigned char*& rgba,short channel)
 {
 	width = dicomTags.voxelResolution[0];
 	height = dicomTags.voxelResolution[1];
 	numSlice = dicomTags.numSlice;
-	rgba = new unsigned char[width * height * numSlice * 4];
+	rgba = new unsigned char[width * height * numSlice * channel];
 	// std::string path = dicomTags.folderPath;
 	// std::vector<std::string> allFiles = GetAllFilesInDirectory(path);
 	for (size_t i = 0; i < numSlice; i++)
@@ -301,10 +301,8 @@ bool VolumeRender::getPixelRGBA(int& width, int& height, int& numSlice, unsigned
 			// 排序
 			int value = static_cast<int> (pixelData[j]);
 			value += +abs(dicomTags.minVal);
-			rgba[i * width * height * 4 + j * 4 + 0] = static_cast<unsigned char>(value & 0xff);
-			rgba[i * width * height * 4 + j * 4 + 1] = static_cast<unsigned char>((value >> 8) & 0xff);
-			rgba[i * width * height * 4 + j * 4 + 2] = 255;
-			rgba[i * width * height * 4 + j * 4 + 3] = 255;
+			rgba[i * width * height * channel + j * channel + 0] = static_cast<unsigned char>(value & 0xff);
+			rgba[i * width * height * channel + j * channel + 1] = static_cast<unsigned char>((value >> 8) & 0xff);
 		}
 
 	}

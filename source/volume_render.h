@@ -61,7 +61,7 @@ public:
     ~VolumeRender();
 
     bool loadDicom(std::string path);
-    bool getPixelRGBA(int& width, int& height, int& numSlice, unsigned char*& rgba);
+    bool getPixelRGBA(int& width, int& height, int& numSlice, unsigned char*& rgba, short channel);
     DicomTags getDicomTags();
     const std::vector<Vertex> getBoxVertices();
     double GetDiagonal();

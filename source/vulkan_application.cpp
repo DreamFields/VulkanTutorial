@@ -206,9 +206,10 @@ void VulkanApplication::create3DTextureImage() {
     // 返回的指针是像素值数组的第一个元素。
     // stbi_uc* pixels = stbi_load("D:\\00.CG_project\\VulkanTutorial\\textures\\texture.jpg", &texWidth, &texHeight, &texChannels, STBI_rgb_alpha);
     unsigned char* pixels = nullptr;
-    volumeRender->getPixelRGBA(texWidth, texHeight, texDepth, pixels);
+    short channel = 2;
+    volumeRender->getPixelRGBA(texWidth, texHeight, texDepth, pixels, channel);
 
-    VkDeviceSize imageSize = texWidth * texHeight * texDepth * 4;
+    VkDeviceSize imageSize = texWidth * texHeight * texDepth * channel;
 
     if (!pixels) {
         throw std::runtime_error("failed to load texture image!");
@@ -250,7 +251,7 @@ void VulkanApplication::create3DTextureImage() {
         texWidth,
         texHeight,
         texDepth,
-        VK_FORMAT_R8G8B8A8_UNORM,
+        VK_FORMAT_R8G8_UNORM,
         VK_IMAGE_TYPE_3D,
         VK_IMAGE_TILING_OPTIMAL,
         VK_IMAGE_USAGE_TRANSFER_DST_BIT | VK_IMAGE_USAGE_SAMPLED_BIT | VK_IMAGE_USAGE_STORAGE_BIT | VK_IMAGE_USAGE_TRANSFER_SRC_BIT,
@@ -262,7 +263,7 @@ void VulkanApplication::create3DTextureImage() {
     // 将纹理图像转换为 VK_IMAGE_LAYOUT_TRANSFER_DST_OPTIMAL
     transitionImageLayout(
         texture3DImage,
-        VK_FORMAT_R8G8B8A8_UNORM,
+        VK_FORMAT_R8G8_UNORM,
         VK_IMAGE_LAYOUT_UNDEFINED,
         VK_IMAGE_LAYOUT_TRANSFER_DST_OPTIMAL, mipLevels);
 
@@ -278,7 +279,7 @@ void VulkanApplication::create3DTextureImage() {
     // // 将纹理图像转换为 VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL
     // transitionImageLayout(
     //     texture3DImage,
-    //     VK_FORMAT_R8G8B8A8_UNORM,
+    //     VK_FORMAT_R8G8_UNORM,
     //     VK_IMAGE_LAYOUT_TRANSFER_DST_OPTIMAL,
     //     VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL);
 
@@ -516,7 +517,7 @@ void VulkanApplication::createTextureImageView() {
 
     // 创建纹理的图像视图
     // textureImageView = createImageView(textureImage, VK_FORMAT_R8G8B8A8_UNORM, VK_IMAGE_VIEW_TYPE_2D);
-    texture3DImageView = createImageView(texture3DImage, VK_FORMAT_R8G8B8A8_UNORM, VK_IMAGE_VIEW_TYPE_3D, maxMipLevels);
+    texture3DImageView = createImageView(texture3DImage, VK_FORMAT_R8G8_UNORM, VK_IMAGE_VIEW_TYPE_3D, maxMipLevels);
     lutImageView = createImageView(lutImage, VK_FORMAT_R8G8B8A8_UNORM, VK_IMAGE_VIEW_TYPE_1D);
 }
 
