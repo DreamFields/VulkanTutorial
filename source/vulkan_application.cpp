@@ -1367,7 +1367,7 @@ void VulkanApplication::recordComputeCommandBuffer(uint32_t currentFrame) {
     vkCmdBindDescriptorSets(computeResources.commandBuffers[currentFrame], VK_PIPELINE_BIND_POINT_COMPUTE, computeResources.pipelineLayout, 0, 1, &computeResources.descriptorSets[currentFrame], 0, 0);
 
     // Dispatch the compute job
-    vkCmdDispatch(computeResources.commandBuffers[currentFrame], volumeRender->getDicomTags().voxelResolution[0] / 8, volumeRender->getDicomTags().voxelResolution[1] / 8, volumeRender->getDicomTags().voxelResolution[2] / 8);
+   vkCmdDispatch(computeResources.commandBuffers[currentFrame], volumeRender->getDicomTags().voxelResolution[0] / 8, volumeRender->getDicomTags().voxelResolution[1] / 8, volumeRender->getDicomTags().voxelResolution[2] / 8);
 
     // end recording command buffer
     if (vkEndCommandBuffer(computeResources.commandBuffers[currentFrame]) != VK_SUCCESS) { // 结束记录命令缓冲区

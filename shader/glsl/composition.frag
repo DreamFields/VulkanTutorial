@@ -83,12 +83,12 @@ vec4 get3DTextureColor(vec3 worldPos){
 vec4 getExtCoeff(vec3 worldPos){
     // 将世界坐标转换为纹理坐标,并归一化后再采样
     vec3 texPos=worldPos/dicomUbo.boxSize;
-    // vec4 sampleColor=texture(extCoeffSampler,texPos);
-    vec4 sampleColor=textureLod(extCoeffSampler,texPos,4.);
-    // if(sampleColor.r==0.)return vec4(0.);
-    // return sampleColor;
+    vec4 sampleColor=texture(extCoeffSampler,texPos);
+    // vec4 sampleColor=textureLod(extCoeffSampler,texPos,4.);
+    if(sampleColor.r==0.)return vec4(0.);
+    return sampleColor;
     
-    float intensity=sampleColor.r*255.+sampleColor.g*255.*255.-abs(dicomUbo.minVal);
+/*     float intensity=sampleColor.r*255.+sampleColor.g*255.*255.-abs(dicomUbo.minVal);
     intensity=(intensity-dicomUbo.windowCenter)/dicomUbo.windowWidth+.5;
     intensity=clamp(intensity,0.,1.);
     if(intensity==0.)return vec4(0.);
@@ -96,7 +96,7 @@ vec4 getExtCoeff(vec3 worldPos){
     vec3 color=texture(lutTexSampler,intensity).rgb;
     // 将1.0-intensity作为alpha值，即遮光量或者说消光系数，浓度越大，遮光量越大，alpha越小
     // return vec4(color,1.-intensity);
-    return vec4(color,intensity);
+    return vec4(color,intensity); */
 }
 
 // todo 目前距离场可视化暂时采用直接体绘制的方法，需改进
@@ -127,6 +127,7 @@ vec4 GetOcclusionSectionInfo(int id)
 }
 
 float GetGaussianExtinction(vec3 volume_pos,float mipmaplevel){
+    // 当extCoeffSampler存的是高低8位时使用下面的代码
     vec3 tex_pos=volume_pos/dicomUbo.realSize;
     vec4 sampleColor=textureLod(extCoeffSampler,tex_pos,mipmaplevel);
     float intensity=sampleColor.r*255.+sampleColor.g*255.*255.-abs(dicomUbo.minVal);
@@ -134,6 +135,12 @@ float GetGaussianExtinction(vec3 volume_pos,float mipmaplevel){
     intensity=clamp(intensity,0.,1.);
     // return 1.-intensity;
     return intensity;
+
+    // 当extCoeffSampler存的是intensity时使用下面的代码
+/*     vec3 tex_pos=volume_pos/dicomUbo.realSize;
+    vec4 sampleColor=textureLod(extCoeffSampler,tex_pos,mipmaplevel);
+    if(sampleColor.r==0.)return 0.;
+    return sampleColor.r; */
 }
 
 float Cone7RayOcclusion(vec3 volume_pos_from_zero,float track_distance,vec3 coneDir,vec3 cameraUp,vec3 cameraRight)
