@@ -400,11 +400,11 @@ vec4 absorptionMethod(float stepLength,float rayLength,vec3 dir,vec3 currentPos)
         // Get the current position
         vec3 pos=currentPos+dir*(s+h*.5);
         // Get the sampleColor from the 3D texture
-        vec4 sampleColor=get3DTextureColor(pos);
+        // vec4 sampleColor=get3DTextureColor(pos);
         // vec4 sampleColor=getExtCoeff(pos);
         // vec4 sampleColor=getDistanceField(pos);
         
-        // vec4 sampleColor=ShadeSample(pos,dir,normalize(fragCameraUp),normalize(fragCameraRight));
+        vec4 sampleColor=ShadeSample(pos,dir,normalize(fragCameraUp),normalize(fragCameraRight));
         
         // Go to the next interval
         s=s+h;
@@ -459,19 +459,8 @@ void main(){
     vec4 color=absorptionMethod(stepLength,rayLength,dir,currentPos);
     
     outColor=color;
-    // vec3 testPos=vec3(inTexCoord.y,27./41.,inTexCoord.x);// todo 由于立方体尺寸改变，这里需要重新计算纹理坐标
+    // vec2 texCoord=vec2(inTexCoord.x,inTexCoord.y);
+    // vec3 testPos=vec3(texCoord.y,27./41.,texCoord.x);// todo 由于立方体尺寸改变，这里需要重新计算纹理坐标
     // outColor=get3DTextureColor(testPos);
     // outColor=getExtCoeff(testPos);
-    // outColor=getDistanceField(testPos);
-    // outColor=vec4(color.a);// test 测试步进的次数
-    // outColor = vec4(OccInitialStep/255.);
-    // outColor=vec4(vec3(OccRay7AdjWeight),1.);
-    // outColor = vec4(vec3(occlusionUbo.OccConeRayAxes[0].x),1.);
-    // outColor = vec4(occlusionUbo.OccConeRayAxes[9],1.);
-    // outColor=vec4(occlusionUbo.OccConeRayAxes[4]);
-    // outColor=vec4(float(OccConeIntegrationSamples[0])/255.,float(OccConeIntegrationSamples[1])/255.,float(OccConeIntegrationSamples[2])/255.,1.);
-    // float a= GetOcclusionSectionInfo(2).a;
-    // outColor = vec4(GetOcclusionSectionInfo(2).rgb,1.);
-    // outColor= vec4(normalize(fragCameraRight),1.);
-    // outColor=texture(extCoeffSampler,vec3(0.,0.,0.));
 }

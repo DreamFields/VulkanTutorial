@@ -172,7 +172,6 @@ void main(){
     // 获取当前工作组的全局索引
     ivec3 globalIdx=ivec3(gl_GlobalInvocationID.xyz);// 计算着色器在3D图像中的位置
     
-    // todo 如果不注释，计算着色器mouse尾巴部位无法生成，why？？
     if(globalIdx.x>dicomUbo.voxelResolution.x-1
         ||globalIdx.y>dicomUbo.voxelResolution.y-1
     ||globalIdx.z>dicomUbo.voxelResolution.z-1)
@@ -185,12 +184,12 @@ void main(){
     float intensity=sampleColor.r*255.+sampleColor.g*255.*255.-abs(dicomUbo.minVal);
     intensity=(intensity-dicomUbo.windowCenter)/dicomUbo.windowWidth+.5;
     intensity=clamp(intensity,0.,1.);
-    imageStore(TexOutputVolume,ivec3(globalIdx),vec4(intensity,0.,0.,0.));// 直接把intensity存储
-    // imageStore(TexOutputVolume,ivec3(globalIdx),texture(TexInputVolume,samplePos));// 直接存储原始像素值的高八位和第八位
     
     // 将颜色值写入输出的3D图像
-    // imageStore(TexOutputVolume,ivec3(globalIdx),vec4(GaussianFilter(globalIdx).rgb,1.));// 高斯滤波，存储高低8位
-    // imageStore(TexOutputVolume,ivec3(globalIdx),vec4(GaussianFilterIntensity(globalIdx).rgb,1.));// 高斯滤波，存储intensity
+    // imageStore(TexOutputVolume,ivec3(globalIdx),vec4(intensity,0.,0.,0.));// 直接存储intensity
+    // imageStore(TexOutputVolume,ivec3(globalIdx),texture(TexInputVolume,samplePos));// 直接存储高低8位    
+    // imageStore(TexOutputVolume,ivec3(globalIdx),vec4(GaussianFilterIntensity(globalIdx).r,0.,0.,0.));// 高斯滤波，存储intensity
+    imageStore(TexOutputVolume,ivec3(globalIdx),vec4(GaussianFilter(globalIdx).rgb,1.));// 高斯滤波，存储高低8位
     
     // test
     // imageStore(TexOutputVolume,ivec3(globalIdx),genDistanceField(globalIdx));
