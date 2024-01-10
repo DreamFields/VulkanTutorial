@@ -85,9 +85,16 @@ vec4 getExtCoeff(vec3 worldPos){
     vec3 texPos=worldPos/dicomUbo.boxSize;
     vec4 sampleColor=texture(extCoeffSampler,texPos);
     // vec4 sampleColor=textureLod(extCoeffSampler,texPos,4.);
-    if(sampleColor.r==0.)return vec4(0.);
-    return sampleColor;
+    // return sampleColor;
+
+    // 当extCoeffSampler存的是intensity时使用下面的代码
+    float intensity=sampleColor.r;
+    intensity=clamp(intensity,0.,1.);
+    if(intensity==0.)return vec4(0.);
+    vec3 color=texture(lutTexSampler,intensity).rgb;
+    return vec4(color,intensity);
     
+    // 当extCoeffSampler存的是高低8位时使用下面的代码
 /*     float intensity=sampleColor.r*255.+sampleColor.g*255.*255.-abs(dicomUbo.minVal);
     intensity=(intensity-dicomUbo.windowCenter)/dicomUbo.windowWidth+.5;
     intensity=clamp(intensity,0.,1.);
@@ -381,6 +388,10 @@ vec4 absorptionMethod(float stepLength,float rayLength,vec3 dir,vec3 currentPos)
     float T=1.;
     bool isAccurate=true;
     float sampleCnt=0.;
+
+    if(rayLength<stepLength){
+        return vec4(0.);
+    }
     // Evaluate form 0 to D
     for(float s=0.;s<rayLength;){
         sampleCnt+=1.;
@@ -389,11 +400,11 @@ vec4 absorptionMethod(float stepLength,float rayLength,vec3 dir,vec3 currentPos)
         // Get the current position
         vec3 pos=currentPos+dir*(s+h*.5);
         // Get the sampleColor from the 3D texture
-        // vec4 sampleColor=get3DTextureColor(pos);
+        vec4 sampleColor=get3DTextureColor(pos);
         // vec4 sampleColor=getExtCoeff(pos);
         // vec4 sampleColor=getDistanceField(pos);
         
-        vec4 sampleColor=ShadeSample(pos,dir,normalize(fragCameraUp),normalize(fragCameraRight));
+        // vec4 sampleColor=ShadeSample(pos,dir,normalize(fragCameraUp),normalize(fragCameraRight));
         
         // Go to the next interval
         s=s+h;
@@ -462,4 +473,5 @@ void main(){
     // float a= GetOcclusionSectionInfo(2).a;
     // outColor = vec4(GetOcclusionSectionInfo(2).rgb,1.);
     // outColor= vec4(normalize(fragCameraRight),1.);
+    // outColor=texture(extCoeffSampler,vec3(0.,0.,0.));
 }

@@ -14,8 +14,8 @@ void VulkanApplication::run() {
 
 void VulkanApplication::initVolume() {
     volumeRender = std::make_shared<VolumeRender>();
-    // std::string path = "C:\\Users\\Dream\\Documents\\00.Dicom\\ede6fe9eda6e44a98b3ad20da6f9116a Anonymized29\\Unknown Study\\CT Head 5.0000\\";
-    std::string path = "C:\\Users\\Dream\\Documents\\00.Dicom\\mouse512\\";
+    std::string path = "C:\\Users\\Dream\\Documents\\00.Dicom\\ede6fe9eda6e44a98b3ad20da6f9116a Anonymized29\\Unknown Study\\CT Head 5.0000\\";
+    // std::string path = "C:\\Users\\Dream\\Documents\\00.Dicom\\mouse512\\";
     // std::string path = "C:\\Users\\Dream\\Documents\\00.Dicom\\liudan_wholebodyls_thorax\\";
     volumeRender->loadDicom(path);
 
@@ -548,8 +548,8 @@ void VulkanApplication::createTextureSampler() {
     samplerInfo.sType = VK_STRUCTURE_TYPE_SAMPLER_CREATE_INFO;
     // magFilter 和 minFilter 参数指定了在纹理被拉伸（放大）或压缩（缩小）时如何处理纹理像素。
     // 我们将它们都设置为 VK_FILTER_LINEAR，以便在纹理被拉伸时获得更好的效果。
-    samplerInfo.magFilter = VK_FILTER_LINEAR;    // 放大时的采样方式 VK_FILTER_NEAREST
-    samplerInfo.minFilter = VK_FILTER_LINEAR;    // 缩小时的采样方式
+    samplerInfo.magFilter = VK_FILTER_NEAREST;    // 放大时的采样方式 VK_FILTER_NEAREST
+    samplerInfo.minFilter = VK_FILTER_NEAREST;    // 缩小时的采样方式
     // addressModeU、addressModeV 和 addressModeW 参数指定了对超出纹理范围的坐标进行采样时使用的策略。
     // 它们可以设置为以下值之一：
     // VK_SAMPLER_ADDRESS_MODE_REPEAT：重复纹理地址。这可能是最常见的模式，它在纹理坐标超出 [0,1] 范围时重复纹理图像。

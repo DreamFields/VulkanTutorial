@@ -1665,6 +1665,8 @@ private:
 
 	// https://vulkan-tutorial.com/Compute_Shader#page_Synchronizing-graphics-and-compute
 	void drawFrame() {
+		updateUniformBuffer(currentFrame);
+
 		// --------------------Compute submission-----------------
 		// !不必每一帧都提交计算命令，只有在计算命令完成之前才需要提交计算命令，如果之后修改了一些参数，只需要把isComplete设置为false即可
 		if (!computeResources.isComplete[currentFrame]) {
@@ -1713,7 +1715,6 @@ private:
 
 		// update uniform buffer
 		camera->updateCameraMove(window);
-		updateUniformBuffer(currentFrame);
 
 		vkResetFences(device, 1, &inFlightFences[currentFrame]);
 

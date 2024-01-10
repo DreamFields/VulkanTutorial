@@ -70,9 +70,6 @@ bool VolumeRender::loadDicom(std::string path)
 				std::runtime_error("windowWidth not found.\r\n");
 			}
 
-			if(dicomTags.windowWidth == 0.0f) dicomTags.windowWidth = 2000.0f;
-			if(dicomTags.windowCenter == 0.0f) dicomTags.windowCenter = 50.0f;
-
 			// slope
 			if (!dataset->findAndGetFloat64(DCM_RescaleSlope, dicomTags.rescaleSlope).good())
 			{
@@ -91,7 +88,7 @@ bool VolumeRender::loadDicom(std::string path)
 				std::runtime_error("pixelSpacing not found.\r\n");
 			}
 			dicomTags.voxelSize[0] = std::stof(pixelSpacing0.c_str());
-			std::cout << "Pixel Spacing0 = " << pixelSpacing0 << std::endl;
+			// std::cout << "Pixel Spacing0 = " << pixelSpacing0 << std::endl;
 
 			OFString pixelSpacing1;
 			if (!dataset->findAndGetOFString(DCM_PixelSpacing, pixelSpacing1, 1).good())
@@ -99,7 +96,7 @@ bool VolumeRender::loadDicom(std::string path)
 				std::runtime_error("pixelSpacing not found.\r\n");
 			}
 			dicomTags.voxelSize[1] = std::stof(pixelSpacing1.c_str());
-			std::cout << "Pixel Spacing1 = " << pixelSpacing1 << std::endl;
+			// std::cout << "Pixel Spacing1 = " << pixelSpacing1 << std::endl;
 
 			// thickness
 			OFString sliceThickness;
@@ -108,7 +105,7 @@ bool VolumeRender::loadDicom(std::string path)
 				std::runtime_error("sliceThickness not found.\r\n");
 			}
 			dicomTags.voxelSize[2] = std::stof(sliceThickness.c_str());
-			std::cout << "Slice Thickness = " << sliceThickness << std::endl;
+			// std::cout << "Slice Thickness = " << sliceThickness << std::endl;
 
 			// realSize
 			dicomTags.realSize[0] = dicomTags.voxelSize[0] * dicomTags.voxelResolution[0];
@@ -148,8 +145,8 @@ bool VolumeRender::loadDicom(std::string path)
 			// get image index
 			OFString imageIndex;
 			dataset->findAndGetOFString(DCM_ImageIndex, imageIndex);
-			std::cout << "cur file: " << filePath << std::endl;
-			std::cout << "Image Index: " << imageIndex << std::endl;
+			// std::cout << "cur file: " << filePath << std::endl;
+			// std::cout << "Image Index: " << imageIndex << std::endl;
 
 			fileIndex[index].first = filePath.c_str();
 			fileIndex[index].second = std::stoi(imageIndex.c_str());
@@ -180,8 +177,8 @@ bool VolumeRender::loadDicom(std::string path)
 		{
 			std::runtime_error("imagePositionPatient2 not found.\r\n");
 		}
-		std::cout << "Image Position Patient = " << imagePositionPatient0 << ", " << imagePositionPatient1 << ", " << imagePositionPatient2 << std::endl;
-		std::cout << "--------------------------------" << std::endl;
+		// std::cout << "Image Position Patient = " << imagePositionPatient0 << ", " << imagePositionPatient1 << ", " << imagePositionPatient2 << std::endl;
+		// std::cout << "--------------------------------" << std::endl;
 
 	}
 	std::sort(fileIndex.begin(), fileIndex.end(), [](std::pair<std::string, int> a, std::pair<std::string, int> b) {return a.second < b.second; });
@@ -197,8 +194,8 @@ bool VolumeRender::loadDicom(std::string path)
 
 	// 重新设置windowCenter和windowWidth
 	if (isResetWindowWW_WL) {
-		dicomTags.windowWidth = 2000.0f;
-		dicomTags.windowCenter = 50.0f;
+		dicomTags.windowWidth = 95.0f;
+		dicomTags.windowCenter = 45.0f;
 	}
 
 	// cout dicomtags
@@ -213,19 +210,17 @@ bool VolumeRender::loadDicom(std::string path)
 	std::cout << "Max Value: " << dicomTags.maxVal << std::endl;
 	std::cout << "Min Value: " << dicomTags.minVal << std::endl;
 	std::cout << "File Index: ";
-	for (size_t index = 0; index < numSlice; index++)
-	{
-		std::cout << dicomTags.fileIndex[index] << " ";
-	}
+	// for (size_t index = 0; index < numSlice; index++)
+	// {
+	// 	std::cout << dicomTags.fileIndex[index] << " ";
+	// }
 
 	dicomParamControl.windowCenter = static_cast<float>(dicomTags.windowCenter);
 	dicomParamControl.windowWidth = static_cast<float>(dicomTags.windowWidth);
 	dicomParamControl.alphaCorrection = 25.0f;
 	dicomParamControl.steps = 130;
 	dicomParamControl.stepLength = 0.01f;
-	dicomParamControl.glow = 3.5f;
-
-	
+	dicomParamControl.glow = 1.5f;
 
 	return true;
 }

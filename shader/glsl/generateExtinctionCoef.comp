@@ -12,6 +12,7 @@ layout(binding=2)uniform DicomUniformBufferObject{
     vec3 voxelSize;
     vec3 voxelResolution;
     vec3 boxSize;
+    vec3 realSize; //! 忘记更新了，导致窗宽窗位完全错误
     float windowCenter;
     float windowWidth;
     float minVal;
@@ -35,10 +36,7 @@ vec4 get3DTextureColor(vec3 texPos){
     intensity=(intensity-dicomUbo.windowCenter)/dicomUbo.windowWidth+.5;
     intensity=clamp(intensity,0.,1.);
     if(intensity==0.)return vec4(0.);
-    // 通过采样器，从lutTexSampler中加载数据，相当于传递函数的实现
-    vec3 color=texture(lutTexSampler,intensity).rgb;
-    // 将1.0-intensity作为alpha值，即遮光量或者说消光系数，浓度越大，遮光量越大，alpha越小
-    return vec4(color,1.-intensity);
+    return vec4(intensity);
 }
 
 // 对原始像素值的高低8位进行高斯滤波，并存储高低8位
@@ -116,7 +114,8 @@ vec4 GaussianFilterIntensity(uvec3 globalIdx){
         }
     }
     
-    return vec4(sumOfIntensity/sumOfWeight);
+    float resIntensity=clamp(sumOfIntensity/sumOfWeight,0.,1.);
+    return vec4(resIntensity);
 }
 
 // todo 生成距离场的精度太低，导致渲染有噪点
@@ -174,10 +173,10 @@ void main(){
     ivec3 globalIdx=ivec3(gl_GlobalInvocationID.xyz);// 计算着色器在3D图像中的位置
     
     // todo 如果不注释，计算着色器mouse尾巴部位无法生成，why？？
-    // if(globalIdx.x>dicomUbo.voxelResolution.x-1
-        //     ||globalIdx.y>dicomUbo.voxelResolution.y-1
-    // ||globalIdx.z>dicomUbo.voxelResolution.z-1)
-    // return;
+    if(globalIdx.x>dicomUbo.voxelResolution.x-1
+        ||globalIdx.y>dicomUbo.voxelResolution.y-1
+    ||globalIdx.z>dicomUbo.voxelResolution.z-1)
+    return;
     
     // 采样位置为当前全局索引除以3D纹理的尺寸，以保证采样坐标在[0, 1]的范围内
     // !需要加上.5 否则会出现锯齿
@@ -186,15 +185,16 @@ void main(){
     float intensity=sampleColor.r*255.+sampleColor.g*255.*255.-abs(dicomUbo.minVal);
     intensity=(intensity-dicomUbo.windowCenter)/dicomUbo.windowWidth+.5;
     intensity=clamp(intensity,0.,1.);
-    // imageStore(TexOutputVolume,ivec3(globalIdx),vec4(intensity)); // 直接把intensity存储
+    imageStore(TexOutputVolume,ivec3(globalIdx),vec4(intensity,0.,0.,0.));// 直接把intensity存储
     // imageStore(TexOutputVolume,ivec3(globalIdx),texture(TexInputVolume,samplePos));// 直接存储原始像素值的高八位和第八位
     
     // 将颜色值写入输出的3D图像
-    imageStore(TexOutputVolume,ivec3(globalIdx),vec4(GaussianFilter(globalIdx).rgb,1.0));// 高斯滤波，存储高低8位
-    // imageStore(TexOutputVolume,ivec3(globalIdx),GaussianFilterIntensity(globalIdx));// 高斯滤波，存储intensity
-
+    // imageStore(TexOutputVolume,ivec3(globalIdx),vec4(GaussianFilter(globalIdx).rgb,1.));// 高斯滤波，存储高低8位
+    // imageStore(TexOutputVolume,ivec3(globalIdx),vec4(GaussianFilterIntensity(globalIdx).rgb,1.));// 高斯滤波，存储intensity
+    
     // test
     // imageStore(TexOutputVolume,ivec3(globalIdx),genDistanceField(globalIdx));
     // imageStore(TexOutputVolume,ivec3(globalIdx),vec4(GaussianFilter(globalIdx).rgb,genDistanceField(globalIdx).r));
     // imageStore(TexOutputVolume,ivec3(globalIdx),get3DTextureColor(samplePos));
+    // imageStore(TexOutputVolume,ivec3(globalIdx),vec4(dicomUbo.windowCenter,dicomUbo.windowWidth,0.,0.)/vec4(255.));
 }
