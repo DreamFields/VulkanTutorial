@@ -194,8 +194,13 @@ bool VolumeRender::loadDicom(std::string path)
 
 	// 重新设置windowCenter和windowWidth
 	if (isResetWindowWW_WL) {
-		dicomTags.windowWidth = 2000.0f;
-		dicomTags.windowCenter = 50.0f;
+		// mouse
+		// dicomTags.windowWidth = 2000.0f;
+		// dicomTags.windowCenter = 50.0f;
+
+		// head
+		dicomTags.windowWidth = 250.0f;
+		dicomTags.windowCenter = 250.0f;
 	}
 
 	// cout dicomtags
@@ -225,7 +230,7 @@ bool VolumeRender::loadDicom(std::string path)
 	return true;
 }
 
-bool VolumeRender::getPixelRGBA(int& width, int& height, int& numSlice, unsigned char*& rgba,short channel)
+bool VolumeRender::getPixelRGBA(int& width, int& height, int& numSlice, unsigned char*& rgba, short channel)
 {
 	width = dicomTags.voxelResolution[0];
 	height = dicomTags.voxelResolution[1];

@@ -86,7 +86,7 @@ vec4 getExtCoeff(vec3 worldPos){
     vec4 sampleColor=texture(extCoeffSampler,texPos);
     // vec4 sampleColor=textureLod(extCoeffSampler,texPos,4.);
     // return sampleColor;
-
+    
     // 当extCoeffSampler存的是intensity时使用下面的代码
     float intensity=sampleColor.r;
     intensity=clamp(intensity,0.,1.);
@@ -95,7 +95,7 @@ vec4 getExtCoeff(vec3 worldPos){
     return vec4(color,intensity);
     
     // 当extCoeffSampler存的是高低8位时使用下面的代码
-/*     float intensity=sampleColor.r*255.+sampleColor.g*255.*255.-abs(dicomUbo.minVal);
+    /*     float intensity=sampleColor.r*255.+sampleColor.g*255.*255.-abs(dicomUbo.minVal);
     intensity=(intensity-dicomUbo.windowCenter)/dicomUbo.windowWidth+.5;
     intensity=clamp(intensity,0.,1.);
     if(intensity==0.)return vec4(0.);
@@ -142,9 +142,9 @@ float GetGaussianExtinction(vec3 volume_pos,float mipmaplevel){
     intensity=clamp(intensity,0.,1.);
     // return 1.-intensity;
     return intensity;
-
+    
     // 当extCoeffSampler存的是intensity时使用下面的代码
-/*     vec3 tex_pos=volume_pos/dicomUbo.realSize;
+    /*     vec3 tex_pos=volume_pos/dicomUbo.realSize;
     vec4 sampleColor=textureLod(extCoeffSampler,tex_pos,mipmaplevel);
     if(sampleColor.r==0.)return 0.;
     return sampleColor.r; */
@@ -388,7 +388,7 @@ vec4 absorptionMethod(float stepLength,float rayLength,vec3 dir,vec3 currentPos)
     float T=1.;
     bool isAccurate=true;
     float sampleCnt=0.;
-
+    
     if(rayLength<stepLength){
         return vec4(0.);
     }
@@ -440,8 +440,70 @@ vec4 absorptionMethod(float stepLength,float rayLength,vec3 dir,vec3 currentPos)
         if((1.-T)>.99)break;
     }
     
+    return E;
+    // return vec4(E.rgb,sampleCnt*stepLength/rayLength);
+}
+
+// 投射测试代码
+vec4 casingTest(float stepLength,float rayLength,vec3 dir,vec3 currentPos){
+    // Initialize Transparency and Radiance sampleColor
+    vec4 E=vec4(0.);
+    // T
+    float T=1.;
+    bool isInside=false;
+    int afterFrontEmptyCnt=0;// 第一次遇到非空体素(进入体积前表面)后，到光线结束时，经过的空体素的行进次数
+    int validCnt=0;// 非空体素的行进次数
+    int beforeFrontEmptyCnt=0;// 第一次遇到非空体素(进入体积前表面)前的行进次数
+    int allEmptyCnt=0;// 所有经过的空体素的行进次数
+    
+    // Evaluate form 0 to D
+    for(float s=0.;s<rayLength;){
+        // Get the current step or the remaining interval
+        float h=min(stepLength,rayLength-s);
+        // Get the current position
+        vec3 pos=currentPos+dir*(s+h*.5);
+        // 利用最终的渲染结果来计算空体素的长度
+        // vec4 sampleColor=ShadeSample(pos,dir,normalize(fragCameraUp),normalize(fragCameraRight));
+        vec4 sampleColor=get3DTextureColor(pos);
+        
+        // Go to the next interval
+        s=s+h;
+        
+        if(sampleColor.r!=0.){
+            isInside=true;
+        }
+        
+        // 计算体素内部采样次数
+        if(isInside&&sampleColor.r==0.){
+            afterFrontEmptyCnt+=1;
+        }
+        
+        if(!isInside)beforeFrontEmptyCnt+=1;
+        
+        if(sampleColor.r==0.){
+            allEmptyCnt+=1;
+            continue;
+        }
+        else validCnt+=1;
+        
+        // ---------Iteration B: tau*h 很大时精确---------------
+        // Accumulate the sampleColor
+        float F=exp(-dicomUbo.alphaCorrection*sampleColor.a*h);
+        E=E+T*sampleColor*(1.-F)*dicomUbo.glow;
+        // Accumulate the transparency  // !即 T = T * exp(-tau * deltaS)
+        T=T*F;
+        
+        // if((1.-T)>.99)break; // 提前终止步进，已禁用
+    }
+    
     // return E;
-    return vec4(E.rgb,sampleCnt*stepLength/rayLength);
+    // 计算光线各种情况下行进的距离占总长的比例
+    vec4 res=vec4(0.);
+    res.r=clamp(float(beforeFrontEmptyCnt)*stepLength/rayLength,0.,1.);
+    res.g=clamp(float(afterFrontEmptyCnt)*stepLength/rayLength,0.,1.);
+    res.b=clamp(float(validCnt)*stepLength/rayLength,0.,1.);
+    res.a=clamp(float(allEmptyCnt)*stepLength/rayLength,0.,1.);
+    return res;
 }
 
 void main(){
@@ -459,6 +521,24 @@ void main(){
     vec4 color=absorptionMethod(stepLength,rayLength,dir,currentPos);
     
     outColor=color;
+    vec4 forwardCastRes=casingTest(stepLength,rayLength,dir,currentPos);// 正向投射
+    vec4 backwardCastRes=casingTest(stepLength,rayLength,-dir,backPos);// 反向投射
+    // |  beforFrontEmpty    |  insideEmpty+valid  |  afterBackEmpty    |
+    // |  forwardCastRes.r   |  forwardCastRes.g  + forwardCastRes.b    |
+    // |  backwardCastRes.g + backwardCastRes.b    |  backwardCastRes.r |
+    float beforFrontEmpty=forwardCastRes.r;
+    float insideEmpty=forwardCastRes.g-backwardCastRes.r;
+    float afterBackEmpty=backwardCastRes.r;
+    float allEmpty=forwardCastRes.a;// == backwardCastRes.a
+    // outColor=vec4((beforFrontEmpty+insideEmpty+afterBackEmpty)/allEmpty); // 测试是否正确
+    
+    /*
+    空体素的比率，越接近1，说明空体素越多。
+    head的用例ww=250，wc=250左右时明显。
+    mouse的用例ww=600，wc=250左右时明显。
+    */
+    // outColor=vec4(insideEmpty,insideEmpty,insideEmpty,1.);
+    
     // vec2 texCoord=vec2(inTexCoord.x,inTexCoord.y);
     // vec3 testPos=vec3(texCoord.y,27./41.,texCoord.x);// todo 由于立方体尺寸改变，这里需要重新计算纹理坐标
     // outColor=get3DTextureColor(testPos);
