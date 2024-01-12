@@ -135,7 +135,7 @@ vec4 GetOcclusionSectionInfo(int id)
 
 float GetGaussianExtinction(vec3 volume_pos,float mipmaplevel){
     vec3 tex_pos=volume_pos/dicomUbo.realSize;
-    tex_pos = clamp(tex_pos, 0., 1.); // !如果不clamp，那么在最前方的体素会接收到后方的遮蔽，因为纹理是repeat的，导致最前方出现黑色遮蔽值
+    // tex_pos = clamp(tex_pos, 0., 1.); // !如果不clamp，那么在最前方的体素会接收到后方的遮蔽，因为纹理是repeat的，导致最前方出现黑色遮蔽值
     vec4 sampleColor=textureLod(extCoeffSampler,tex_pos,mipmaplevel);
     
     // 当extCoeffSampler存的是高低8位时使用下面的代码
@@ -255,6 +255,16 @@ float Cone3RayOcclusion(vec3 volume_pos_from_zero,float track_distance,vec3 cone
         for(int i=0;i<3;i++)
         {
             vec3 cur_volume_pos=volume_pos_from_zero+vk[i]*track_distance;
+
+            // *提前判断是否超出体素范围，如果超出，则直接将当前项的高斯积分结果加到occlusion cone中，而不进行采样，提高了帧率
+            if(cur_volume_pos.x<0.||cur_volume_pos.x>dicomUbo.realSize.x||
+            cur_volume_pos.y<0.||cur_volume_pos.y>dicomUbo.realSize.y||
+            cur_volume_pos.z<0.||cur_volume_pos.z>dicomUbo.realSize.z)
+            {
+                occ_rays[i]+=(last_amptau[i])*d_integral;
+                last_amptau[i]=0.;
+                continue;
+            }
             
             float Tau_s=GetGaussianExtinction(cur_volume_pos,mipmap_level);
             
