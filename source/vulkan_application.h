@@ -77,7 +77,7 @@ public:
 	std::shared_ptr<Camera> camera;
 
 private:
-	int currentExampleID = 0; // * 当前的示例ID
+	int currentExampleID = 1; // * 当前的示例ID
 	std::vector<Vertex> vertices;
 	std::vector<uint16_t> indices;
 	GLFWwindow* window;

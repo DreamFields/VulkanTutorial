@@ -47,7 +47,7 @@ layout(location=4)in vec3 fragCameraRight;
 layout(location=0)out vec4 outColor;
 
 #define CONSIDER_BORDERS
-//#define USE_EARLY_TERMINATION
+// #define USE_EARLY_TERMINATION
 //#define ALWAYS_SPLIT_CONES
 //#define USE_FALLOFF_FUNCTION
 
@@ -134,9 +134,11 @@ vec4 GetOcclusionSectionInfo(int id)
 }
 
 float GetGaussianExtinction(vec3 volume_pos,float mipmaplevel){
-    // 当extCoeffSampler存的是高低8位时使用下面的代码
     vec3 tex_pos=volume_pos/dicomUbo.realSize;
+    tex_pos = clamp(tex_pos, 0., 1.); // !如果不clamp，那么在最前方的体素会接收到后方的遮蔽，因为纹理是repeat的，导致最前方出现黑色遮蔽值
     vec4 sampleColor=textureLod(extCoeffSampler,tex_pos,mipmaplevel);
+    
+    // 当extCoeffSampler存的是高低8位时使用下面的代码
     float intensity=sampleColor.r*255.+sampleColor.g*255.*255.-abs(dicomUbo.minVal);
     intensity=(intensity-dicomUbo.windowCenter)/dicomUbo.windowWidth+.5;
     intensity=clamp(intensity,0.,1.);
@@ -144,9 +146,7 @@ float GetGaussianExtinction(vec3 volume_pos,float mipmaplevel){
     return intensity;
     
     // 当extCoeffSampler存的是intensity时使用下面的代码
-    /*     vec3 tex_pos=volume_pos/dicomUbo.realSize;
-    vec4 sampleColor=textureLod(extCoeffSampler,tex_pos,mipmaplevel);
-    if(sampleColor.r==0.)return 0.;
+    /*if(sampleColor.r==0.)return 0.;
     return sampleColor.r; */
 }
 
