@@ -224,6 +224,20 @@ private:
 	void prepareTexOccConeSectionsInfo();
 	// end TexOccConeSectionsInfo 
 
+	// begin capture
+	bool isNeedCapture = false; // 是否需要截图
+	int currentCaptureID = -1; // 当前的捕获ID
+	void captureImage();
+	void copyImage(VkImage srcImage,
+		VkImage dstImage,
+		uint32_t width,
+		uint32_t height); // 将交换链图像复制到图像对象	
+	void copyImageToBuffer(VkImage srcImage,
+		VkBuffer dstBuffer,
+		uint32_t width,
+		uint32_t height); // 将交换链图像复制到缓冲区对象
+	// end capture
+
 	// https://vulkan-tutorial.com/Texture_mapping/Images#page_Layout-transitions
 	// 将记录和执行命令缓冲区的逻辑抽象为单独的函数
 	VkCommandBuffer beginSingleTimeCommands(VkCommandPool cmdPool);
@@ -634,7 +648,7 @@ private:
 		createInfo.imageExtent = extent;
 		createInfo.imageArrayLayers = 1;
 		// createInfo.imageUsage = VK_IMAGE_USAGE_COLOR_ATTACHMENT_BIT;
-		createInfo.imageUsage = VK_IMAGE_USAGE_COLOR_ATTACHMENT_BIT | VK_IMAGE_USAGE_INPUT_ATTACHMENT_BIT; // *有可能使用输入附件，所以加上VK_IMAGE_USAGE_INPUT_ATTACHMENT_BIT
+		createInfo.imageUsage = VK_IMAGE_USAGE_COLOR_ATTACHMENT_BIT | VK_IMAGE_USAGE_INPUT_ATTACHMENT_BIT | VK_IMAGE_USAGE_TRANSFER_SRC_BIT; // *有可能使用输入附件，所以加上VK_IMAGE_USAGE_INPUT_ATTACHMENT_BIT
 
 
 		QueueFamilyIndices indices = findQueueFamilies(physicalDevice);
@@ -1820,6 +1834,13 @@ private:
 		}
 
 		currentFrame = (currentFrame + 1) % MAX_FRAMES_IN_FLIGHT;
+
+		// --------------------捕获图片--------------------
+		if (isNeedCapture)
+		{
+			captureImage();
+			isNeedCapture = false;
+		}
 	}
 
 	VkShaderModule createShaderModule(const std::vector<unsigned char>& code) {
