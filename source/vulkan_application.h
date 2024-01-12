@@ -1784,6 +1784,15 @@ private:
 			throw std::runtime_error("failed to submit draw command buffer!");
 		}
 		// }
+
+		// --------------------捕获图片--------------------
+		if (isNeedCapture)
+		{
+			captureImage();
+			isNeedCapture = false;
+		}
+
+		
 		// --------------------ImGui submission-----------------
 		VkResult waitImguiRes = vkWaitForFences(device, 1, &imguiInFlightFences[currentFrame], VK_TRUE, UINT64_MAX);
 		if (waitImguiRes != VK_SUCCESS) {
@@ -1835,12 +1844,7 @@ private:
 
 		currentFrame = (currentFrame + 1) % MAX_FRAMES_IN_FLIGHT;
 
-		// --------------------捕获图片--------------------
-		if (isNeedCapture)
-		{
-			captureImage();
-			isNeedCapture = false;
-		}
+		
 	}
 
 	VkShaderModule createShaderModule(const std::vector<unsigned char>& code) {
