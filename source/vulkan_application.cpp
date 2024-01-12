@@ -654,31 +654,31 @@ void VulkanApplication::transitionImageLayout(    // 图像布局转换
         destinationStage = VK_PIPELINE_STAGE_FRAGMENT_SHADER_BIT;
     }
     // for capture image
-    else if(oldLayout == VK_IMAGE_LAYOUT_UNDEFINED && newLayout == VK_IMAGE_LAYOUT_TRANSFER_SRC_OPTIMAL){
+    else if (oldLayout == VK_IMAGE_LAYOUT_UNDEFINED && newLayout == VK_IMAGE_LAYOUT_TRANSFER_SRC_OPTIMAL) {
         barrier.srcAccessMask = 0;
         barrier.dstAccessMask = VK_ACCESS_TRANSFER_READ_BIT;
         sourceStage = VK_PIPELINE_STAGE_TOP_OF_PIPE_BIT;
         destinationStage = VK_PIPELINE_STAGE_TRANSFER_BIT;
-    }    
-    else if(oldLayout == VK_IMAGE_LAYOUT_PRESENT_SRC_KHR && newLayout == VK_IMAGE_LAYOUT_TRANSFER_SRC_OPTIMAL){
+    }
+    else if (oldLayout == VK_IMAGE_LAYOUT_PRESENT_SRC_KHR && newLayout == VK_IMAGE_LAYOUT_TRANSFER_SRC_OPTIMAL) {
         barrier.srcAccessMask = VK_ACCESS_MEMORY_READ_BIT;
         barrier.dstAccessMask = VK_ACCESS_TRANSFER_READ_BIT;
         sourceStage = VK_PIPELINE_STAGE_FRAGMENT_SHADER_BIT;
         destinationStage = VK_PIPELINE_STAGE_TRANSFER_BIT;
     }
-    else if(oldLayout == VK_IMAGE_LAYOUT_TRANSFER_SRC_OPTIMAL && newLayout == VK_IMAGE_LAYOUT_PRESENT_SRC_KHR){
+    else if (oldLayout == VK_IMAGE_LAYOUT_TRANSFER_SRC_OPTIMAL && newLayout == VK_IMAGE_LAYOUT_PRESENT_SRC_KHR) {
         barrier.srcAccessMask = VK_ACCESS_TRANSFER_READ_BIT;
         barrier.dstAccessMask = VK_ACCESS_MEMORY_READ_BIT;
         sourceStage = VK_PIPELINE_STAGE_TRANSFER_BIT;
         destinationStage = VK_PIPELINE_STAGE_TRANSFER_BIT;
     }
-    else if(oldLayout == VK_IMAGE_LAYOUT_TRANSFER_DST_OPTIMAL && newLayout == VK_IMAGE_LAYOUT_TRANSFER_SRC_OPTIMAL){
+    else if (oldLayout == VK_IMAGE_LAYOUT_TRANSFER_DST_OPTIMAL && newLayout == VK_IMAGE_LAYOUT_TRANSFER_SRC_OPTIMAL) {
         barrier.srcAccessMask = VK_ACCESS_TRANSFER_WRITE_BIT;
         barrier.dstAccessMask = VK_ACCESS_TRANSFER_READ_BIT;
         sourceStage = VK_PIPELINE_STAGE_TRANSFER_BIT;
         destinationStage = VK_PIPELINE_STAGE_TRANSFER_BIT;
     }
-    else if(oldLayout == VK_IMAGE_LAYOUT_TRANSFER_SRC_OPTIMAL && newLayout == VK_IMAGE_LAYOUT_TRANSFER_DST_OPTIMAL){
+    else if (oldLayout == VK_IMAGE_LAYOUT_TRANSFER_SRC_OPTIMAL && newLayout == VK_IMAGE_LAYOUT_TRANSFER_DST_OPTIMAL) {
         barrier.srcAccessMask = VK_ACCESS_TRANSFER_READ_BIT;
         barrier.dstAccessMask = VK_ACCESS_TRANSFER_WRITE_BIT;
         sourceStage = VK_PIPELINE_STAGE_TRANSFER_BIT;
@@ -1406,7 +1406,7 @@ void VulkanApplication::recordComputeCommandBuffer(uint32_t currentFrame) {
     vkCmdBindDescriptorSets(computeResources.commandBuffers[currentFrame], VK_PIPELINE_BIND_POINT_COMPUTE, computeResources.pipelineLayout, 0, 1, &computeResources.descriptorSets[currentFrame], 0, 0);
 
     // Dispatch the compute job
-   vkCmdDispatch(computeResources.commandBuffers[currentFrame], volumeRender->getDicomTags().voxelResolution[0] / 8, volumeRender->getDicomTags().voxelResolution[1] / 8, volumeRender->getDicomTags().voxelResolution[2] / 8);
+    vkCmdDispatch(computeResources.commandBuffers[currentFrame], volumeRender->getDicomTags().voxelResolution[0] / 8, volumeRender->getDicomTags().voxelResolution[1] / 8, volumeRender->getDicomTags().voxelResolution[2] / 8);
 
     // end recording command buffer
     if (vkEndCommandBuffer(computeResources.commandBuffers[currentFrame]) != VK_SUCCESS) { // 结束记录命令缓冲区
@@ -1637,81 +1637,45 @@ void VulkanApplication::captureImage() {
         stagingBuffer,
         stagingBufferMemory);
 
-    // 2. 创建图像
-    VkImage dstImage;
-    VkDeviceMemory dstImageMemory;
-    createImage(
-        swapChainExtent.width,
-        swapChainExtent.height,
-        1,
-        swapChainImageFormat,
-        VK_IMAGE_TYPE_2D,
-        VK_IMAGE_TILING_OPTIMAL,
-        VK_IMAGE_USAGE_TRANSFER_SRC_BIT | VK_IMAGE_USAGE_TRANSFER_DST_BIT,
-        VK_MEMORY_PROPERTY_DEVICE_LOCAL_BIT,
-        dstImage,
-        dstImageMemory,
-        VK_SAMPLE_COUNT_1_BIT);
-
-    // dstImage 作为目标图像，需要转换为 VK_IMAGE_LAYOUT_TRANSFER_DST_OPTIMAL
-    transitionImageLayout(
-        dstImage,
-        swapChainImageFormat,
-        VK_IMAGE_LAYOUT_UNDEFINED,
-        VK_IMAGE_LAYOUT_TRANSFER_DST_OPTIMAL);
-
-    // 3. 将交换链图像转换为 VK_IMAGE_LAYOUT_TRANSFER_SRC_OPTIMAL，才能作为源图像
+    // 将交换链图像转换为 VK_IMAGE_LAYOUT_TRANSFER_SRC_OPTIMAL，才能作为源图像
     transitionImageLayout(
         swapChainImages[currentFrame],
         swapChainImageFormat,
         VK_IMAGE_LAYOUT_PRESENT_SRC_KHR,
         VK_IMAGE_LAYOUT_TRANSFER_SRC_OPTIMAL);
 
-    // 4. 将交换链图像复制到图像对象
-    copyImage(
-        swapChainImages[currentFrame],
-        dstImage,
-        swapChainExtent.width,
-        swapChainExtent.height);
-
-    // 5. 将图像对象转换为 VK_IMAGE_LAYOUT_TRANSFER_SRC_OPTIMAL，才能作为源图像来复制到缓冲区
-    transitionImageLayout(
-       dstImage,
-       swapChainImageFormat,
-       VK_IMAGE_LAYOUT_TRANSFER_DST_OPTIMAL,
-       VK_IMAGE_LAYOUT_TRANSFER_SRC_OPTIMAL);
-
-    // 6. 将图像对象复制到缓冲区
+    // 将图像对象复制到缓冲区
     copyImageToBuffer(
-        dstImage,
+        swapChainImages[currentFrame],
         stagingBuffer,
         swapChainExtent.width,
         swapChainExtent.height);
 
-    // 7. 将图像对象转换为 VK_IMAGE_LAYOUT_PRESENT_SRC_KHR
-    transitionImageLayout(
-        dstImage,
-        swapChainImageFormat,
-        VK_IMAGE_LAYOUT_TRANSFER_SRC_OPTIMAL,
-        VK_IMAGE_LAYOUT_PRESENT_SRC_KHR);
+    // 从缓冲区中读取像素值
+    void* image_data;
+    vkMapMemory(device, stagingBufferMemory, 0, imageSize, 0, &image_data);
 
-    // 8. 从缓冲区中读取像素值
-    void* data;
-    vkMapMemory(device, stagingBufferMemory, 0, imageSize, 0, &data);
-    // memcpy(data, pixels, static_cast<size_t>(imageSize));
-    // vkUnmapMemory(device, stagingBufferMemory);
+    unsigned char* uchar_ptr = reinterpret_cast<unsigned char*>(image_data);
+    // 修复像素顺序
+    for (int i = 0; i < swapChainExtent.width * swapChainExtent.height; i++) {
+        unsigned char temp = uchar_ptr[i * 4];
+        uchar_ptr[i * 4] = uchar_ptr[i * 4 + 2]; // 交换B和R通道的值
+        uchar_ptr[i * 4 + 2] = temp;
+    }
 
-    // 9. 保存图像
+    // 保存图像
     std::string filename = "D:\\00.CG_project\\00.VulkanTutorial\\capture\\capture_" + std::to_string(currentCaptureID) + ".png";
-    stbi_write_png(filename.c_str(), swapChainExtent.width, swapChainExtent.height, 4, data, swapChainExtent.width * 4);
+    stbi_write_png(filename.c_str(), swapChainExtent.width, swapChainExtent.height, 4, uchar_ptr, swapChainExtent.width * 4);
 
-    // 10. 清理临时缓冲区
+    // 清理临时缓冲区
     vkDestroyBuffer(device, stagingBuffer, nullptr);
     vkFreeMemory(device, stagingBufferMemory, nullptr);
 
-    // 11. 清理图像
-    vkDestroyImage(device, dstImage, nullptr);
-    vkFreeMemory(device, dstImageMemory, nullptr);
+    transitionImageLayout(
+        swapChainImages[currentFrame],
+        swapChainImageFormat,
+        VK_IMAGE_LAYOUT_TRANSFER_SRC_OPTIMAL,
+        VK_IMAGE_LAYOUT_PRESENT_SRC_KHR);
 }
 
 void VulkanApplication::copyImage(
