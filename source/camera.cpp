@@ -1,4 +1,10 @@
 #include "camera.h"
+Camera::Camera(int exampleID) {
+    ExampleConfig curConfig = dicomExamples[exampleID];
+    cameraPos = curConfig.cameraPos;
+    cameraFront = curConfig.cameraFront;
+    cameraUp = curConfig.cameraUp;
+}
 
 void Camera::onMouseMove(GLFWwindow* window, double xpos, double ypos)
 {
@@ -29,7 +35,7 @@ void Camera::onMouseMove(GLFWwindow* window, double xpos, double ypos)
             glm::vec3 axis = glm::cross(cameraTarget - cameraPos, cameraUp);
             rotation = glm::rotate(glm::mat4(1.0f), glm::radians(yoffset), glm::normalize(axis));
             direction = rotation * glm::vec4(cameraPos - cameraTarget, 0.0f);
-            cameraUp = glm::normalize( glm::cross(glm::normalize(axis), glm::normalize(glm::vec3(-direction))));
+            cameraUp = glm::normalize(glm::cross(glm::normalize(axis), glm::normalize(glm::vec3(-direction))));
             cameraFront = glm::normalize(glm::vec3(-direction));
             cameraPos = cameraTarget + glm::vec3(direction);
         }
@@ -42,8 +48,9 @@ void Camera::onMouseMove(GLFWwindow* window, double xpos, double ypos)
             glm::vec3 newUp = glm::cross(glm::cross(cameraFront, cameraUp), cameraFront);
             cameraUp = glm::normalize(newUp);
         }
-        // std::cout << "cameraFront: " << cameraFront.x << ", " << cameraFront.y << ", " << cameraFront.z << std::endl;
-        // std::cout << "cameraUp: " << cameraUp.x << ", " << cameraUp.y << ", " << cameraUp.z << std::endl;
+        std::cout << "cameraPos: " << cameraPos.x << ", " << cameraPos.y << ", " << cameraPos.z << std::endl;
+        std::cout << "cameraFront: " << cameraFront.x << ", " << cameraFront.y << ", " << cameraFront.z << std::endl;
+        std::cout << "cameraUp: " << cameraUp.x << ", " << cameraUp.y << ", " << cameraUp.z << std::endl;
     }
 }
 

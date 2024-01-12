@@ -46,6 +46,7 @@ class VolumeRender
 {
 private:
     DicomTags dicomTags;
+    int currentExampleID;
 public:
     DicomParamControl dicomParamControl;
 
@@ -57,7 +58,7 @@ public:
     // gl::Texture1D* glsl_occ_sectionsinfo;
     ConeGaussianSampler sampler_occlusion;
 public:
-    VolumeRender(/* args */);
+    VolumeRender(int exampleID);
     ~VolumeRender();
 
     bool loadDicom(std::string path);

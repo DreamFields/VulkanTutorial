@@ -8,6 +8,7 @@
 
 #include <array>
 #include <vector>
+#include <unordered_map>
 
 
 struct Vertex {
@@ -102,4 +103,52 @@ struct TextureTarget {
     VkDeviceMemory memory;
     uint32_t mipLevels;
     // VkDescriptorImageInfo descriptor;
+};
+
+struct ExampleConfig {
+    std::string name;
+    std::string path;
+
+    glm::vec3 cameraPos = glm::vec3(0.5f, 0.5f, 2.5f);
+    glm::vec3 cameraFront = glm::vec3(0.0f, 0.0f, -1.0f);
+    glm::vec3 cameraUp = glm::vec3(0.0f, 1.0f, 0.0f);
+
+    double windowWidth = 100.0f;
+    double windowCenter = 0.0f;
+};
+
+static inline ExampleConfig head = {
+    "head",
+    "C:\\Users\\Dream\\Documents\\00.Dicom\\ede6fe9eda6e44a98b3ad20da6f9116a Anonymized29\\Unknown Study\\CT Head 5.0000\\",
+    glm::vec3(0.0709212, -1.45329, 0.47473),
+    glm::vec3(0.214537, 0.976634, 0.012635),
+    glm::vec3(-0.0384151, -0.00448895, 0.999252),
+    250.0f,
+    250.0f
+};
+
+static inline ExampleConfig mouse = {
+    "mouse",
+    "C:\\Users\\Dream\\Documents\\00.Dicom\\mouse512\\",
+    glm::vec3(1.0173, 1.20632, 2.29839),
+    glm::vec3(-0.258629, -0.353131, -0.899116),
+    glm::vec3(-0.121613, 0.935281, -0.332354),
+    2000.0f,
+    50.0f
+};
+
+static inline ExampleConfig chest = {
+    "chest",
+    "C:\\Users\\Dream\\Documents\\00.Dicom\\liudan_wholebodyls_thorax\\",
+    glm::vec3(0.44323, -1.26454, 1.43985),
+    glm::vec3(0.0283847, 0.882255, -0.469916),
+    glm::vec3(-0.0319244, 0.470665, 0.881734),
+    2000.0f,
+    50.0f
+};
+
+static inline std::unordered_map<int, ExampleConfig> dicomExamples = {
+    {0, head},
+    {1, mouse},
+    {2, chest}
 };

@@ -77,6 +77,7 @@ public:
 	std::shared_ptr<Camera> camera;
 
 private:
+	int currentExampleID = 0; // * 当前的示例ID
 	std::vector<Vertex> vertices;
 	std::vector<uint16_t> indices;
 	GLFWwindow* window;
@@ -237,7 +238,7 @@ private:
 		glfwSetWindowUserPointer(window, this);
 		glfwSetFramebufferSizeCallback(window, framebufferResizeCallback);
 		// 设置鼠标移动和按键回调函数
-		camera = std::make_shared<Camera>();
+		camera = std::make_shared<Camera>(currentExampleID);
 		// 鼠标移动回调函数
 		glfwSetCursorPosCallback(window, [](GLFWwindow* window, double xpos, double ypos) {
 			auto app = reinterpret_cast<VulkanApplication*>(glfwGetWindowUserPointer(window));

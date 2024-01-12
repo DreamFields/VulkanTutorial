@@ -1,6 +1,7 @@
 #include "volume_render.h"
-VolumeRender::VolumeRender(/* args */)
+VolumeRender::VolumeRender(int exampleID)
 {
+	currentExampleID = exampleID;
 }
 
 VolumeRender::~VolumeRender()
@@ -194,13 +195,8 @@ bool VolumeRender::loadDicom(std::string path)
 
 	// 重新设置windowCenter和windowWidth
 	if (isResetWindowWW_WL) {
-		// mouse
-		// dicomTags.windowWidth = 2000.0f;
-		// dicomTags.windowCenter = 50.0f;
-
-		// head
-		dicomTags.windowWidth = 250.0f;
-		dicomTags.windowCenter = 250.0f;
+		dicomTags.windowWidth = dicomExamples[currentExampleID].windowWidth;
+		dicomTags.windowCenter = dicomExamples[currentExampleID].windowCenter;
 	}
 
 	// cout dicomtags
