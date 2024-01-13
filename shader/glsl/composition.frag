@@ -37,6 +37,9 @@ layout(std140,binding=7)uniform OcclusionUniformBufferObject{
     vec4 OccConeRayAxes[10];
     // int OccConeIntegrationSamples[3];
 }occlusionUbo;
+layout(std140,binding=8)uniform GroundTruthUBO{
+    vec4 raySampleVec[10];
+}gtRayUbo;
 
 layout(location=0)in vec3 inColor;
 layout(location=1)in vec2 inTexCoord;
@@ -78,6 +81,15 @@ vec4 get3DTextureColor(vec3 worldPos){
     // 将1.0-intensity作为alpha值，即遮光量或者说消光系数，浓度越大，遮光量越大，alpha越小
     // return vec4(color,1.-intensity);
     return vec4(color,intensity);
+}
+
+float getIntensity(vec3 volumePos){
+    vec3 texPos=volumePos/dicomUbo.realSize;
+    vec4 sampleColor=texture(tex3DSampler,texPos);
+    float intensity=sampleColor.r*255.+sampleColor.g*255.*255.-abs(dicomUbo.minVal);
+    intensity=(intensity-dicomUbo.windowCenter)/dicomUbo.windowWidth+.5;
+    intensity=clamp(intensity,0.,1.);
+    return intensity;
 }
 
 vec4 getExtCoeff(vec3 worldPos){
@@ -255,10 +267,10 @@ float Cone3RayOcclusion(vec3 volume_pos_from_zero,float track_distance,vec3 cone
         for(int i=0;i<3;i++)
         {
             vec3 cur_volume_pos=volume_pos_from_zero+vk[i]*track_distance;
-
+            
             // *提前判断是否超出体素范围，如果超出，则直接将当前项的高斯积分结果加到occlusion cone中，而不进行采样，提高了帧率
             if(cur_volume_pos.x<0.||cur_volume_pos.x>dicomUbo.realSize.x||
-            cur_volume_pos.y<0.||cur_volume_pos.y>dicomUbo.realSize.y||
+                cur_volume_pos.y<0.||cur_volume_pos.y>dicomUbo.realSize.y||
             cur_volume_pos.z<0.||cur_volume_pos.z>dicomUbo.realSize.z)
             {
                 occ_rays[i]+=(last_amptau[i])*d_integral;
@@ -360,6 +372,62 @@ float Cone1RayOcclusion(vec3 volume_pos_from_zero,vec3 coneDir,vec3 cameraUp,vec
     return exp(-occ_rays[0]);
 }
 
+///////////////////////////////////////////////////////////
+// ground truth(single scattering path tracing)
+int OccNumberOfSampledRays=10;
+float LightRayInitialGap=1.;
+float OccConeDistanceEvaluation=100.;
+float LightRayStepSize=0.5;
+float SingleScatterPathTracing(vec3 volume_pos_from_zero,vec3 coneDir,vec3 cameraUp,vec3 cameraRight){
+    float Socc = 0.0;
+    float Swgt = 0.0;
+    
+    // For each ray
+    int rayid = 0;
+    while(rayid < OccNumberOfSampledRays)
+    {
+        vec3 coefs = gtRayUbo.raySampleVec[rayid].rgb;
+        vec3 vec_ray_w = normalize(cameraRight * coefs.r + cameraUp * coefs.g + coneDir * coefs.b);
+        
+        float Vt = 1.0;
+        
+        // For each step
+        float s = LightRayInitialGap;
+        
+        // Get color from transfer function given the normalized density
+        float st0 = getIntensity(volume_pos_from_zero);
+        
+        while (s < OccConeDistanceEvaluation)
+        {
+            float h = min(LightRayStepSize, OccConeDistanceEvaluation - s);
+            
+            vec3 cur_volume_pos = volume_pos_from_zero + (s + h) * vec_ray_w;
+            if(cur_volume_pos.x<0.||cur_volume_pos.x>dicomUbo.realSize.x||
+                cur_volume_pos.y<0.||cur_volume_pos.y>dicomUbo.realSize.y||
+            cur_volume_pos.z<0.||cur_volume_pos.z>dicomUbo.realSize.z) break;
+            
+            // Get color from transfer function given the normalized density
+            float st1 = getIntensity(cur_volume_pos);
+            
+            // Update transparency...
+            Vt *= exp(-((st0 + st1) * 0.5) * h);
+            
+            if ((1 - Vt) > 0.99) break;
+            
+            st0 = st1;
+            s = s + h;
+        }
+        
+        float r_weight = dot(coneDir, vec_ray_w);
+        Socc += Vt * r_weight;
+        Swgt +=      r_weight;
+        
+        rayid = rayid + 1;
+    }
+    
+    return (Socc / Swgt);
+}
+
 vec4 ShadeSample(vec3 worldPos,vec3 dir,vec3 v_up,vec3 v_right){
     // 将世界坐标转换为纹理坐标,并归一化后再采样
     vec3 texPos=worldPos/dicomUbo.boxSize;
@@ -374,7 +442,8 @@ vec4 ShadeSample(vec3 worldPos,vec3 dir,vec3 v_up,vec3 v_right){
     if(ApplyOcclusion==1)
     {
         ka=.5f;
-        IOcclusion=Cone1RayOcclusion(worldPos2VolumePos(worldPos),-dir,v_up,v_right);
+        // IOcclusion=Cone1RayOcclusion(worldPos2VolumePos(worldPos),-dir,v_up,v_right); // cone trace
+        IOcclusion=SingleScatterPathTracing(worldPos2VolumePos(worldPos),-dir,v_up,v_right); // single scatter path tracing
     }
     
     // Shadows
@@ -553,4 +622,7 @@ void main(){
     // vec3 testPos=vec3(texCoord.y,27./41.,texCoord.x);// todo 由于立方体尺寸改变，这里需要重新计算纹理坐标
     // outColor=get3DTextureColor(testPos);
     // outColor=getExtCoeff(testPos);
+    
+    // test ground truth ray vector
+    // outColor=vec4((gtRayUbo.raySampleVec[9].rgb+vec3(1.))/2.,1.);
 }

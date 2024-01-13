@@ -1,4 +1,5 @@
 #include "volume_render.h"
+#include <random>
 VolumeRender::VolumeRender(int exampleID)
 {
 	currentExampleID = exampleID;
@@ -371,4 +372,30 @@ void VolumeRender::GenerateConeSamples() {
 
 void VolumeRender::DestroyConeSamples() {
 
+}
+
+void VolumeRender::GenerateGroundTruthRay() {
+	// init ground truth parameters
+	m_u_light_ray_initial_step = 1.0f;
+	m_u_light_ray_step_size = 0.5f;
+	m_occ_num_rays_sampled = 10;
+	m_occ_cone_aperture_angle = 20.f;
+	m_occ_cone_distance_eval = GetDiagonal() * 0.5f;
+
+	std::default_random_engine generator;
+	std::uniform_real_distribution<float> distribution(0.0, 1.0);
+
+	// reference vector (cone ray direction)
+	glm::vec3 gtray = glm::vec3(0, 0, 1);
+
+	occ_kernel_vectors.resize(m_occ_num_rays_sampled);
+	for (int i = 0; i < m_occ_num_rays_sampled; i++) {
+		float theta_angle = distribution(generator) * (glm::pi<float>() * (m_occ_cone_aperture_angle / 180.f)); // 偏离圆锥轴的随机角度
+		float phi_angle = distribution(generator) * (glm::pi<float>() * (360.f / 180.f)); // 圆锥界面方向的0-360度随机角度
+
+		glm::vec3 ray_sample_vec = RodriguesRotation(gtray, theta_angle, glm::vec3(0, 1, 0));
+		ray_sample_vec = RodriguesRotation(ray_sample_vec, phi_angle, gtray);
+
+		occ_kernel_vectors[i] = ray_sample_vec;
+	}
 }

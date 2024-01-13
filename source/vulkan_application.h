@@ -165,6 +165,11 @@ private:
 	std::vector<VkDeviceMemory> occlusionUniformBuffersMemory;
 	std::vector<void*> occlusionUniformBuffersMapped;
 
+	// for ground truth second ray
+	std::vector<VkBuffer> groundTruthRayUniformBuffers;
+	std::vector<VkDeviceMemory> groundTruthRayUniformBuffersMemory;
+	std::vector<void*> groundTruthRayUniformBuffersMapped;
+
 	std::vector<VkCommandBuffer> commandBuffers;
 
 	std::vector<VkSemaphore> imageAvailableSemaphores;
@@ -423,9 +428,11 @@ private:
 			vkDestroyBuffer(device, uniformBuffers[i], nullptr);
 			vkDestroyBuffer(device, dicomUniformBuffers[i], nullptr);
 			vkDestroyBuffer(device, occlusionUniformBuffers[i], nullptr);
+			vkDestroyBuffer(device, groundTruthRayUniformBuffers[i], nullptr);
 			vkFreeMemory(device, uniformBuffersMemory[i], nullptr);
 			vkFreeMemory(device, dicomUniformBuffersMemory[i], nullptr);
 			vkFreeMemory(device, occlusionUniformBuffersMemory[i], nullptr);
+			vkFreeMemory(device, groundTruthRayUniformBuffersMemory[i], nullptr);
 		}
 		vkDestroyDescriptorPool(device, descriptorPool, nullptr);
 		vkDestroyDescriptorSetLayout(device, descriptorSetLayout.backFaceDescriptorSetLayout, nullptr);
@@ -837,7 +844,14 @@ private:
 		occlusionUboLayoutBinding.stageFlags = VK_SHADER_STAGE_FRAGMENT_BIT;
 		occlusionUboLayoutBinding.pImmutableSamplers = nullptr;
 
-		std::array<VkDescriptorSetLayoutBinding, 8> bindings = {
+		VkDescriptorSetLayoutBinding groundTruthRayUboLayoutBinding{};
+		groundTruthRayUboLayoutBinding.binding = 8;
+		groundTruthRayUboLayoutBinding.descriptorType = VK_DESCRIPTOR_TYPE_UNIFORM_BUFFER;
+		groundTruthRayUboLayoutBinding.descriptorCount = 1;
+		groundTruthRayUboLayoutBinding.stageFlags = VK_SHADER_STAGE_FRAGMENT_BIT;
+		groundTruthRayUboLayoutBinding.pImmutableSamplers = nullptr;
+
+		std::array<VkDescriptorSetLayoutBinding, 9> bindings = {
 			uboLayoutBinding,
 			samplerLayoutBinding,
 			backFaceLayoutBinding,
@@ -845,7 +859,8 @@ private:
 			lutLayoutBinding,
 			extCoefBingding,
 			TexOccConeSectionsInfoBinding,
-			occlusionUboLayoutBinding
+			occlusionUboLayoutBinding,
+			groundTruthRayUboLayoutBinding
 		};
 
 		// 创建描述符布局
@@ -1251,6 +1266,11 @@ private:
 		occlusionUniformBuffersMemory.resize(MAX_FRAMES_IN_FLIGHT);
 		occlusionUniformBuffersMapped.resize(MAX_FRAMES_IN_FLIGHT);
 
+		VkDeviceSize gtBufferSize = sizeof(GroundTruthUBO);
+		groundTruthRayUniformBuffers.resize(MAX_FRAMES_IN_FLIGHT);
+		groundTruthRayUniformBuffersMemory.resize(MAX_FRAMES_IN_FLIGHT);
+		groundTruthRayUniformBuffersMapped.resize(MAX_FRAMES_IN_FLIGHT);
+
 		// 创建uniform缓冲区
 		for (size_t i = 0; i < MAX_FRAMES_IN_FLIGHT; i++) {
 			createBuffer(
@@ -1279,6 +1299,14 @@ private:
 				occlusionUniformBuffers[i],
 				occlusionUniformBuffersMemory[i]);
 			vkMapMemory(device, occlusionUniformBuffersMemory[i], 0, occBufferSize, 0, &occlusionUniformBuffersMapped[i]);
+
+			createBuffer(
+				gtBufferSize,
+				VK_BUFFER_USAGE_UNIFORM_BUFFER_BIT,
+				VK_MEMORY_PROPERTY_HOST_VISIBLE_BIT | VK_MEMORY_PROPERTY_HOST_COHERENT_BIT,
+				groundTruthRayUniformBuffers[i],
+				groundTruthRayUniformBuffersMemory[i]);
+			vkMapMemory(device, groundTruthRayUniformBuffersMemory[i], 0, gtBufferSize, 0, &groundTruthRayUniformBuffersMapped[i]);
 		}
 	}
 
@@ -1286,7 +1314,7 @@ private:
 		// 创建描述符池
 		std::array<VkDescriptorPoolSize, 4> poolSize{};
 		poolSize[0].type = VK_DESCRIPTOR_TYPE_UNIFORM_BUFFER; // 描述符类型
-		poolSize[0].descriptorCount = static_cast<uint32_t>(MAX_FRAMES_IN_FLIGHT * 2); // 描述符数量
+		poolSize[0].descriptorCount = static_cast<uint32_t>(MAX_FRAMES_IN_FLIGHT * 4); // 描述符数量
 
 		poolSize[1].type = VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER; // 描述符类型
 		poolSize[1].descriptorCount = static_cast<uint32_t>(MAX_FRAMES_IN_FLIGHT * 2);
@@ -1302,7 +1330,7 @@ private:
 		poolInfo.sType = VK_STRUCTURE_TYPE_DESCRIPTOR_POOL_CREATE_INFO;
 		poolInfo.poolSizeCount = static_cast<uint32_t>(poolSize.size()); // 描述符池大小
 		poolInfo.pPoolSizes = poolSize.data();
-		poolInfo.maxSets = static_cast<uint32_t>(MAX_FRAMES_IN_FLIGHT * 4); // 描述符集数量
+		poolInfo.maxSets = static_cast<uint32_t>(MAX_FRAMES_IN_FLIGHT * 10); // 描述符集数量
 
 		if (vkCreateDescriptorPool(device, &poolInfo, nullptr, &descriptorPool) != VK_SUCCESS) {
 			throw std::runtime_error("failed to create descriptor pool!");
@@ -1394,7 +1422,12 @@ private:
 			occBufferInfo.offset = 0; // 偏移量
 			occBufferInfo.range = sizeof(OcclusionUniformBufferObject); // 范围
 
-			std::array<VkWriteDescriptorSet, 8> descriptorWrite{};
+			VkDescriptorBufferInfo gtBufferInfo{};
+			gtBufferInfo.buffer = groundTruthRayUniformBuffers[i]; // 缓冲区
+			gtBufferInfo.offset = 0; // 偏移量
+			gtBufferInfo.range = sizeof(GroundTruthUBO); // 范围
+
+			std::array<VkWriteDescriptorSet, 9> descriptorWrite{};
 			descriptorWrite[0].sType = VK_STRUCTURE_TYPE_WRITE_DESCRIPTOR_SET;
 			descriptorWrite[0].dstSet = descriptorSets.compositionDescriptorSets[i]; // 描述符集
 			descriptorWrite[0].dstBinding = 0; // 描述符绑定
@@ -1474,6 +1507,16 @@ private:
 			descriptorWrite[7].pBufferInfo = &occBufferInfo;
 			descriptorWrite[7].pImageInfo = nullptr; // 图像信息
 			descriptorWrite[7].pTexelBufferView = nullptr; // 缓冲区视图
+
+			descriptorWrite[8].sType = VK_STRUCTURE_TYPE_WRITE_DESCRIPTOR_SET;
+			descriptorWrite[8].dstSet = descriptorSets.compositionDescriptorSets[i]; // 描述符集
+			descriptorWrite[8].dstBinding = 8; // 描述符绑定
+			descriptorWrite[8].dstArrayElement = 0; // 描述符数组元素
+			descriptorWrite[8].descriptorType = VK_DESCRIPTOR_TYPE_UNIFORM_BUFFER; // 描述符类型
+			descriptorWrite[8].descriptorCount = 1; // 描述符数量
+			descriptorWrite[8].pBufferInfo = &gtBufferInfo;
+			descriptorWrite[8].pImageInfo = nullptr; // 图像信息
+			descriptorWrite[8].pTexelBufferView = nullptr; // 缓冲区视图
 
 			vkUpdateDescriptorSets(device, static_cast<uint32_t>(descriptorWrite.size()), descriptorWrite.data(), 0, nullptr);
 		}
@@ -1676,6 +1719,18 @@ private:
 		//occUbo.OccConeIntegrationSamples[1] = static_cast<glm::int32>(volumeRender->sampler_occlusion.gaussian_samples_3);
 		//occUbo.OccConeIntegrationSamples[2] = static_cast<glm::int32>(volumeRender->sampler_occlusion.gaussian_samples_7);
 		memcpy(occlusionUniformBuffersMapped[currentFrame], &occUbo, sizeof(occUbo));
+
+		// 更新ground truth次级光线的uniformbuffer
+		GroundTruthUBO gtUbo{};
+		std::vector<glm::vec4> testGtUbo(10);
+		std::vector<float> testGtUbo2(10);
+		for (int i = 0; i < 10; i++)
+		{
+			gtUbo.raySampleVec[i] = glm::vec4(volumeRender->occ_kernel_vectors[i], 1.0f);
+			testGtUbo[i] = (gtUbo.raySampleVec[i] + glm::vec4(1.0f)) / 2.0f * 255.0f;
+			testGtUbo2[i] = gtUbo.raySampleVec[i].x * gtUbo.raySampleVec[i].x + gtUbo.raySampleVec[i].y * gtUbo.raySampleVec[i].y + gtUbo.raySampleVec[i].z * gtUbo.raySampleVec[i].z;
+		}
+		memcpy(groundTruthRayUniformBuffersMapped[currentFrame], &gtUbo, sizeof(gtUbo));
 	}
 
 	// https://vulkan-tutorial.com/Compute_Shader#page_Synchronizing-graphics-and-compute
@@ -1792,7 +1847,7 @@ private:
 			isNeedCapture = false;
 		}
 
-		
+
 		// --------------------ImGui submission-----------------
 		VkResult waitImguiRes = vkWaitForFences(device, 1, &imguiInFlightFences[currentFrame], VK_TRUE, UINT64_MAX);
 		if (waitImguiRes != VK_SUCCESS) {
@@ -1844,7 +1899,7 @@ private:
 
 		currentFrame = (currentFrame + 1) % MAX_FRAMES_IN_FLIGHT;
 
-		
+
 	}
 
 	VkShaderModule createShaderModule(const std::vector<unsigned char>& code) {

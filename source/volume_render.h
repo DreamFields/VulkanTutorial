@@ -57,6 +57,14 @@ public:
     bool glsl_apply_occlusion;
     // gl::Texture1D* glsl_occ_sectionsinfo;
     ConeGaussianSampler sampler_occlusion;
+
+    // ground truth
+    float m_u_light_ray_initial_step;
+    float m_u_light_ray_step_size;
+    int m_occ_num_rays_sampled; // 次级光线的数量
+    float m_occ_cone_aperture_angle; // 次级光线的覆盖角度
+    float m_occ_cone_distance_eval; // 次级光线的覆盖距离
+    std::vector<glm::vec3> occ_kernel_vectors; // 次级光线的采样方向
 public:
     VolumeRender(int exampleID);
     ~VolumeRender();
@@ -73,6 +81,9 @@ public:
     // Cone Lighting
     void GenerateConeSamples();
     void DestroyConeSamples();
+
+    // ground truth(single scattering path tracing)
+    void GenerateGroundTruthRay();
 };
 
 

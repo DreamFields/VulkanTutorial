@@ -23,6 +23,9 @@ void VulkanApplication::initVolume() {
 
     // generate gaussian samples
     volumeRender->GenerateConeSamples();
+
+    // generate ground truth second ray
+    volumeRender->GenerateGroundTruthRay();
 }
 
 void VulkanApplication::initGeometry() {

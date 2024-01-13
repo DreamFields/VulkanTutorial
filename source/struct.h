@@ -81,6 +81,11 @@ struct OcclusionUniformBufferObject {
     //alignas(16) glm::int32 OccConeIntegrationSamples[3]; // 1,14,0
 };
 
+// ground truth uniform
+struct GroundTruthUBO{
+    alignas(16) glm::vec4 raySampleVec[10]; // todo 如果使用vec3，在着色器中会出现对齐错误，why？
+};
+
 struct Compute {
     VkQueue queue;								        // Separate queue for compute commands (queue family may differ from the one used for graphics)
     VkCommandPool commandPool;					        // Use a separate command pool (queue family may differ from the one used for graphics)
