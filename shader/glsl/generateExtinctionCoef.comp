@@ -188,8 +188,8 @@ void main(){
     // 将颜色值写入输出的3D图像
     // imageStore(TexOutputVolume,ivec3(globalIdx),vec4(intensity,0.,0.,0.));// 直接存储intensity
     // imageStore(TexOutputVolume,ivec3(globalIdx),texture(TexInputVolume,samplePos));// 直接存储高低8位    
-    // imageStore(TexOutputVolume,ivec3(globalIdx),vec4(GaussianFilterIntensity(globalIdx).r,0.,0.,0.));// 高斯滤波，存储intensity
-    imageStore(TexOutputVolume,ivec3(globalIdx),vec4(GaussianFilter(globalIdx).rgb,1.));// 高斯滤波，存储高低8位
+    imageStore(TexOutputVolume,ivec3(globalIdx),vec4(GaussianFilterIntensity(globalIdx).r,0.,0.,0.));// 高斯滤波，存储intensity
+    // imageStore(TexOutputVolume,ivec3(globalIdx),vec4(GaussianFilter(globalIdx).rgb,1.));// 高斯滤波，存储高低8位
     
     // test
     // imageStore(TexOutputVolume,ivec3(globalIdx),genDistanceField(globalIdx));

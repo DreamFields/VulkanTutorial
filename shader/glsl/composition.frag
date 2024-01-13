@@ -138,7 +138,7 @@ float last_amptau[7];
 float OccInitialStep=3.;
 float OccRay7AdjWeight=.972955;
 // vec4 OccConeRayAxes[10];
-int OccConeIntegrationSamples[3]=int[](1,4,0);// !暂时修改为1,4,0
+int OccConeIntegrationSamples[3]=int[](1,14,0);// !暂时修改为1,4,0
 
 vec4 GetOcclusionSectionInfo(int id)
 {
@@ -151,15 +151,15 @@ float GetGaussianExtinction(vec3 volume_pos,float mipmaplevel){
     vec4 sampleColor=textureLod(extCoeffSampler,tex_pos,mipmaplevel);
     
     // 当extCoeffSampler存的是高低8位时使用下面的代码
-    float intensity=sampleColor.r*255.+sampleColor.g*255.*255.-abs(dicomUbo.minVal);
-    intensity=(intensity-dicomUbo.windowCenter)/dicomUbo.windowWidth+.5;
-    intensity=clamp(intensity,0.,1.);
-    // return 1.-intensity;
-    return intensity;
+    // float intensity=sampleColor.r*255.+sampleColor.g*255.*255.-abs(dicomUbo.minVal);
+    // intensity=(intensity-dicomUbo.windowCenter)/dicomUbo.windowWidth+.5;
+    // intensity=clamp(intensity,0.,1.);
+    // // return 1.-intensity;
+    // return intensity;
     
     // 当extCoeffSampler存的是intensity时使用下面的代码
-    /*if(sampleColor.r==0.)return 0.;
-    return sampleColor.r; */
+    if(sampleColor.r==0.)return 0.;
+    return sampleColor.r;
 }
 
 float Cone7RayOcclusion(vec3 volume_pos_from_zero,float track_distance,vec3 coneDir,vec3 cameraUp,vec3 cameraRight)
@@ -442,8 +442,8 @@ vec4 ShadeSample(vec3 worldPos,vec3 dir,vec3 v_up,vec3 v_right){
     if(ApplyOcclusion==1)
     {
         ka=.5f;
-        // IOcclusion=Cone1RayOcclusion(worldPos2VolumePos(worldPos),-dir,v_up,v_right); // cone trace
-        IOcclusion=SingleScatterPathTracing(worldPos2VolumePos(worldPos),-dir,v_up,v_right); // single scatter path tracing
+        IOcclusion=Cone1RayOcclusion(worldPos2VolumePos(worldPos),-dir,v_up,v_right); // cone trace
+        // IOcclusion=SingleScatterPathTracing(worldPos2VolumePos(worldPos),-dir,v_up,v_right); // single scatter path tracing
     }
     
     // Shadows
