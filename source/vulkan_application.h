@@ -1699,7 +1699,7 @@ private:
 		//occUbo.OccInitialStep = static_cast<float>(volumeRender->sampler_occlusion.GetInitialStep());
 		//occUbo.OccRay7AdjWeight = static_cast<float>(volumeRender->sampler_occlusion.GetRay7AdjacentWeight());
 		std::vector<glm::vec3> occ_cone_axes;
-		std::vector<glm::vec4> test(10);
+		// std::vector<glm::vec4> test(10);
 		occ_cone_axes.push_back(volumeRender->sampler_occlusion.Get3ConeRayID(0));
 		occ_cone_axes.push_back(volumeRender->sampler_occlusion.Get3ConeRayID(1));
 		occ_cone_axes.push_back(volumeRender->sampler_occlusion.Get3ConeRayID(2));
@@ -1713,7 +1713,7 @@ private:
 		for (size_t i = 0; i < 10; i++)
 		{
 			occUbo.OccConeRayAxes[i] = glm::vec4(occ_cone_axes[i], 1.0f);
-			test[i] = occUbo.OccConeRayAxes[i] * 255.0f;
+			// test[i] = occUbo.OccConeRayAxes[i] * 255.0f;
 		}
 		//occUbo.OccConeIntegrationSamples[0] = static_cast<glm::int32>(volumeRender->sampler_occlusion.gaussian_samples_1);
 		//occUbo.OccConeIntegrationSamples[1] = static_cast<glm::int32>(volumeRender->sampler_occlusion.gaussian_samples_3);
@@ -1722,13 +1722,13 @@ private:
 
 		// 更新ground truth次级光线的uniformbuffer
 		GroundTruthUBO gtUbo{};
-		std::vector<glm::vec4> testGtUbo(10);
-		std::vector<float> testGtUbo2(10);
+		// std::vector<glm::vec4> testGtUbo(10);
+		// std::vector<float> testGtUbo2(10);
 		for (int i = 0; i < 10; i++)
 		{
 			gtUbo.raySampleVec[i] = glm::vec4(volumeRender->occ_kernel_vectors[i], 1.0f);
-			testGtUbo[i] = (gtUbo.raySampleVec[i] + glm::vec4(1.0f)) / 2.0f * 255.0f;
-			testGtUbo2[i] = gtUbo.raySampleVec[i].x * gtUbo.raySampleVec[i].x + gtUbo.raySampleVec[i].y * gtUbo.raySampleVec[i].y + gtUbo.raySampleVec[i].z * gtUbo.raySampleVec[i].z;
+			// testGtUbo[i] = (gtUbo.raySampleVec[i] + glm::vec4(1.0f)) / 2.0f * 255.0f;
+			// testGtUbo2[i] = gtUbo.raySampleVec[i].x * gtUbo.raySampleVec[i].x + gtUbo.raySampleVec[i].y * gtUbo.raySampleVec[i].y + gtUbo.raySampleVec[i].z * gtUbo.raySampleVec[i].z;
 		}
 		memcpy(groundTruthRayUniformBuffersMapped[currentFrame], &gtUbo, sizeof(gtUbo));
 	}

@@ -20,20 +20,13 @@ if __name__ == '__main__':
     PT_0 = cv2.imread('capture/PT_0.png')
 
     # Gaussian0,只有第0层进行了高斯模糊
-    Cone4_0 = cv2.imread('capture/Gaussian0/Cone4_0.png')
-    Cone4_intensity_0 = cv2.imread('capture/Gaussian0/Cone4_intensity_0.png')
-    Cone14_0 = cv2.imread('capture/Gaussian0/Cone14_0.png')
-    Cone14_intensity_0 = cv2.imread('capture/Gaussian0/Cone14_intensity_0.png')
+    Example1_Cone10_intensity = cv2.imread('capture/Gaussian0/Example1_Cone10_intensity.png')
+    Example1_Cone10 = cv2.imread('capture/Gaussian0/Example1_Cone10.png')
     
     # psnr
-    # print(psnr(PT_0, Cone4_0)) #39.355689110408406
-    # print(psnr(PT_0, Cone4_intensity_0)) #39.40280895526096
-    # print(psnr(PT_0, Cone14_0)) #39.49104835533386
-    # print(psnr(PT_0, Cone14_intensity_0)) #39.57041110801239
+    # print(psnr(PT_0, Example1_Cone10)) #41.19564316224877
+    # print(psnr(PT_0, Example1_Cone10_intensity)) #41.1715885826881
 
     # ssim
-    # print(ssim(PT_0, Cone4_0)) #0.9843733793572578
-    # print(ssim(PT_0, Cone4_intensity_0)) #0.9853546963898095
-    # print(ssim(PT_0, Cone14_0)) #0.9854573488696623
-    # print(ssim(PT_0, Cone14_intensity_0)) #0.986568126785349
-    print(ssim(Cone14_0, Cone14_intensity_0)) #0.9992832640299332
+    # print(ssim(PT_0, Example1_Cone10)) #0.9904818940658605
+    print(ssim(PT_0, Example1_Cone10_intensity)) #0.9911353996601653
