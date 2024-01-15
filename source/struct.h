@@ -120,6 +120,7 @@ struct ExampleConfig {
 
     double windowWidth = 100.0f;
     double windowCenter = 0.0f;
+    double stepLength = 0.01f;
 };
 
 static inline ExampleConfig head = {
@@ -129,7 +130,8 @@ static inline ExampleConfig head = {
     glm::vec3(0.214537, 0.976634, 0.012635),
     glm::vec3(-0.0384151, -0.00448895, 0.999252),
     250.0f,
-    250.0f
+    250.0f,
+    0.001f
 };
 
 /* 
@@ -144,7 +146,8 @@ static inline ExampleConfig mouse = {
     glm::vec3(0.727942, -0.387625, -0.56555),
     glm::vec3(0.247846, 0.91784, -0.31007),
     2000.0f,
-    50.0f
+    50.0f,
+    0.01f
 };
 
 static inline ExampleConfig chest = {
@@ -154,7 +157,8 @@ static inline ExampleConfig chest = {
     glm::vec3(0.0283847, 0.882255, -0.469916),
     glm::vec3(-0.0319244, 0.470665, 0.881734),
     2000.0f,
-    50.0f
+    50.0f,
+    0.001f
 };
 
 static inline std::unordered_map<int, ExampleConfig> dicomExamples = {

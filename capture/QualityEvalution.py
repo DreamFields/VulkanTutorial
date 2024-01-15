@@ -28,34 +28,13 @@ def diff(img1, img2):
     return diff
 
 if __name__ == '__main__':
-    PT_0 = cv2.imread('capture/PT_0.png')
-    PT_0_large = cv2.imread('capture/PT_0_large.png')
-    PT_1 = cv2.imread('capture/PT_1.png')
+    curPT = cv2.imread('capture/PT/example0/angle0.png') 
+    angle0 = cv2.imread('capture/Gaussian0/example0/angle0.png')
+    angle0_intensity = cv2.imread('capture/Gaussian0/example0/angle0_intensity.png')
+    # print(psnr(curPT, angle0)) #37.44070642943377
+    # print(ssim(curPT, angle0)) #0.9693760312983354
+    # diff(curPT, angle0)
 
-    # Gaussian0,只有第0层进行了高斯模糊
-    Example1_Cone10_intensity_0 = cv2.imread('capture/Gaussian0/Example1_Cone10_intensity_0.png')
-    Example1_Cone10_0 = cv2.imread('capture/Gaussian0/Example1_Cone10_0.png')
-    Example1_Cone10_large_intensity_0 = cv2.imread('capture/Gaussian0/Example1_Cone10_large_intensity_0.png')
-    Example1_Cone10_large_0 = cv2.imread('capture/Gaussian0/Example1_Cone10_large_0.png') 
-
-    Example1_Cone10_1 = cv2.imread('capture/Gaussian0/Example1_Cone10_1.png')
-    Example1_Cone10_intensity_1 = cv2.imread('capture/Gaussian0/Example1_Cone10_intensity_1.png')
-    
-    # psnr
-    # print(psnr(PT_0, Example1_Cone10_0)) #41.19564316224877
-    # print(psnr(PT_0, Example1_Cone10_intensity_0)) #41.1715885826881
-    # 图像越大，PSNR值越小
-    # print(psnr(PT_0_large, Example1_Cone10_large_0)) #38.145132031029725
-    # print(psnr(PT_0_large, Example1_Cone10_large_intensity_0)) #38.115230249950955
-    # 多个角度的图像，是否使用intensity存储，对PSNR值影响不大
-    # print(psnr(PT_1, Example1_Cone10_intensity_1)) #40.281781309378374
-    # print(psnr(PT_1, Example1_Cone10_1)) #40.19909398894565
-
-    # ssim
-    # print(ssim(PT_0, Example1_Cone10)) #0.9904818940658605
-    # print(ssim(PT_0, Example1_Cone10_intensity)) #0.9911353996601653
-    # print(ssim(PT_0_large, Example1_Cone10_large)) #0.9833840725927138
-    # print(ssim(PT_0_large, Example1_Cone10_large_intensity)) #0.984821021641029
-
-    # diff
-    diff(PT_1, Example1_Cone10_1)
+    print(psnr(curPT, angle0_intensity)) #34.98034986981696
+    print(ssim(curPT, angle0_intensity)) #0.8867922521320081
+    diff(curPT, angle0_intensity)
