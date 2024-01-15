@@ -96,6 +96,10 @@ void Camera::updateCameraMove(GLFWwindow* window) {
     if (glfwGetKey(window, GLFW_KEY_Q) == GLFW_PRESS) {
         cameraPos -= cameraSpeed * cameraUp;
     }
+
+    // std::cout << "cameraPos: " << cameraPos.x << ", " << cameraPos.y << ", " << cameraPos.z << std::endl;
+    // std::cout << "cameraFront: " << cameraFront.x << ", " << cameraFront.y << ", " << cameraFront.z << std::endl;
+    // std::cout << "cameraUp: " << cameraUp.x << ", " << cameraUp.y << ", " << cameraUp.z << std::endl;
 }
 
 glm::mat4 Camera::getViewMatrix()

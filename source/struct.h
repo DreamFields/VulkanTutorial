@@ -132,12 +132,17 @@ static inline ExampleConfig head = {
     250.0f
 };
 
+/* 
+cameraPos: -0.956015, 1.27532, 1.6312
+cameraFront: 0.727942, -0.387625, -0.56555
+cameraUp: 0.247846, 0.91784, -0.31007
+ */
 static inline ExampleConfig mouse = {
     "mouse",
     "C:\\Users\\Dream\\Documents\\00.Dicom\\mouse512\\",
-    glm::vec3(1.0173, 1.20632, 2.29839),
-    glm::vec3(-0.258629, -0.353131, -0.899116),
-    glm::vec3(-0.121613, 0.935281, -0.332354),
+    glm::vec3(-0.956015, 1.27532, 1.6312),
+    glm::vec3(0.727942, -0.387625, -0.56555),
+    glm::vec3(0.247846, 0.91784, -0.31007),
     2000.0f,
     50.0f
 };

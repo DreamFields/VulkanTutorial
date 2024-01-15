@@ -378,7 +378,7 @@ void VolumeRender::GenerateGroundTruthRay() {
 	// init ground truth parameters
 	m_u_light_ray_initial_step = 1.0f;
 	m_u_light_ray_step_size = 0.5f;
-	m_occ_num_rays_sampled = 10;
+	m_occ_num_rays_sampled = 50;
 	m_occ_cone_aperture_angle = 20.f;
 	m_occ_cone_distance_eval = GetDiagonal() * 0.5f;
 
