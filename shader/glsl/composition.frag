@@ -152,15 +152,15 @@ float GetGaussianExtinction(vec3 volume_pos,float mipmaplevel){
     vec4 sampleColor=textureLod(extCoeffSampler,tex_pos,mipmaplevel);
     
     // 当extCoeffSampler存的是高低8位时使用下面的代码
-    // float intensity=sampleColor.r*255.+sampleColor.g*255.*255.-abs(dicomUbo.minVal);
-    // intensity=(intensity-dicomUbo.windowCenter)/dicomUbo.windowWidth+.5;
-    // intensity=clamp(intensity,0.,1.);
-    // // return 1.-intensity;
-    // return intensity;
+    float intensity=sampleColor.r*255.+sampleColor.g*255.*255.-abs(dicomUbo.minVal);
+    intensity=(intensity-dicomUbo.windowCenter)/dicomUbo.windowWidth+.5;
+    intensity=clamp(intensity,0.,1.);
+    // return 1.-intensity;
+    return intensity;
     
     // 当extCoeffSampler存的是intensity时使用下面的代码
-    if(sampleColor.r==0.)return 0.;
-    return sampleColor.r;
+    // if(sampleColor.r==0.)return 0.;
+    // return sampleColor.r;
 }
 
 float Cone7RayOcclusion(vec3 volume_pos_from_zero,float track_distance,vec3 coneDir,vec3 cameraUp,vec3 cameraRight)

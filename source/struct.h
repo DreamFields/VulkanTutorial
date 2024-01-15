@@ -122,22 +122,37 @@ struct ExampleConfig {
     double windowCenter = 0.0f;
     double stepLength = 0.01f;
 };
-
-static inline ExampleConfig head = {
-    "head",
-    "C:\\Users\\Dream\\Documents\\00.Dicom\\ede6fe9eda6e44a98b3ad20da6f9116a Anonymized29\\Unknown Study\\CT Head 5.0000\\",
+/* 
+-------------angle0-------------
     glm::vec3(0.0709212, -1.45329, 0.47473),
     glm::vec3(0.214537, 0.976634, 0.012635),
     glm::vec3(-0.0384151, -0.00448895, 0.999252),
+-------------angle1-------------
+cameraPos: -1.49038, 0.304991, 0.478309
+cameraFront: 0.995176, 0.0975032, 0.0108454
+cameraUp: -0.0110193, 0.00124452, 0.999938
+ */
+static inline ExampleConfig head = {
+    "head",
+    "C:\\Users\\Dream\\Documents\\00.Dicom\\ede6fe9eda6e44a98b3ad20da6f9116a Anonymized29\\Unknown Study\\CT Head 5.0000\\",
+    glm::vec3(-1.49038, 0.304991, 0.478309),
+    glm::vec3(0.995176, 0.0975032, 0.0108454),
+    glm::vec3(-0.0110193, 0.00124452, 0.999938),
     250.0f,
     250.0f,
     0.001f
 };
 
+
 /* 
-cameraPos: -0.956015, 1.27532, 1.6312
-cameraFront: 0.727942, -0.387625, -0.56555
-cameraUp: 0.247846, 0.91784, -0.31007
+-------------angle0-------------
+    glm::vec3(1.0173, 1.20632, 2.29839),
+    glm::vec3(-0.258629, -0.353131, -0.899116),
+    glm::vec3(-0.121613, 0.935281, -0.332354),
+-------------angle1-------------
+    glm::vec3(-0.956015, 1.27532, 1.6312),
+    glm::vec3(0.727942, -0.387625, -0.56555),
+    glm::vec3(0.247846, 0.91784, -0.31007),
  */
 static inline ExampleConfig mouse = {
     "mouse",
