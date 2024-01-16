@@ -95,27 +95,26 @@ float getIntensity(vec3 volumePos){
 vec4 getExtCoeff(vec3 worldPos){
     // 将世界坐标转换为纹理坐标,并归一化后再采样
     vec3 texPos=worldPos/dicomUbo.boxSize;
-    vec4 sampleColor=texture(extCoeffSampler,texPos);
-    // vec4 sampleColor=textureLod(extCoeffSampler,texPos,4.);
+    // vec4 sampleColor=texture(extCoeffSampler,texPos);
+    vec4 sampleColor=textureLod(extCoeffSampler,texPos,3.);
     // return sampleColor;
     
     // 当extCoeffSampler存的是intensity时使用下面的代码
-    float intensity=sampleColor.r;
-    intensity=clamp(intensity,0.,1.);
-    if(intensity==0.)return vec4(0.);
-    vec3 color=texture(lutTexSampler,intensity).rgb;
-    return vec4(color,intensity);
+    // float intensity=sampleColor.r;
+    // intensity=clamp(intensity,0.,1.);
+    // if(intensity==0.)return vec4(0.);
+    // vec3 color=texture(lutTexSampler,intensity).rgb;
+    // // return vec4(color,intensity);
+    // return vec4(intensity);
     
     // 当extCoeffSampler存的是高低8位时使用下面的代码
-    /*     float intensity=sampleColor.r*255.+sampleColor.g*255.*255.-abs(dicomUbo.minVal);
+    float intensity=sampleColor.r*255.+sampleColor.g*255.*255.-abs(dicomUbo.minVal);
     intensity=(intensity-dicomUbo.windowCenter)/dicomUbo.windowWidth+.5;
     intensity=clamp(intensity,0.,1.);
     if(intensity==0.)return vec4(0.);
-    // 通过采样器，从lutTexSampler中加载数据，相当于传递函数的实现
     vec3 color=texture(lutTexSampler,intensity).rgb;
-    // 将1.0-intensity作为alpha值，即遮光量或者说消光系数，浓度越大，遮光量越大，alpha越小
-    // return vec4(color,1.-intensity);
-    return vec4(color,intensity); */
+    // return vec4(color,intensity);
+    return vec4(intensity);
 }
 
 // todo 目前距离场可视化暂时采用直接体绘制的方法，需改进
@@ -152,15 +151,15 @@ float GetGaussianExtinction(vec3 volume_pos,float mipmaplevel){
     vec4 sampleColor=textureLod(extCoeffSampler,tex_pos,mipmaplevel);
     
     // 当extCoeffSampler存的是高低8位时使用下面的代码
-    float intensity=sampleColor.r*255.+sampleColor.g*255.*255.-abs(dicomUbo.minVal);
-    intensity=(intensity-dicomUbo.windowCenter)/dicomUbo.windowWidth+.5;
-    intensity=clamp(intensity,0.,1.);
-    // return 1.-intensity;
-    return intensity;
+    // float intensity=sampleColor.r*255.+sampleColor.g*255.*255.-abs(dicomUbo.minVal);
+    // intensity=(intensity-dicomUbo.windowCenter)/dicomUbo.windowWidth+.5;
+    // intensity=clamp(intensity,0.,1.);
+    // // return 1.-intensity;
+    // return intensity;
     
     // 当extCoeffSampler存的是intensity时使用下面的代码
-    // if(sampleColor.r==0.)return 0.;
-    // return sampleColor.r;
+    if(sampleColor.r==0.)return 0.;
+    return sampleColor.r;
 }
 
 float Cone7RayOcclusion(vec3 volume_pos_from_zero,float track_distance,vec3 coneDir,vec3 cameraUp,vec3 cameraRight)
@@ -337,6 +336,16 @@ float Cone1RayOcclusion(vec3 volume_pos_from_zero,vec3 coneDir,vec3 cameraUp,vec
         
         vec3 cur_volume_pos=volume_pos_from_zero+coneDir*track_distance;
         
+        // *提前判断是否超出体素范围，如果超出，则直接将当前项的高斯积分结果加到occlusion cone中，而不进行采样，提高了帧率
+        // if(cur_volume_pos.x<0.||cur_volume_pos.x>dicomUbo.realSize.x||
+        //     cur_volume_pos.y<0.||cur_volume_pos.y>dicomUbo.realSize.y||
+        // cur_volume_pos.z<0.||cur_volume_pos.z>dicomUbo.realSize.z)
+        // {
+        //     occ_rays[0]+=(last_amptau[0])*d_integral;
+        //     last_amptau[0]=0.;
+        //     continue;
+        // }
+        
         float Tau_s=GetGaussianExtinction(cur_volume_pos,mipmap_level);
         
         float amptau=Tau_s*gaussian_amp;
@@ -443,8 +452,8 @@ vec4 ShadeSample(vec3 worldPos,vec3 dir,vec3 v_up,vec3 v_right){
     if(ApplyOcclusion==1)
     {
         ka=.5f;
-        // IOcclusion=Cone1RayOcclusion(worldPos2VolumePos(worldPos),-dir,v_up,v_right); // cone trace
-        IOcclusion=SingleScatterPathTracing(worldPos2VolumePos(worldPos),-dir,v_up,v_right); // single scatter path tracing
+        IOcclusion=Cone1RayOcclusion(worldPos2VolumePos(worldPos),-dir,v_up,v_right); // cone trace
+        // IOcclusion=SingleScatterPathTracing(worldPos2VolumePos(worldPos),-dir,v_up,v_right); // single scatter path tracing
     }
     
     // Shadows
@@ -481,10 +490,8 @@ vec4 absorptionMethod(float stepLength,float rayLength,vec3 dir,vec3 currentPos)
         vec3 pos=currentPos+dir*(s+h*.5);
         // Get the sampleColor from the 3D texture
         // vec4 sampleColor=get3DTextureColor(pos);
-        // vec4 sampleColor=getExtCoeff(pos);
-        // vec4 sampleColor=getDistanceField(pos);
-        
-        vec4 sampleColor=ShadeSample(pos,dir,normalize(fragCameraUp),normalize(fragCameraRight));
+        vec4 sampleColor=getExtCoeff(pos);
+        // vec4 sampleColor=ShadeSample(pos,dir,normalize(fragCameraUp),normalize(fragCameraRight));
         
         // Go to the next interval
         s=s+h;
