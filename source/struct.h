@@ -82,7 +82,7 @@ struct OcclusionUniformBufferObject {
 };
 
 // ground truth uniform
-struct GroundTruthUBO{
+struct GroundTruthUBO {
     alignas(16) glm::vec4 raySampleVec[10]; // todo 如果使用vec3，在着色器中会出现对齐错误，why？
 };
 
@@ -97,7 +97,20 @@ struct Compute {
     std::vector<VkFence> inFlightFences;                // Compute fences to check compute command buffer completion
     std::vector<VkSemaphore> finishedSemaphores;        // Compute semaphore to wait for compute completion
     std::vector<VkSemaphore> finishedGenMipmapSemaphores; // Compute semaphore to wait for generate mipmap completion
-    std::vector<bool> isComplete;                            // judge if compute is complete
+    bool isComplete;                            // judge if compute is complete
+};
+
+// 只在初始化时使用一次的计算着色器
+struct StaticCompute {
+    VkQueue queue;								        // Separate queue for compute commands (queue family may differ from the one used for graphics)
+    VkCommandPool commandPool;					        // Use a separate command pool (queue family may differ from the one used for graphics)
+    VkDescriptorSetLayout descriptorSetLayout;	        // Compute shader binding layout
+    VkDescriptorSet descriptorSet;                     // Compute shader bindings
+    VkPipelineLayout pipelineLayout;			        // Layout of the compute pipeline
+    std::vector<VkPipeline> pipelines;			        // Compute pipelines for image filters
+    VkCommandBuffer commandBuffer;				        // Command buffer storing the dispatch commands and barriers
+    VkFence inFlightFence;                             // Compute fences to check compute command buffer completion
+    VkSemaphore finishedSemaphore;
 };
 
 struct TextureTarget {
@@ -108,6 +121,12 @@ struct TextureTarget {
     VkDeviceMemory memory;
     uint32_t mipLevels;
     // VkDescriptorImageInfo descriptor;
+};
+
+// 生成高斯滤波的计算着色器所需的推送常量
+struct GenGaussianMMPushConstants {
+    glm::vec1 previousLevel;
+    glm::vec3 SubLevelVolumeResolution;
 };
 
 struct ExampleConfig {
@@ -122,7 +141,7 @@ struct ExampleConfig {
     double windowCenter = 0.0f;
     double stepLength = 0.01f;
 };
-/* 
+/*
 -------------angle0-------------
     glm::vec3(0.0709212, -1.45329, 0.47473),
     glm::vec3(0.214537, 0.976634, 0.012635),
@@ -144,7 +163,7 @@ static inline ExampleConfig head = {
 };
 
 
-/* 
+/*
 -------------angle0-------------
     glm::vec3(1.0173, 1.20632, 2.29839),
     glm::vec3(-0.258629, -0.353131, -0.899116),
@@ -181,3 +200,4 @@ static inline std::unordered_map<int, ExampleConfig> dicomExamples = {
     {1, mouse},
     {2, chest}
 };
+

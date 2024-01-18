@@ -96,25 +96,25 @@ vec4 getExtCoeff(vec3 worldPos){
     // 将世界坐标转换为纹理坐标,并归一化后再采样
     vec3 texPos=worldPos/dicomUbo.boxSize;
     // vec4 sampleColor=texture(extCoeffSampler,texPos);
-    vec4 sampleColor=textureLod(extCoeffSampler,texPos,3.);
+    vec4 sampleColor=textureLod(extCoeffSampler,texPos,1.);
     // return sampleColor;
     
     // 当extCoeffSampler存的是intensity时使用下面的代码
-    // float intensity=sampleColor.r;
-    // intensity=clamp(intensity,0.,1.);
-    // if(intensity==0.)return vec4(0.);
-    // vec3 color=texture(lutTexSampler,intensity).rgb;
-    // // return vec4(color,intensity);
-    // return vec4(intensity);
-    
-    // 当extCoeffSampler存的是高低8位时使用下面的代码
-    float intensity=sampleColor.r*255.+sampleColor.g*255.*255.-abs(dicomUbo.minVal);
-    intensity=(intensity-dicomUbo.windowCenter)/dicomUbo.windowWidth+.5;
+    float intensity=sampleColor.r;
     intensity=clamp(intensity,0.,1.);
     if(intensity==0.)return vec4(0.);
     vec3 color=texture(lutTexSampler,intensity).rgb;
     // return vec4(color,intensity);
     return vec4(intensity);
+    
+    // 当extCoeffSampler存的是高低8位时使用下面的代码
+    // float intensity=sampleColor.r*255.+sampleColor.g*255.*255.-abs(dicomUbo.minVal);
+    // intensity=(intensity-dicomUbo.windowCenter)/dicomUbo.windowWidth+.5;
+    // intensity=clamp(intensity,0.,1.);
+    // if(intensity==0.)return vec4(0.);
+    // vec3 color=texture(lutTexSampler,intensity).rgb;
+    // // return vec4(color,intensity);
+    // return vec4(intensity);
 }
 
 // todo 目前距离场可视化暂时采用直接体绘制的方法，需改进

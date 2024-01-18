@@ -12,7 +12,7 @@ layout(binding=2)uniform DicomUniformBufferObject{
     vec3 voxelSize;
     vec3 voxelResolution;
     vec3 boxSize;
-    vec3 realSize; //! 忘记更新了，导致窗宽窗位完全错误
+    vec3 realSize;//! 忘记更新了，导致窗宽窗位完全错误
     float windowCenter;
     float windowWidth;
     float minVal;
@@ -21,23 +21,9 @@ layout(binding=2)uniform DicomUniformBufferObject{
     float glow;
     int steps;
 }dicomUbo;
-layout(binding=3)uniform sampler1D lutTexSampler;
 
 // 假设每个工作组的大小为8x8x8
 layout(local_size_x=8,local_size_y=8,local_size_z=8)in;
-
-vec4 get3DTextureColor(vec3 texPos){
-    if(texPos.x<0.f||texPos.y<0.f||texPos.z<0.f
-    ||texPos.x>1.f||texPos.y>1.f||texPos.z>1.f)
-    return vec4(0.f);
-    
-    vec4 sampleColor=texture(TexInputVolume,texPos);
-    float intensity=sampleColor.r*255.+sampleColor.g*255.*255.-abs(dicomUbo.minVal);
-    intensity=(intensity-dicomUbo.windowCenter)/dicomUbo.windowWidth+.5;
-    intensity=clamp(intensity,0.,1.);
-    if(intensity==0.)return vec4(0.);
-    return vec4(intensity);
-}
 
 // 对原始像素值的高低8位进行高斯滤波，并存储高低8位
 // 缺点：滤波有效性待评估
@@ -118,82 +104,35 @@ vec4 GaussianFilterIntensity(uvec3 globalIdx){
     return vec4(resIntensity);
 }
 
-// todo 生成距离场的精度太低，导致渲染有噪点
-vec4 genDistanceField(uvec3 globalIdx){
-    // 计算采样位置，采样位置为当前全局索引除以3D纹理的尺寸，以保证采样坐标在[0, 1]的范围内
-    vec3 samplePos=(vec3(globalIdx)+vec3(.5))/dicomUbo.voxelResolution;
-    vec3 sampleWorldPos=samplePos*dicomUbo.boxSize;
-    
-    // return texture(TexInputVolume,samplePos);
-    vec4 color=get3DTextureColor(samplePos);
-    
-    // 计算当前位置的距离场
-    if(color.r==0.){
-        // 非空体素
-        float minDistance=100.;// 初始距离设为一个较大值
-        
-        // 三维体素的对角线长度
-        float diagonalLength=length(dicomUbo.boxSize);;
-        
-        // 遍历一定范围内的体素
-        int vtk=20;
-        for(int ptx=-vtk;ptx<=vtk;ptx++){
-            for(int pty=-vtk;pty<=vtk;pty++){
-                for(int ptz=-vtk;ptz<=vtk;ptz++){
-                    ivec3 neighborPosition=ivec3(globalIdx)+ivec3(ptx,pty,ptz);
-                    if(neighborPosition.x>dicomUbo.voxelResolution.x-1
-                        ||neighborPosition.y>dicomUbo.voxelResolution.y-1
-                        ||neighborPosition.z>dicomUbo.voxelResolution.z-1
-                        ||neighborPosition.x<0||neighborPosition.y<0||neighborPosition.z<0
-                    )continue;
-                    vec3 sampleNeighborPos=(vec3(neighborPosition)+vec3(.5))/dicomUbo.voxelResolution;
-                    vec4 neighborColor=get3DTextureColor(sampleNeighborPos);
-                    if(neighborColor.r>0.){
-                        vec3 sampleNeighborWorldPos=sampleNeighborPos*dicomUbo.boxSize;
-                        float dis=length(sampleWorldPos-sampleNeighborWorldPos);
-                        if(dis<minDistance){
-                            minDistance=dis;
-                        }
-                    }
-                }
-            }
-            
-        }
-        if(minDistance==100.)return vec4(0.);
-        
-        // 存储采样点到最近的非空体素的世界距离 / 体素对角线长度，以保证距离场的值在[0, 1]的范围内
-        return vec4(minDistance/diagonalLength);
-    }
-    return texture(TexInputVolume,samplePos);
-    
-}
-
 void main(){
     // 获取当前工作组的全局索引
     ivec3 globalIdx=ivec3(gl_GlobalInvocationID.xyz);// 计算着色器在3D图像中的位置
     
-    if(globalIdx.x>dicomUbo.voxelResolution.x-1
-        ||globalIdx.y>dicomUbo.voxelResolution.y-1
-    ||globalIdx.z>dicomUbo.voxelResolution.z-1)
-    return;
+    // if(globalIdx.x>dicomUbo.voxelResolution.x-1
+        //     ||globalIdx.y>dicomUbo.voxelResolution.y-1
+    // ||globalIdx.z>dicomUbo.voxelResolution.z-1)
+    // return;
     
     // 采样位置为当前全局索引除以3D纹理的尺寸，以保证采样坐标在[0, 1]的范围内
     // !需要加上.5 否则会出现锯齿
-    vec3 samplePos=(vec3(globalIdx)+vec3(.5))/dicomUbo.voxelResolution;
-    vec4 sampleColor=texture(TexInputVolume,samplePos);
-    float intensity=sampleColor.r*255.+sampleColor.g*255.*255.-abs(dicomUbo.minVal);
-    intensity=(intensity-dicomUbo.windowCenter)/dicomUbo.windowWidth+.5;
-    intensity=clamp(intensity,0.,1.);
+    float curMipLevel = 1.0;    
+    vec3 samplePos=(vec3(globalIdx)*3.+vec3(.5))/dicomUbo.voxelResolution; // 这里用于测试，证明已经修改了3D纹理的mipLevel 1
+    // vec3 samplePos=(vec3(globalIdx)*pow(2.0,curMipLevel)+vec3(.5))/dicomUbo.voxelResolution;
+
+
+    // 当extCoeffSampler存的是intensity时使用下面的代码
+    float intensity=textureLod(TexInputVolume,samplePos,0.).r;
+    
+    // 当extCoeffSampler存的是高低8位时使用下面的代码
+    // vec4 sampleColor=texture(TexInputVolume,samplePos);
+    // float intensity=sampleColor.r*255.+sampleColor.g*255.*255.-abs(dicomUbo.minVal);
+    // intensity=(intensity-dicomUbo.windowCenter)/dicomUbo.windowWidth+.5;
+    // intensity=clamp(intensity,0.,1.);
     
     // 将颜色值写入输出的3D图像
-    // imageStore(TexOutputVolume,ivec3(globalIdx),vec4(intensity,0.,0.,0.));// 直接存储intensity
-    // imageStore(TexOutputVolume,ivec3(globalIdx),texture(TexInputVolume,samplePos));// 直接存储高低8位    
-    imageStore(TexOutputVolume,ivec3(globalIdx),vec4(GaussianFilterIntensity(globalIdx).r,0.,0.,0.));// 高斯滤波，存储intensity
+    imageStore(TexOutputVolume,ivec3(globalIdx),vec4(intensity,0.,0.,0.));// 直接存储intensity
+    // imageStore(TexOutputVolume,ivec3(globalIdx),texture(TexInputVolume,samplePos));// 直接存储高低8位
+    // imageStore(TexOutputVolume,ivec3(globalIdx),vec4(GaussianFilterIntensity(globalIdx).r,0.,0.,0.));// 高斯滤波，存储intensity
     // imageStore(TexOutputVolume,ivec3(globalIdx),vec4(GaussianFilter(globalIdx).rgb,1.));// 高斯滤波，存储高低8位
     
-    // test
-    // imageStore(TexOutputVolume,ivec3(globalIdx),genDistanceField(globalIdx));
-    // imageStore(TexOutputVolume,ivec3(globalIdx),vec4(GaussianFilter(globalIdx).rgb,genDistanceField(globalIdx).r));
-    // imageStore(TexOutputVolume,ivec3(globalIdx),get3DTextureColor(samplePos));
-    // imageStore(TexOutputVolume,ivec3(globalIdx),vec4(dicomUbo.windowCenter,dicomUbo.windowWidth,0.,0.)/vec4(255.));
 }

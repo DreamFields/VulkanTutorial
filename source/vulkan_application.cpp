@@ -1173,7 +1173,7 @@ void VulkanApplication::prepareTextureTarget() {
 
 void VulkanApplication::prepareCompute()
 {
-    computeResources.isComplete.resize(MAX_FRAMES_IN_FLIGHT, false);
+    computeResources.isComplete = false;
 
     // 创建纹理目标
     prepareTextureTarget();
@@ -1418,8 +1418,130 @@ void VulkanApplication::recordComputeCommandBuffer(uint32_t currentFrame) {
 
 }
 
+void VulkanApplication::prepareGaussianCompute() {
+    // Get a compute queue from the device
+    QueueFamilyIndices indices = findQueueFamilies(physicalDevice);
+    vkGetDeviceQueue(device, indices.computeFamily.value(), 0, &gaussianComputeResources.queue);
+
+    // Create compute pipeline
+    // Compute pipelines are created separate from graphics pipelines even if they use the same queue
+    VkDescriptorSetLayoutBinding inputImageLayoutBinding{};
+    inputImageLayoutBinding.binding = 0; // 绑定点
+    inputImageLayoutBinding.descriptorType = VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER; // 描述符类型
+    inputImageLayoutBinding.descriptorCount = 1; // 描述符数量
+    inputImageLayoutBinding.stageFlags = VK_SHADER_STAGE_COMPUTE_BIT; // 着色器阶段
+    inputImageLayoutBinding.pImmutableSamplers = nullptr; // 不使用采样器
+
+    VkDescriptorSetLayoutBinding outputImageLayoutBinding{};
+    outputImageLayoutBinding.binding = 1; // 绑定点
+    outputImageLayoutBinding.descriptorType = VK_DESCRIPTOR_TYPE_STORAGE_IMAGE; // 描述符类型
+    outputImageLayoutBinding.descriptorCount = 1; // 描述符数量
+    outputImageLayoutBinding.stageFlags = VK_SHADER_STAGE_COMPUTE_BIT; // 着色器阶段
+    outputImageLayoutBinding.pImmutableSamplers = nullptr; // 不使用采样器
+
+    VkDescriptorSetLayoutBinding dicomUboLayoutBinding{};
+    dicomUboLayoutBinding.binding = 2;
+    dicomUboLayoutBinding.descriptorType = VK_DESCRIPTOR_TYPE_UNIFORM_BUFFER;
+    dicomUboLayoutBinding.descriptorCount = 1;
+    dicomUboLayoutBinding.stageFlags = VK_SHADER_STAGE_COMPUTE_BIT;
+    dicomUboLayoutBinding.pImmutableSamplers = nullptr;
+
+    std::array<VkDescriptorSetLayoutBinding, 3> bindings = {
+        inputImageLayoutBinding,
+        outputImageLayoutBinding,
+        dicomUboLayoutBinding
+    };
+
+    VkDescriptorSetLayoutCreateInfo layoutInfo{};
+    layoutInfo.sType = VK_STRUCTURE_TYPE_DESCRIPTOR_SET_LAYOUT_CREATE_INFO;
+    layoutInfo.bindingCount = static_cast<uint32_t>(bindings.size()); // 描述符绑定数量
+    layoutInfo.pBindings = bindings.data(); // 描述符绑定
+
+    if (vkCreateDescriptorSetLayout(device, &layoutInfo, nullptr, &gaussianComputeResources.descriptorSetLayout) != VK_SUCCESS) { // 创建描述符集布局
+        throw std::runtime_error("failed to create descriptor set layout!");
+    }
+
+    VkPipelineLayoutCreateInfo pipelineLayoutInfo{};
+    pipelineLayoutInfo.sType = VK_STRUCTURE_TYPE_PIPELINE_LAYOUT_CREATE_INFO;
+    pipelineLayoutInfo.setLayoutCount = 1; // 描述符集布局数量
+    pipelineLayoutInfo.pSetLayouts = &gaussianComputeResources.descriptorSetLayout; // 描述符集布局
+
+    if (vkCreatePipelineLayout(device, &pipelineLayoutInfo, nullptr, &gaussianComputeResources.pipelineLayout) != VK_SUCCESS) { // 创建管线布局
+        throw std::runtime_error("failed to create pipeline layout!");
+    }
+
+    VkDescriptorSetAllocateInfo allocInfo{};
+    allocInfo.sType = VK_STRUCTURE_TYPE_DESCRIPTOR_SET_ALLOCATE_INFO;
+    allocInfo.descriptorPool = descriptorPool; // 描述符池
+    allocInfo.descriptorSetCount = 1; // 描述符集数量
+    allocInfo.pSetLayouts = &gaussianComputeResources.descriptorSetLayout; // 描述符集布局
+
+    if (vkAllocateDescriptorSets(device, &allocInfo, &gaussianComputeResources.descriptorSet) != VK_SUCCESS) { // 分配描述符集
+        throw std::runtime_error("failed to allocate computeResources descriptor sets!");
+    }
+
+    // Create compute shader pipelines
+    VkComputePipelineCreateInfo computePipelineCreateInfo{};
+    computePipelineCreateInfo.sType = VK_STRUCTURE_TYPE_COMPUTE_PIPELINE_CREATE_INFO;
+    computePipelineCreateInfo.layout = gaussianComputeResources.pipelineLayout; // 管线布局
+
+    // Create shader modules
+    VkShaderModule computeShaderModule = createShaderModule(GENERATEEXTINCTIONCOEFMIPMAP_COMP);
+    computePipelineCreateInfo.stage.sType = VK_STRUCTURE_TYPE_PIPELINE_SHADER_STAGE_CREATE_INFO;
+    computePipelineCreateInfo.stage.stage = VK_SHADER_STAGE_COMPUTE_BIT; // 着色器阶段
+    computePipelineCreateInfo.stage.module = computeShaderModule; // 着色器模块
+    computePipelineCreateInfo.stage.pName = "main"; // 着色器入口函数名称
+
+    VkPipeline pipeline;
+    if (vkCreateComputePipelines(device, VK_NULL_HANDLE, 1, &computePipelineCreateInfo, nullptr, &pipeline) != VK_SUCCESS) { // 创建管线
+        throw std::runtime_error("failed to create compute pipeline!");
+    }
+    gaussianComputeResources.pipelines.push_back(pipeline);
+
+    // Destroy shader modules
+    vkDestroyShaderModule(device, computeShaderModule, nullptr);
+
+    // create command pool
+    VkCommandPoolCreateInfo poolInfo{};
+    poolInfo.sType = VK_STRUCTURE_TYPE_COMMAND_POOL_CREATE_INFO;
+    poolInfo.queueFamilyIndex = indices.computeFamily.value(); // 指定队列族
+    poolInfo.flags = VK_COMMAND_POOL_CREATE_RESET_COMMAND_BUFFER_BIT;  // 指定命令缓冲区的标志
+
+    if (vkCreateCommandPool(device, &poolInfo, nullptr, &gaussianComputeResources.commandPool) != VK_SUCCESS) { // 创建命令池
+        throw std::runtime_error("failed to create command pool!");
+    }
+
+    // Create a command buffer for compute operations
+    VkCommandBufferAllocateInfo cmdBufAllocateInfo{};
+    cmdBufAllocateInfo.sType = VK_STRUCTURE_TYPE_COMMAND_BUFFER_ALLOCATE_INFO;
+    cmdBufAllocateInfo.commandPool = gaussianComputeResources.commandPool; // 命令池
+    cmdBufAllocateInfo.level = VK_COMMAND_BUFFER_LEVEL_PRIMARY; // 命令缓冲区级别
+    cmdBufAllocateInfo.commandBufferCount = 1; // 命令缓冲区数量
+
+    if (vkAllocateCommandBuffers(device, &cmdBufAllocateInfo, &gaussianComputeResources.commandBuffer) != VK_SUCCESS) { // 分配命令缓冲区
+        throw std::runtime_error("failed to allocate command buffers!");
+    }
+
+    // fence and semaphores
+    VkFenceCreateInfo fenceCreateInfo{};
+    fenceCreateInfo.sType = VK_STRUCTURE_TYPE_FENCE_CREATE_INFO;
+    fenceCreateInfo.flags = 0; // 标志位
+
+    VkSemaphoreCreateInfo semaphoreCreateInfo{};
+    semaphoreCreateInfo.sType = VK_STRUCTURE_TYPE_SEMAPHORE_CREATE_INFO;
+
+
+    if (vkCreateFence(device, &fenceCreateInfo, nullptr, &gaussianComputeResources.inFlightFence) != VK_SUCCESS) { // 创建fence
+        throw std::runtime_error("gaussianComputeResources failed to create fence!");
+    }
+    if (vkCreateSemaphore(device, &semaphoreCreateInfo, nullptr, &gaussianComputeResources.finishedSemaphore) != VK_SUCCESS) { // 创建信号量
+        throw std::runtime_error("gaussianComputeResources failed to create semaphores!");
+    }
+
+}
+
 void VulkanApplication::recordGenExtCoffMipmaps(uint32_t currentFrame) {
-    // --------------------------Generate mipmaps -----------------------------------
+    vkQueueWaitIdle(computeResources.queue);
 
     // Check if image format supports linear blitting
     VkFormatProperties formatProperties;
@@ -1545,6 +1667,150 @@ void VulkanApplication::recordGenExtCoffMipmaps(uint32_t currentFrame) {
 
     // end recording command buffer
     endSingleTimeCommands(blitCommandBuffer, commandPool);
+}
+
+void VulkanApplication::recordGenGaussianMipmaps() {
+    vkQueueWaitIdle(computeResources.queue);
+
+    int32_t mipWidth = volumeRender->getDicomTags().voxelResolution[0];
+    int32_t mipHeight = volumeRender->getDicomTags().voxelResolution[1];
+    int32_t mipDepth = volumeRender->getDicomTags().voxelResolution[2];
+
+    int currentLevel = 1;
+    // for (size_t currentLevel = 1; currentLevel < textureTarget.mipLevels; currentLevel++)
+
+    if (mipWidth > 1) mipWidth /= 2;
+    if (mipHeight > 1) mipHeight /= 2;
+    if (mipDepth > 1) mipDepth /= 2;
+
+    // create previous mip level image view
+    VkImageViewCreateInfo inputViewInfo = {};
+    inputViewInfo.sType = VK_STRUCTURE_TYPE_IMAGE_VIEW_CREATE_INFO;
+    inputViewInfo.image = textureTarget.image;
+    inputViewInfo.viewType = VK_IMAGE_VIEW_TYPE_3D;
+    inputViewInfo.format = VK_FORMAT_R8G8B8A8_UNORM;
+    inputViewInfo.subresourceRange.aspectMask = VK_IMAGE_ASPECT_COLOR_BIT;
+    inputViewInfo.subresourceRange.baseMipLevel = currentLevel - 1; // 上一层mipmap层级
+    inputViewInfo.subresourceRange.levelCount = 1; // 我们只关注一个层级
+    inputViewInfo.subresourceRange.baseArrayLayer = 0;
+    inputViewInfo.subresourceRange.layerCount = 1;
+
+    VkImageView inputImageView;
+    if (vkCreateImageView(device, &inputViewInfo, nullptr, &inputImageView) != VK_SUCCESS) {
+        throw std::runtime_error("failed to create input texture image view!");
+    }
+
+    // create current mip level image view
+    VkImageViewCreateInfo outputViewInfo = {};
+    outputViewInfo.sType = VK_STRUCTURE_TYPE_IMAGE_VIEW_CREATE_INFO;
+    outputViewInfo.image = textureTarget.image;
+    outputViewInfo.viewType = VK_IMAGE_VIEW_TYPE_3D;
+    outputViewInfo.format = VK_FORMAT_R8G8B8A8_UNORM;
+    outputViewInfo.subresourceRange.aspectMask = VK_IMAGE_ASPECT_COLOR_BIT;
+    outputViewInfo.subresourceRange.baseMipLevel = currentLevel; // 目标mipmap层级
+    outputViewInfo.subresourceRange.levelCount = 1; // 我们只关注一个层级
+    outputViewInfo.subresourceRange.baseArrayLayer = 0;
+    outputViewInfo.subresourceRange.layerCount = 1;
+
+    VkImageView outputImageView;
+    if (vkCreateImageView(device, &outputViewInfo, nullptr, &outputImageView) != VK_SUCCESS) {
+        throw std::runtime_error("failed to create output texture image view!");
+    }
+
+    // 输入的是上一级的高斯纹理
+    VkDescriptorImageInfo inputImageInfo{};
+    inputImageInfo.imageLayout = VK_IMAGE_LAYOUT_GENERAL; // 图像布局
+    inputImageInfo.imageView = inputImageView; // 图像视图
+    inputImageInfo.sampler = textureSampler; // 纹理采样器
+
+    VkWriteDescriptorSet inputImageDescriptorWrite{};
+    inputImageDescriptorWrite.sType = VK_STRUCTURE_TYPE_WRITE_DESCRIPTOR_SET;
+    inputImageDescriptorWrite.dstSet = gaussianComputeResources.descriptorSet; // 目标描述符集
+    inputImageDescriptorWrite.dstBinding = 0; // 目标绑定点
+    inputImageDescriptorWrite.dstArrayElement = 0; // 目标数组元素
+    inputImageDescriptorWrite.descriptorType = VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER; // 描述符类型
+    inputImageDescriptorWrite.descriptorCount = 1; // 描述符数量
+    inputImageDescriptorWrite.pBufferInfo = nullptr; // 缓冲区信息
+    inputImageDescriptorWrite.pImageInfo = &inputImageInfo; // 图像信息
+
+    // 输出的是currentLevel的高斯纹理
+    VkDescriptorImageInfo outputImageInfo{};
+    outputImageInfo.imageLayout = VK_IMAGE_LAYOUT_GENERAL; // 图像布局
+    outputImageInfo.imageView = outputImageView; // 图像视图
+    outputImageInfo.sampler = textureTarget.sampler; // 纹理采样器
+
+    VkWriteDescriptorSet outputImageDescriptorWrite{};
+    outputImageDescriptorWrite.sType = VK_STRUCTURE_TYPE_WRITE_DESCRIPTOR_SET;
+    outputImageDescriptorWrite.dstSet = gaussianComputeResources.descriptorSet; // 目标描述符集
+    outputImageDescriptorWrite.dstBinding = 1; // 目标绑定点
+    outputImageDescriptorWrite.dstArrayElement = 0; // 目标数组元素
+    outputImageDescriptorWrite.descriptorType = VK_DESCRIPTOR_TYPE_STORAGE_IMAGE; // 描述符类型
+    outputImageDescriptorWrite.descriptorCount = 1; // 描述符数量
+    outputImageDescriptorWrite.pBufferInfo = nullptr; // 缓冲区信息
+    outputImageDescriptorWrite.pImageInfo = &outputImageInfo; // 图像信息
+
+    VkDescriptorBufferInfo dicomBufferInfo{};
+    dicomBufferInfo.buffer = dicomUniformBuffers[0]; // 缓冲区
+    dicomBufferInfo.offset = 0; // 偏移量
+    dicomBufferInfo.range = sizeof(DicomUniformBufferObject); // 范围
+
+    VkWriteDescriptorSet dicomBufferDescriptorWrite{};
+    dicomBufferDescriptorWrite.sType = VK_STRUCTURE_TYPE_WRITE_DESCRIPTOR_SET;
+    dicomBufferDescriptorWrite.dstSet = gaussianComputeResources.descriptorSet; // 目标描述符集
+    dicomBufferDescriptorWrite.dstBinding = 2; // 目标绑定点
+    dicomBufferDescriptorWrite.dstArrayElement = 0; // 目标数组元素
+    dicomBufferDescriptorWrite.descriptorType = VK_DESCRIPTOR_TYPE_UNIFORM_BUFFER; // 描述符类型
+    dicomBufferDescriptorWrite.descriptorCount = 1; // 描述符数量
+    dicomBufferDescriptorWrite.pBufferInfo = &dicomBufferInfo; // 缓冲区信息
+    dicomBufferDescriptorWrite.pImageInfo = nullptr; // 图像信息
+
+    std::array<VkWriteDescriptorSet, 3> computeWrites = {
+        inputImageDescriptorWrite,
+        outputImageDescriptorWrite,
+        dicomBufferDescriptorWrite
+    };
+    vkUpdateDescriptorSets(device, static_cast<uint32_t>(computeWrites.size()), computeWrites.data(), 0, nullptr); // 更新描述符集
+
+
+    vkResetCommandBuffer(gaussianComputeResources.commandBuffer, 0); // 重置命令缓冲区
+    // Create a command buffer for compute operations
+    VkCommandBufferBeginInfo cmdBufBeginInfo{};
+    cmdBufBeginInfo.sType = VK_STRUCTURE_TYPE_COMMAND_BUFFER_BEGIN_INFO;
+
+    if (vkBeginCommandBuffer(gaussianComputeResources.commandBuffer, &cmdBufBeginInfo) != VK_SUCCESS) { // 开始记录命令缓冲区
+        throw std::runtime_error("failed to begin command buffer!");
+    }
+
+    // Bind compute pipeline
+    vkCmdBindPipeline(gaussianComputeResources.commandBuffer, VK_PIPELINE_BIND_POINT_COMPUTE, gaussianComputeResources.pipelines[0]);
+
+    // Bind descriptor sets
+    vkCmdBindDescriptorSets(gaussianComputeResources.commandBuffer, VK_PIPELINE_BIND_POINT_COMPUTE, gaussianComputeResources.pipelineLayout, 0, 1, &gaussianComputeResources.descriptorSet, 0, nullptr);
+
+    // Dispatch compute shader
+    vkCmdDispatch(gaussianComputeResources.commandBuffer, mipWidth / 8, mipHeight / 8, mipDepth / 8);
+
+    // End recording command buffer
+    if (vkEndCommandBuffer(gaussianComputeResources.commandBuffer) != VK_SUCCESS) { // 结束记录命令缓冲区
+        throw std::runtime_error("failed to record command buffer!");
+    }
+
+    // Submit to the compute queue
+    VkSubmitInfo computeSubmitInfo{};
+    computeSubmitInfo.sType = VK_STRUCTURE_TYPE_SUBMIT_INFO;
+    computeSubmitInfo.commandBufferCount = 1; // 命令缓冲区数量
+    computeSubmitInfo.pCommandBuffers = &gaussianComputeResources.commandBuffer; // 命令缓冲区
+
+    if (vkQueueSubmit(gaussianComputeResources.queue, 1, &computeSubmitInfo, VK_NULL_HANDLE) != VK_SUCCESS) { // 提交命令缓冲区
+        throw std::runtime_error("failed to submit compute command buffer!");
+    }
+
+    // Flush the queue if we're rebuilding the command buffer after a pipeline change to ensure it's not currently in use
+    vkQueueWaitIdle(gaussianComputeResources.queue);
+
+    // Destroy image views
+    vkDestroyImageView(device, inputImageView, nullptr);
+    vkDestroyImageView(device, outputImageView, nullptr);
 }
 
 void VulkanApplication::prepareTexOccConeSectionsInfo() {

@@ -5,6 +5,7 @@
 #include <debugdraw_vert.h> // 通过库文件的形式来引入着色器文件
 #include <debugdraw_frag.h>
 #include <generateExtinctionCoef_comp.h>
+#include <generateExtinctionCoefMipmap_comp.h>
 
 #include <backpos_vert.h>
 #include <backpos_frag.h>
@@ -218,10 +219,13 @@ private:
 	// begin compute
 	Compute computeResources;   // Compute resources
 	TextureTarget textureTarget; // Target image for compute shader writes
+	StaticCompute gaussianComputeResources; // Gaussian compute resources
 	void prepareTextureTarget();
 	void prepareCompute();
 	void recordComputeCommandBuffer(uint32_t currentFrame);
 	void recordGenExtCoffMipmaps(uint32_t currentFrame);
+	void prepareGaussianCompute();
+	void recordGenGaussianMipmaps();
 	// end compute
 
 	// begin TexOccConeSectionsInfo
@@ -335,6 +339,8 @@ private:
 
 		prepareCompute();
 
+		prepareGaussianCompute();	
+
 		createDescriptorSets();
 		createCommandBuffers();
 		createSyncObjects();
@@ -385,6 +391,14 @@ private:
 		for (auto semaphore : computeResources.finishedGenMipmapSemaphores) {
 			vkDestroySemaphore(device, semaphore, nullptr);
 		}
+
+		// cleanup gaussian compute resource
+		vkDestroyDescriptorSetLayout(device, gaussianComputeResources.descriptorSetLayout, nullptr);
+		vkDestroyPipelineLayout(device, gaussianComputeResources.pipelineLayout, nullptr);
+		vkDestroyPipeline(device, gaussianComputeResources.pipelines[0], nullptr);
+		vkDestroyCommandPool(device, gaussianComputeResources.commandPool, nullptr);
+		vkDestroyFence(device,gaussianComputeResources.inFlightFence, nullptr);
+		vkDestroySemaphore(device, gaussianComputeResources.finishedSemaphore, nullptr);
 
 		// Cleanup DearImGui
 		ImGui_ImplVulkan_Shutdown();
@@ -1739,7 +1753,7 @@ private:
 
 		// --------------------Compute submission-----------------
 		// !不必每一帧都提交计算命令，只有在计算命令完成之前才需要提交计算命令，如果之后修改了一些参数，只需要把isComplete设置为false即可
-		if (!computeResources.isComplete[currentFrame]) {
+		if (!computeResources.isComplete) {
 			// vkWaitForFences(device, 1, &computeResources.inFlightFences[currentFrame], VK_TRUE, UINT64_MAX);
 
 			// update uniform buffer
@@ -1763,7 +1777,11 @@ private:
 				throw std::runtime_error("failed to submit compute command buffer!");
 			}
 
-			computeResources.isComplete[currentFrame] = true;
+			computeResources.isComplete = true;
+
+			recordGenExtCoffMipmaps(currentFrame);
+
+			recordGenGaussianMipmaps();
 		}
 
 
@@ -1820,7 +1838,7 @@ private:
 		// }
 		// else {
 		// std::cout << "compute complete" << std::endl;
-		recordGenExtCoffMipmaps(currentFrame);
+		
 		VkSemaphore graphicWaitSemaphores[] = { imageAvailableSemaphores[currentFrame] };
 		VkPipelineStageFlags graphicWaitStages[] = { VK_PIPELINE_STAGE_COLOR_ATTACHMENT_OUTPUT_BIT };
 

@@ -118,6 +118,8 @@
     "thread": "cpp",
     "typeinfo": "cpp",
     "functional": "cpp",
-    "codecvt": "cpp"
+    "codecvt": "cpp",
+    "numeric": "cpp",
+    "random": "cpp"
   }
 }
