@@ -378,6 +378,7 @@ private:
 		vkDestroyImage(device, textureTarget.image, nullptr);
 		vkFreeMemory(device, textureTarget.memory, nullptr);
 		vkDestroyImageView(device, textureTarget.imageView, nullptr);
+		vkDestroySampler(device, textureTarget.sampler, nullptr);	
 		vkDestroyDescriptorSetLayout(device, computeResources.descriptorSetLayout, nullptr);
 		vkDestroyPipelineLayout(device, computeResources.pipelineLayout, nullptr);
 		vkDestroyPipeline(device, computeResources.pipelines[0], nullptr);

@@ -125,8 +125,7 @@ struct TextureTarget {
 
 // 生成高斯滤波的计算着色器所需的推送常量
 struct GenGaussianMMPushConstants {
-    glm::vec1 previousLevel;
-    glm::vec3 SubLevelVolumeResolution;
+    glm::vec1 currentLevel;
 };
 
 struct ExampleConfig {

@@ -71,7 +71,7 @@ vec4 get3DTextureColor(vec3 worldPos){
     // 将世界坐标转换为纹理坐标,并归一化后再采样
     vec3 texPos=worldPos/dicomUbo.boxSize;
     vec4 sampleColor=texture(tex3DSampler,texPos);
-    // vec4 sampleColor=textureLod(tex3DSampler,texPos,2.);
+    // vec4 sampleColor=textureLod(tex3DSampler,texPos,float(int(dicomUbo.steps/100.)));
     float intensity=sampleColor.r*255.+sampleColor.g*255.*255.-abs(dicomUbo.minVal);
     intensity=(intensity-dicomUbo.windowCenter)/dicomUbo.windowWidth+.5;
     intensity=clamp(intensity,0.,1.);
@@ -96,17 +96,10 @@ vec4 getExtCoeff(vec3 worldPos){
     // 将世界坐标转换为纹理坐标,并归一化后再采样
     vec3 texPos=worldPos/dicomUbo.boxSize;
     // vec4 sampleColor=texture(extCoeffSampler,texPos);
-    vec4 sampleColor=textureLod(extCoeffSampler,texPos,1.);
+    int mipLevel=int(dicomUbo.steps/100.);
+    vec4 sampleColor=textureLod(extCoeffSampler,texPos,float(mipLevel));
     // return sampleColor;
-    
-    // 当extCoeffSampler存的是intensity时使用下面的代码
-    float intensity=sampleColor.r;
-    intensity=clamp(intensity,0.,1.);
-    if(intensity==0.)return vec4(0.);
-    vec3 color=texture(lutTexSampler,intensity).rgb;
-    // return vec4(color,intensity);
-    return vec4(intensity);
-    
+        
     // 当extCoeffSampler存的是高低8位时使用下面的代码
     // float intensity=sampleColor.r*255.+sampleColor.g*255.*255.-abs(dicomUbo.minVal);
     // intensity=(intensity-dicomUbo.windowCenter)/dicomUbo.windowWidth+.5;
@@ -115,6 +108,15 @@ vec4 getExtCoeff(vec3 worldPos){
     // vec3 color=texture(lutTexSampler,intensity).rgb;
     // // return vec4(color,intensity);
     // return vec4(intensity);
+    
+    // 当extCoeffSampler存的是intensity时使用下面的代码
+    float intensity=sampleColor.r;
+    intensity=clamp(intensity,0.,1.);
+    if(intensity==0.)return vec4(0.);
+    vec3 color=texture(lutTexSampler,intensity).rgb;
+    // return vec4(color,intensity);
+    return vec4(intensity);
+
 }
 
 // todo 目前距离场可视化暂时采用直接体绘制的方法，需改进
@@ -151,15 +153,15 @@ float GetGaussianExtinction(vec3 volume_pos,float mipmaplevel){
     vec4 sampleColor=textureLod(extCoeffSampler,tex_pos,mipmaplevel);
     
     // 当extCoeffSampler存的是高低8位时使用下面的代码
-    // float intensity=sampleColor.r*255.+sampleColor.g*255.*255.-abs(dicomUbo.minVal);
-    // intensity=(intensity-dicomUbo.windowCenter)/dicomUbo.windowWidth+.5;
-    // intensity=clamp(intensity,0.,1.);
-    // // return 1.-intensity;
-    // return intensity;
+    float intensity=sampleColor.r*255.+sampleColor.g*255.*255.-abs(dicomUbo.minVal);
+    intensity=(intensity-dicomUbo.windowCenter)/dicomUbo.windowWidth+.5;
+    intensity=clamp(intensity,0.,1.);
+    // return 1.-intensity;
+    return intensity;
     
     // 当extCoeffSampler存的是intensity时使用下面的代码
-    if(sampleColor.r==0.)return 0.;
-    return sampleColor.r;
+    // if(sampleColor.r==0.)return 0.;
+    // return sampleColor.r;
 }
 
 float Cone7RayOcclusion(vec3 volume_pos_from_zero,float track_distance,vec3 coneDir,vec3 cameraUp,vec3 cameraRight)
@@ -338,12 +340,12 @@ float Cone1RayOcclusion(vec3 volume_pos_from_zero,vec3 coneDir,vec3 cameraUp,vec
         
         // *提前判断是否超出体素范围，如果超出，则直接将当前项的高斯积分结果加到occlusion cone中，而不进行采样，提高了帧率
         // if(cur_volume_pos.x<0.||cur_volume_pos.x>dicomUbo.realSize.x||
-        //     cur_volume_pos.y<0.||cur_volume_pos.y>dicomUbo.realSize.y||
+            //     cur_volume_pos.y<0.||cur_volume_pos.y>dicomUbo.realSize.y||
         // cur_volume_pos.z<0.||cur_volume_pos.z>dicomUbo.realSize.z)
         // {
-        //     occ_rays[0]+=(last_amptau[0])*d_integral;
-        //     last_amptau[0]=0.;
-        //     continue;
+            //     occ_rays[0]+=(last_amptau[0])*d_integral;
+            //     last_amptau[0]=0.;
+            //     continue;
         // }
         
         float Tau_s=GetGaussianExtinction(cur_volume_pos,mipmap_level);
@@ -490,8 +492,8 @@ vec4 absorptionMethod(float stepLength,float rayLength,vec3 dir,vec3 currentPos)
         vec3 pos=currentPos+dir*(s+h*.5);
         // Get the sampleColor from the 3D texture
         // vec4 sampleColor=get3DTextureColor(pos);
-        vec4 sampleColor=getExtCoeff(pos);
-        // vec4 sampleColor=ShadeSample(pos,dir,normalize(fragCameraUp),normalize(fragCameraRight));
+        // vec4 sampleColor=getExtCoeff(pos);
+        vec4 sampleColor=ShadeSample(pos,dir,normalize(fragCameraUp),normalize(fragCameraRight));
         
         // Go to the next interval
         s=s+h;
@@ -633,4 +635,6 @@ void main(){
     
     // test ground truth ray vector
     // outColor=vec4((gtRayUbo.raySampleVec[9].rgb+vec3(1.))/2.,1.);
+
+    // outColor=textureLod(extCoeffSampler,vec3(0.5),float(int(dicomUbo.steps/100.)));
 }

@@ -21,9 +21,13 @@ layout(binding=2)uniform DicomUniformBufferObject{
     float glow;
     int steps;
 }dicomUbo;
+layout( push_constant ) uniform GenGaussianMMPushConstants
+{
+    float currentLevel;
+} pushConstants;
 
 // 假设每个工作组的大小为8x8x8
-layout(local_size_x=8,local_size_y=8,local_size_z=8)in;
+layout(local_size_x=4,local_size_y=4,local_size_z=4)in;
 
 // 对原始像素值的高低8位进行高斯滤波，并存储高低8位
 // 缺点：滤波有效性待评估
@@ -33,8 +37,10 @@ vec4 GaussianFilter(uvec3 globalIdx){
     float sumOfWeight=0.f;
     
     // Compute the current Gaussian filter from [-vtk, vtk]
+    // int vtk=3*int(pow(2.0,pushConstants.currentLevel-1.));
     int vtk=3;
-    float sigma=1.;
+    // float sigma=pow(2.0,pushConstants.currentLevel);// 层级sigma
+    float sigma=1.; // 保持sigma不变
     for(int ptx=-vtk;ptx<=vtk;ptx++){
         for(int pty=-vtk;pty<=vtk;pty++){
             for(int ptz=-vtk;ptz<=vtk;ptz++){
@@ -46,10 +52,11 @@ vec4 GaussianFilter(uvec3 globalIdx){
                 // 计算当前位置的高斯权重
                 float weight=(sigma*sigma*sigma)*exp(-(fx*fx+fy*fy+fz*fz)/(2.*sigma*sigma));
                 // 计算采样位置，采样位置为当前全局索引除以3D纹理的尺寸，以保证采样坐标在[0, 1]的范围内
-                vec3 samplePos=(vec3(globalIdx)+vec3(fx,fy,fz)+vec3(.5))/dicomUbo.voxelResolution;
+                float posScale = pow(2.0, pushConstants.currentLevel);
+                vec3 samplePos=((vec3(globalIdx)+vec3(.5))*posScale + vec3(fx,fy,fz))/dicomUbo.voxelResolution;
                 // 采样当前位置的颜色值
-                vec4 color=texture(TexInputVolume,samplePos);// 存储原始像素值的高八位和第八位,这样会对边界进行平滑,从而在计算intensity后截断,使得边界更加清晰
-                // vec4 color=get3DTextureColor(samplePos); // !不能存储intensity的高斯滤波,因为这样会模糊边界(边界外的intensity是0),之后可以考虑使用联合双边滤波
+                // vec4 color=textureLod(TexInputVolume,samplePos,pushConstants.currentLevel-1.);// 存储原始像素值的高八位和第八位,这样会对边界进行平滑,从而在计算intensity后截断,使得边界更加清晰
+                vec4 color = texture(TexInputVolume, samplePos);
                 
                 // 计算当前位置的高斯权重与颜色值的乘积
                 sumOfColor+=weight*color;
@@ -71,8 +78,10 @@ vec4 GaussianFilterIntensity(uvec3 globalIdx){
     float sumOfWeight=0.f;
     
     // Compute the current Gaussian filter from [-vtk, vtk]
+    // int vtk=3*int(pow(2.0,pushConstants.currentLevel-1.));
     int vtk=3;
-    float sigma=1.;
+    float sigma=pow(2.0,pushConstants.currentLevel);// 层级sigma
+    // float sigma=1.; // 保持sigma不变
     for(int ptx=-vtk;ptx<=vtk;ptx++){
         for(int pty=-vtk;pty<=vtk;pty++){
             for(int ptz=-vtk;ptz<=vtk;ptz++){
@@ -84,11 +93,12 @@ vec4 GaussianFilterIntensity(uvec3 globalIdx){
                 // 计算当前位置的高斯权重
                 float weight=(sigma*sigma*sigma)*exp(-(fx*fx+fy*fy+fz*fz)/(2.*sigma*sigma));
                 // 计算采样位置，采样位置为当前全局索引除以3D纹理的尺寸，以保证采样坐标在[0, 1]的范围内
-                vec3 samplePos=(vec3(globalIdx)+vec3(fx,fy,fz)+vec3(.5))/dicomUbo.voxelResolution;
-                // 采样当前位置的颜色值
-                vec4 sampleColor=texture(TexInputVolume,samplePos);
-                float intensity=sampleColor.r*255.+sampleColor.g*255.*255.-abs(dicomUbo.minVal);
-                intensity=(intensity-dicomUbo.windowCenter)/dicomUbo.windowWidth+.5;
+                float posScale = pow(2.0, pushConstants.currentLevel);
+                vec3 samplePos=((vec3(globalIdx)+vec3(.5))*posScale + vec3(fx,fy,fz))/dicomUbo.voxelResolution;
+                // 采样当前位置的intensity值
+                vec4 sampleColor=textureLod(TexInputVolume,samplePos,pushConstants.currentLevel-1.);
+                // vec4 sampleColor=texture(TexInputVolume,samplePos);
+                float intensity=sampleColor.r;
                 intensity=clamp(intensity,0.,1.);
                 
                 // 计算当前位置的高斯权重与颜色值的乘积
@@ -116,23 +126,18 @@ void main(){
     // 采样位置为当前全局索引除以3D纹理的尺寸，以保证采样坐标在[0, 1]的范围内
     // !需要加上.5 否则会出现锯齿
     float curMipLevel = 1.0;    
-    vec3 samplePos=(vec3(globalIdx)*3.+vec3(.5))/dicomUbo.voxelResolution; // 这里用于测试，证明已经修改了3D纹理的mipLevel 1
-    // vec3 samplePos=(vec3(globalIdx)*pow(2.0,curMipLevel)+vec3(.5))/dicomUbo.voxelResolution;
-
-
-    // 当extCoeffSampler存的是intensity时使用下面的代码
+    // vec3 samplePos=(vec3(globalIdx)*3.+vec3(.5))/dicomUbo.voxelResolution; // 这里用于测试，证明已经修改了3D纹理的mipLevel 1
+    vec3 samplePos=(vec3(globalIdx)*pow(2.0,curMipLevel)+vec3(.5))/dicomUbo.voxelResolution;
     float intensity=textureLod(TexInputVolume,samplePos,0.).r;
-    
-    // 当extCoeffSampler存的是高低8位时使用下面的代码
-    // vec4 sampleColor=texture(TexInputVolume,samplePos);
-    // float intensity=sampleColor.r*255.+sampleColor.g*255.*255.-abs(dicomUbo.minVal);
-    // intensity=(intensity-dicomUbo.windowCenter)/dicomUbo.windowWidth+.5;
-    // intensity=clamp(intensity,0.,1.);
+
     
     // 将颜色值写入输出的3D图像
-    imageStore(TexOutputVolume,ivec3(globalIdx),vec4(intensity,0.,0.,0.));// 直接存储intensity
+    // imageStore(TexOutputVolume,ivec3(globalIdx),vec4(intensity,0.,0.,0.));// 直接存储intensity
     // imageStore(TexOutputVolume,ivec3(globalIdx),texture(TexInputVolume,samplePos));// 直接存储高低8位
     // imageStore(TexOutputVolume,ivec3(globalIdx),vec4(GaussianFilterIntensity(globalIdx).r,0.,0.,0.));// 高斯滤波，存储intensity
-    // imageStore(TexOutputVolume,ivec3(globalIdx),vec4(GaussianFilter(globalIdx).rgb,1.));// 高斯滤波，存储高低8位
+    imageStore(TexOutputVolume,ivec3(globalIdx),vec4(GaussianFilter(globalIdx).rgb,1.));// 高斯滤波，存储高低8位
+
+    // test
+    // imageStore(TexOutputVolume,ivec3(globalIdx),vec4(pushConstants.currentLevel/10.,pushConstants.currentLevel/10.,pushConstants.currentLevel/10.,1.));
     
 }
