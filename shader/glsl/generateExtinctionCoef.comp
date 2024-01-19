@@ -60,7 +60,7 @@ vec4 GaussianFilter(uvec3 globalIdx){
                 // 计算当前位置的高斯权重
                 float weight=(sigma*sigma*sigma)*exp(-(fx*fx+fy*fy+fz*fz)/(2.*sigma*sigma));
                 // 计算采样位置，采样位置为当前全局索引除以3D纹理的尺寸，以保证采样坐标在[0, 1]的范围内
-                vec3 samplePos=(vec3(globalIdx)+vec3(fx,fy,fz)+vec3(.5))/dicomUbo.voxelResolution;
+                vec3 samplePos=(vec3(globalIdx)+vec3(fx,fy,fz)+vec3(.5))/vec3(512.,512.,512.);
                 // 采样当前位置的颜色值
                 vec4 color=texture(TexInputVolume,samplePos);// 存储原始像素值的高八位和第八位,这样会对边界进行平滑,从而在计算intensity后截断,使得边界更加清晰
                 // vec4 color=get3DTextureColor(samplePos); // !不能存储intensity的高斯滤波,因为这样会模糊边界(边界外的intensity是0),之后可以考虑使用联合双边滤波
@@ -98,7 +98,7 @@ vec4 GaussianFilterIntensity(uvec3 globalIdx){
                 // 计算当前位置的高斯权重
                 float weight=(sigma*sigma*sigma)*exp(-(fx*fx+fy*fy+fz*fz)/(2.*sigma*sigma));
                 // 计算采样位置，采样位置为当前全局索引除以3D纹理的尺寸，以保证采样坐标在[0, 1]的范围内
-                vec3 samplePos=(vec3(globalIdx)+vec3(fx,fy,fz)+vec3(.5))/dicomUbo.voxelResolution;
+                vec3 samplePos=(vec3(globalIdx)+vec3(fx,fy,fz)+vec3(.5))/vec3(512.,512.,512.);
                 // 采样当前位置的颜色值
                 vec4 sampleColor=texture(TexInputVolume,samplePos);
                 float intensity=sampleColor.r*255.+sampleColor.g*255.*255.-abs(dicomUbo.minVal);
@@ -172,10 +172,10 @@ void main(){
     // 获取当前工作组的全局索引
     ivec3 globalIdx=ivec3(gl_GlobalInvocationID.xyz);// 计算着色器在3D图像中的位置
     
-    if(globalIdx.x>dicomUbo.voxelResolution.x-1
-        ||globalIdx.y>dicomUbo.voxelResolution.y-1
-    ||globalIdx.z>dicomUbo.voxelResolution.z-1)
-    return;
+    // if(globalIdx.x>dicomUbo.voxelResolution.x-1
+    //     ||globalIdx.y>dicomUbo.voxelResolution.y-1
+    // ||globalIdx.z>dicomUbo.voxelResolution.z-1)
+    // return;
     
     // 采样位置为当前全局索引除以3D纹理的尺寸，以保证采样坐标在[0, 1]的范围内
     // !需要加上.5 否则会出现锯齿

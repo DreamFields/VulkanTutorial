@@ -1109,14 +1109,14 @@ void VulkanApplication::prepareTextureTarget() {
     imageCreateInfo.sType = VK_STRUCTURE_TYPE_IMAGE_CREATE_INFO;
     imageCreateInfo.imageType = VK_IMAGE_TYPE_3D;
     imageCreateInfo.format = VK_FORMAT_R8G8B8A8_UNORM;
-    imageCreateInfo.extent = { static_cast<unsigned int>(volumeRender->getDicomTags().voxelResolution[0])
-        , static_cast<unsigned int>(volumeRender->getDicomTags().voxelResolution[1])
-        , static_cast<unsigned int>(volumeRender->getDicomTags().voxelResolution[2]) };
+    imageCreateInfo.extent = { static_cast<unsigned int>(512)
+        , static_cast<unsigned int>(512)
+        , static_cast<unsigned int>(512) };
     textureTarget.mipLevels = static_cast<uint32_t>(std::floor(
         std::log2(
             std::max(
-                std::max(volumeRender->getDicomTags().voxelResolution[0], volumeRender->getDicomTags().voxelResolution[1]),
-                volumeRender->getDicomTags().voxelResolution[2])
+                std::max(512, 512),
+                512)
         ))) + 1;  // mipmap 级别  
     imageCreateInfo.mipLevels = textureTarget.mipLevels;
     imageCreateInfo.arrayLayers = 1;
@@ -1167,9 +1167,9 @@ void VulkanApplication::prepareTextureTarget() {
     // Create sampler
     VkSamplerCreateInfo samplerInfo{};
     samplerInfo.sType = VK_STRUCTURE_TYPE_SAMPLER_CREATE_INFO;
-    samplerInfo.magFilter = VK_FILTER_NEAREST; // 放大过滤器
-    samplerInfo.minFilter = VK_FILTER_NEAREST; // 缩小过滤器
-    samplerInfo.mipmapMode = VK_SAMPLER_MIPMAP_MODE_NEAREST; // mipmap模式
+    samplerInfo.magFilter = VK_FILTER_LINEAR; // 放大过滤器
+    samplerInfo.minFilter = VK_FILTER_LINEAR; // 缩小过滤器
+    samplerInfo.mipmapMode = VK_SAMPLER_MIPMAP_MODE_LINEAR; // mipmap模式
     samplerInfo.addressModeU = VK_SAMPLER_ADDRESS_MODE_CLAMP_TO_EDGE; // U轴寻址模式
     samplerInfo.addressModeV = VK_SAMPLER_ADDRESS_MODE_CLAMP_TO_EDGE; // V轴寻址模式
     samplerInfo.addressModeW = VK_SAMPLER_ADDRESS_MODE_CLAMP_TO_EDGE; // W轴寻址模式
@@ -1429,7 +1429,8 @@ void VulkanApplication::recordComputeCommandBuffer(uint32_t currentFrame) {
     vkCmdBindDescriptorSets(computeResources.commandBuffers[currentFrame], VK_PIPELINE_BIND_POINT_COMPUTE, computeResources.pipelineLayout, 0, 1, &computeResources.descriptorSets[currentFrame], 0, 0);
 
     // Dispatch the compute job
-    vkCmdDispatch(computeResources.commandBuffers[currentFrame], volumeRender->getDicomTags().voxelResolution[0] / 8, volumeRender->getDicomTags().voxelResolution[1] / 8, volumeRender->getDicomTags().voxelResolution[2] / 8);
+    // vkCmdDispatch(computeResources.commandBuffers[currentFrame], volumeRender->getDicomTags().voxelResolution[0] / 8, volumeRender->getDicomTags().voxelResolution[1] / 8, volumeRender->getDicomTags().voxelResolution[2] / 8);
+    vkCmdDispatch(computeResources.commandBuffers[currentFrame], 512/8, 512/8, 512/8);
 
     // end recording command buffer
     if (vkEndCommandBuffer(computeResources.commandBuffers[currentFrame]) != VK_SUCCESS) { // 结束记录命令缓冲区
@@ -1608,10 +1609,12 @@ void VulkanApplication::recordGenExtCoffMipmaps(uint32_t currentFrame) {
         0, nullptr,
         1, &barrier);
 
-    int32_t mipWidth = volumeRender->getDicomTags().voxelResolution[0];
-    int32_t mipHeight = volumeRender->getDicomTags().voxelResolution[1];
-    int32_t mipDepth = volumeRender->getDicomTags().voxelResolution[2];
-
+    // int32_t mipWidth = volumeRender->getDicomTags().voxelResolution[0];
+    // int32_t mipHeight = volumeRender->getDicomTags().voxelResolution[1];
+    // int32_t mipDepth = volumeRender->getDicomTags().voxelResolution[2];
+    int32_t mipWidth = 512;
+    int32_t mipHeight = 512;
+    int32_t mipDepth = 512;
     // Copy down mips from n-1 to n
     for (uint32_t i = 1; i < textureTarget.mipLevels; i++) {
         // Transition current mip level to transfer dest
@@ -1701,9 +1704,12 @@ void VulkanApplication::recordGenExtCoffMipmaps(uint32_t currentFrame) {
 void VulkanApplication::recordGenGaussianMipmaps() {
     vkQueueWaitIdle(computeResources.queue);
 
-    int32_t mipWidth = volumeRender->getDicomTags().voxelResolution[0];
-    int32_t mipHeight = volumeRender->getDicomTags().voxelResolution[1];
-    int32_t mipDepth = volumeRender->getDicomTags().voxelResolution[2];
+    // int32_t mipWidth = volumeRender->getDicomTags().voxelResolution[0];
+    // int32_t mipHeight = volumeRender->getDicomTags().voxelResolution[1];
+    // int32_t mipDepth = volumeRender->getDicomTags().voxelResolution[2];
+    int32_t mipWidth = 512;
+    int32_t mipHeight = 512;
+    int32_t mipDepth = 512;    
     int currentLevel = 1;
     for (size_t currentLevel = 1; currentLevel < textureTarget.mipLevels; currentLevel++) {
 

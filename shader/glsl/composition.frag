@@ -99,24 +99,24 @@ vec4 getExtCoeff(vec3 worldPos){
     int mipLevel=int(dicomUbo.steps/100.);
     vec4 sampleColor=textureLod(extCoeffSampler,texPos,float(mipLevel));
     // return sampleColor;
-        
+    
     // 当extCoeffSampler存的是高低8位时使用下面的代码
-    // float intensity=sampleColor.r*255.+sampleColor.g*255.*255.-abs(dicomUbo.minVal);
-    // intensity=(intensity-dicomUbo.windowCenter)/dicomUbo.windowWidth+.5;
+    float intensity=sampleColor.r*255.+sampleColor.g*255.*255.-abs(dicomUbo.minVal);
+    intensity=(intensity-dicomUbo.windowCenter)/dicomUbo.windowWidth+.5;
+    intensity=clamp(intensity,0.,1.);
+    if(intensity==0.)return vec4(0.);
+    vec3 color=texture(lutTexSampler,intensity).rgb;
+    // return vec4(color,intensity);
+    return vec4(intensity);
+    
+    // 当extCoeffSampler存的是intensity时使用下面的代码
+    // float intensity=sampleColor.r;
     // intensity=clamp(intensity,0.,1.);
     // if(intensity==0.)return vec4(0.);
     // vec3 color=texture(lutTexSampler,intensity).rgb;
     // // return vec4(color,intensity);
     // return vec4(intensity);
     
-    // 当extCoeffSampler存的是intensity时使用下面的代码
-    float intensity=sampleColor.r;
-    intensity=clamp(intensity,0.,1.);
-    if(intensity==0.)return vec4(0.);
-    vec3 color=texture(lutTexSampler,intensity).rgb;
-    // return vec4(color,intensity);
-    return vec4(intensity);
-
 }
 
 // todo 目前距离场可视化暂时采用直接体绘制的方法，需改进
@@ -635,6 +635,10 @@ void main(){
     
     // test ground truth ray vector
     // outColor=vec4((gtRayUbo.raySampleVec[9].rgb+vec3(1.))/2.,1.);
-
-    // outColor=textureLod(extCoeffSampler,vec3(0.5),float(int(dicomUbo.steps/100.)));
+    
+    // test 用来测试pushConstants是否有效
+    // outColor=textureLod(extCoeffSampler,vec3(.5),float(int(dicomUbo.steps/100.)));
+    
+    // test 用来测试
+    // outColor=vec4(texelFetch(TexOccConeSectionsInfo,13,0).rgb/255.,1.);
 }

@@ -39,8 +39,8 @@ vec4 GaussianFilter(uvec3 globalIdx){
     // Compute the current Gaussian filter from [-vtk, vtk]
     // int vtk=3*int(pow(2.0,pushConstants.currentLevel-1.));
     int vtk=3;
-    // float sigma=pow(2.0,pushConstants.currentLevel);// 层级sigma
-    float sigma=1.; // 保持sigma不变
+    // float sigma=pow(2.0,pushConstants.currentLevel);// 层级sigma，高低分辨率下的mip效果均很差
+    float sigma=1.; // 保持sigma不变，高低分辨率下的mip效果均很好
     for(int ptx=-vtk;ptx<=vtk;ptx++){
         for(int pty=-vtk;pty<=vtk;pty++){
             for(int ptz=-vtk;ptz<=vtk;ptz++){
@@ -53,7 +53,7 @@ vec4 GaussianFilter(uvec3 globalIdx){
                 float weight=(sigma*sigma*sigma)*exp(-(fx*fx+fy*fy+fz*fz)/(2.*sigma*sigma));
                 // 计算采样位置，采样位置为当前全局索引除以3D纹理的尺寸，以保证采样坐标在[0, 1]的范围内
                 float posScale = pow(2.0, pushConstants.currentLevel);
-                vec3 samplePos=((vec3(globalIdx)+vec3(.5))*posScale + vec3(fx,fy,fz))/dicomUbo.voxelResolution;
+                vec3 samplePos=((vec3(globalIdx)+vec3(.5))*posScale + vec3(fx,fy,fz))/vec3(512.,512.,512.);
                 // 采样当前位置的颜色值
                 // vec4 color=textureLod(TexInputVolume,samplePos,pushConstants.currentLevel-1.);// 存储原始像素值的高八位和第八位,这样会对边界进行平滑,从而在计算intensity后截断,使得边界更加清晰
                 vec4 color = texture(TexInputVolume, samplePos);
@@ -96,8 +96,8 @@ vec4 GaussianFilterIntensity(uvec3 globalIdx){
                 float posScale = pow(2.0, pushConstants.currentLevel);
                 vec3 samplePos=((vec3(globalIdx)+vec3(.5))*posScale + vec3(fx,fy,fz))/dicomUbo.voxelResolution;
                 // 采样当前位置的intensity值
-                vec4 sampleColor=textureLod(TexInputVolume,samplePos,pushConstants.currentLevel-1.);
-                // vec4 sampleColor=texture(TexInputVolume,samplePos);
+                // vec4 sampleColor=textureLod(TexInputVolume,samplePos,pushConstants.currentLevel-1.);
+                vec4 sampleColor=texture(TexInputVolume,samplePos);
                 float intensity=sampleColor.r;
                 intensity=clamp(intensity,0.,1.);
                 
@@ -137,7 +137,7 @@ void main(){
     // imageStore(TexOutputVolume,ivec3(globalIdx),vec4(GaussianFilterIntensity(globalIdx).r,0.,0.,0.));// 高斯滤波，存储intensity
     imageStore(TexOutputVolume,ivec3(globalIdx),vec4(GaussianFilter(globalIdx).rgb,1.));// 高斯滤波，存储高低8位
 
-    // test
+    // test 用来测试pushConstants是否有效
     // imageStore(TexOutputVolume,ivec3(globalIdx),vec4(pushConstants.currentLevel/10.,pushConstants.currentLevel/10.,pushConstants.currentLevel/10.,1.));
     
 }
