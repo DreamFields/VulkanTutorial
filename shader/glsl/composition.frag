@@ -52,11 +52,22 @@ layout(location=0)out vec4 outColor;
 #define CONSIDER_BORDERS
 // #define USE_EARLY_TERMINATION
 //#define ALWAYS_SPLIT_CONES
-//#define USE_FALLOFF_FUNCTION
+// #define USE_FALLOFF_FUNCTION
 
 #ifdef USE_EARLY_TERMINATION
 const float max_ext=log(1./.05);
 #endif
+
+float falloffunction(float d)
+{
+    float lmb=0.f;
+    
+    float p0=1.f;
+    float p1=d/512.f;
+    float p2=1.f-exp(-d/512.f);
+    float p3=sqrt(d/512.f);
+    return 2.04f*p3;
+}
 
 // volume的真实最大边
 float maxVolumeRealEdge=dicomUbo.realSize.r/dicomUbo.boxSize.r;
@@ -210,11 +221,11 @@ float Cone7RayOcclusion(vec3 volume_pos_from_zero,float track_distance,vec3 cone
             
             float amptau=gaussian_amp*Tau_s;
             
-            // #ifdef USE_FALLOFF_FUNCTION
-            // occ_rays[i]+=(last_amptau[i]+amptau)*d_integral*falloffunction(track_distance);
-            // #else
+            #ifdef USE_FALLOFF_FUNCTION
+            occ_rays[i]+=(last_amptau[i]+amptau)*d_integral*falloffunction(track_distance);
+            #else
             occ_rays[i]+=(last_amptau[i]+amptau)*d_integral/* *OccUIWeight */;
-            // #endif
+            #endif
             last_amptau[i]=amptau;
         }
         
@@ -284,11 +295,11 @@ float Cone3RayOcclusion(vec3 volume_pos_from_zero,float track_distance,vec3 cone
             
             float amptau=Tau_s*gaussian_amp;
             
-            // #ifdef USE_FALLOFF_FUNCTION
-            // occ_rays[i]+=(last_amptau[i]+amptau)*d_integral*falloffunction(track_distance);
-            // #else
+            #ifdef USE_FALLOFF_FUNCTION
+            occ_rays[i]+=(last_amptau[i]+amptau)*d_integral*falloffunction(track_distance);
+            #else
             occ_rays[i]+=(last_amptau[i]+amptau)*d_integral/* *OccUIWeight */;
-            // #endif
+            #endif
             
             last_amptau[i]=amptau;
         }
@@ -352,11 +363,11 @@ float Cone1RayOcclusion(vec3 volume_pos_from_zero,vec3 coneDir,vec3 cameraUp,vec
         
         float amptau=Tau_s*gaussian_amp;
         
-        // #ifdef USE_FALLOFF_FUNCTION
-        // occ_rays[0]+=(last_amptau[0]+amptau)*d_integral*falloffunction(track_distance);
-        // #else
+        #ifdef USE_FALLOFF_FUNCTION
+        occ_rays[0]+=(last_amptau[0]+amptau)*d_integral*falloffunction(track_distance);
+        #else
         occ_rays[0]+=(last_amptau[0]+amptau)*d_integral/* *OccUIWeight */;
-        // #endif
+        #endif
         
         last_amptau[0]=amptau;
         
@@ -456,6 +467,9 @@ vec4 ShadeSample(vec3 worldPos,vec3 dir,vec3 v_up,vec3 v_right){
         ka=.5f;
         IOcclusion=Cone1RayOcclusion(worldPos2VolumePos(worldPos),-dir,v_up,v_right); // cone trace
         // IOcclusion=SingleScatterPathTracing(worldPos2VolumePos(worldPos),-dir,v_up,v_right); // single scatter path tracing
+        
+        // test 加深阴影的颜色
+        // IOcclusion=pow(IOcclusion,6.);
     }
     
     // Shadows

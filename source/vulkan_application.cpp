@@ -1658,7 +1658,7 @@ void VulkanApplication::recordGenExtCoffMipmaps(uint32_t currentFrame) {
             textureTarget.image, VK_IMAGE_LAYOUT_TRANSFER_SRC_OPTIMAL,
             textureTarget.image, VK_IMAGE_LAYOUT_TRANSFER_DST_OPTIMAL,
             1, &imageBlit,
-            VK_FILTER_NEAREST);
+            VK_FILTER_LINEAR);
 
         // Transition current mip level to transfer source for read in next iteration
         barrier.oldLayout = VK_IMAGE_LAYOUT_TRANSFER_DST_OPTIMAL;

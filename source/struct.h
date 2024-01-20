@@ -139,6 +139,9 @@ struct ExampleConfig {
     double windowWidth = 100.0f;
     double windowCenter = 0.0f;
     double stepLength = 0.01f;
+
+    double alphaCorrection = 100.0f;
+    double glow = 1.5f;
 };
 /*
 -------------angle0-------------
@@ -146,19 +149,25 @@ struct ExampleConfig {
     glm::vec3(0.214537, 0.976634, 0.012635),
     glm::vec3(-0.0384151, -0.00448895, 0.999252),
 -------------angle1-------------
-cameraPos: -1.49038, 0.304991, 0.478309
-cameraFront: 0.995176, 0.0975032, 0.0108454
-cameraUp: -0.0110193, 0.00124452, 0.999938
+    glm::vec3(-1.49038, 0.304991, 0.478309),
+    glm::vec3(0.995176, 0.0975032, 0.0108454),
+    glm::vec3(-0.0110193, 0.00124452, 0.999938),
+-------------angle2-------------
+cameraPos: -1.40192, -0.117714, 0.534995
+cameraFront: 0.950949, 0.308853, -0.017497
+cameraUp: 0.0168407, 0.00479104, 0.999847
  */
 static inline ExampleConfig head = {
     "head",
     "C:\\Users\\Dream\\Documents\\00.Dicom\\ede6fe9eda6e44a98b3ad20da6f9116a Anonymized29\\Unknown Study\\CT Head 5.0000\\",
-    glm::vec3(-1.49038, 0.304991, 0.478309),
-    glm::vec3(0.995176, 0.0975032, 0.0108454),
-    glm::vec3(-0.0110193, 0.00124452, 0.999938),
+    glm::vec3(-1.40192, -0.117714, 0.534995),
+    glm::vec3(0.950949, 0.308853, -0.017497),
+    glm::vec3(0.0168407, 0.00479104, 0.999847),
     250.0f,
     250.0f,
-    0.001f
+    0.001f,
+    100.0f,
+    1.5f
 };
 
 
@@ -180,7 +189,9 @@ static inline ExampleConfig mouse = {
     glm::vec3(0.247846, 0.91784, -0.31007),
     2000.0f,
     50.0f,
-    0.01f
+    0.01f,
+    25.0f,
+    2.5f
 };
 
 static inline ExampleConfig chest = {
@@ -191,7 +202,9 @@ static inline ExampleConfig chest = {
     glm::vec3(-0.0319244, 0.470665, 0.881734),
     2000.0f,
     50.0f,
-    0.001f
+    0.001f,
+    100.0f,
+    1.5f
 };
 
 static inline std::unordered_map<int, ExampleConfig> dicomExamples = {

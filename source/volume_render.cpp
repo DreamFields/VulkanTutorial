@@ -219,10 +219,10 @@ bool VolumeRender::loadDicom(std::string path)
 
 	dicomParamControl.windowCenter = static_cast<float>(dicomTags.windowCenter);
 	dicomParamControl.windowWidth = static_cast<float>(dicomTags.windowWidth);
-	dicomParamControl.alphaCorrection = 25.0f;
+	dicomParamControl.alphaCorrection = dicomExamples[currentExampleID].alphaCorrection;
 	dicomParamControl.steps = 130;
 	dicomParamControl.stepLength = dicomExamples[currentExampleID].stepLength;
-	dicomParamControl.glow = 2.5f;
+	dicomParamControl.glow = dicomExamples[currentExampleID].glow;
 
 	return true;
 }
