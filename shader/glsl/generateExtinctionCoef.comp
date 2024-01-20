@@ -26,6 +26,15 @@ layout(binding=3)uniform sampler1D lutTexSampler;
 // 假设每个工作组的大小为8x8x8
 layout(local_size_x=8,local_size_y=8,local_size_z=8)in;
 
+#define USE_HIGH_RESOLUTION
+// #define USE_INTENSITY
+
+#ifdef USE_HIGH_RESOLUTION
+vec3 curResolution=vec3(512.,512.,512.);
+#else
+vec3 curResolution= dicomUbo.voxelResolution;
+#endif
+
 vec4 get3DTextureColor(vec3 texPos){
     if(texPos.x<0.f||texPos.y<0.f||texPos.z<0.f
     ||texPos.x>1.f||texPos.y>1.f||texPos.z>1.f)
@@ -60,7 +69,7 @@ vec4 GaussianFilter(uvec3 globalIdx){
                 // 计算当前位置的高斯权重
                 float weight=(sigma*sigma*sigma)*exp(-(fx*fx+fy*fy+fz*fz)/(2.*sigma*sigma));
                 // 计算采样位置，采样位置为当前全局索引除以3D纹理的尺寸，以保证采样坐标在[0, 1]的范围内
-                vec3 samplePos=(vec3(globalIdx)+vec3(fx,fy,fz)+vec3(.5))/vec3(512.,512.,512.);
+                vec3 samplePos=(vec3(globalIdx)+vec3(fx,fy,fz)+vec3(.5))/curResolution;
                 // 采样当前位置的颜色值
                 vec4 color=texture(TexInputVolume,samplePos);// 存储原始像素值的高八位和第八位,这样会对边界进行平滑,从而在计算intensity后截断,使得边界更加清晰
                 // vec4 color=get3DTextureColor(samplePos); // !不能存储intensity的高斯滤波,因为这样会模糊边界(边界外的intensity是0),之后可以考虑使用联合双边滤波
@@ -98,7 +107,7 @@ vec4 GaussianFilterIntensity(uvec3 globalIdx){
                 // 计算当前位置的高斯权重
                 float weight=(sigma*sigma*sigma)*exp(-(fx*fx+fy*fy+fz*fz)/(2.*sigma*sigma));
                 // 计算采样位置，采样位置为当前全局索引除以3D纹理的尺寸，以保证采样坐标在[0, 1]的范围内
-                vec3 samplePos=(vec3(globalIdx)+vec3(fx,fy,fz)+vec3(.5))/vec3(512.,512.,512.);
+                vec3 samplePos=(vec3(globalIdx)+vec3(fx,fy,fz)+vec3(.5))/curResolution;
                 // 采样当前位置的颜色值
                 vec4 sampleColor=texture(TexInputVolume,samplePos);
                 float intensity=sampleColor.r*255.+sampleColor.g*255.*255.-abs(dicomUbo.minVal);
@@ -187,9 +196,13 @@ void main(){
     
     // 将颜色值写入输出的3D图像
     // imageStore(TexOutputVolume,ivec3(globalIdx),vec4(intensity,0.,0.,0.));// 直接存储intensity
-    // imageStore(TexOutputVolume,ivec3(globalIdx),texture(TexInputVolume,samplePos));// 直接存储高低8位    
-    // imageStore(TexOutputVolume,ivec3(globalIdx),vec4(GaussianFilterIntensity(globalIdx).r,0.,0.,0.));// 高斯滤波，存储intensity
+    // imageStore(TexOutputVolume,ivec3(globalIdx),texture(TexInputVolume,samplePos));// 直接存储高低8位
+
+    #ifdef USE_INTENSITY    
+    imageStore(TexOutputVolume,ivec3(globalIdx),vec4(GaussianFilterIntensity(globalIdx).r,0.,0.,0.));// 高斯滤波，存储intensity
+    #else
     imageStore(TexOutputVolume,ivec3(globalIdx),vec4(GaussianFilter(globalIdx).rgb,1.));// 高斯滤波，存储高低8位
+    #endif
     
     // test
     // imageStore(TexOutputVolume,ivec3(globalIdx),genDistanceField(globalIdx));

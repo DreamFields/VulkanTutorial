@@ -53,6 +53,7 @@ layout(location=0)out vec4 outColor;
 // #define USE_EARLY_TERMINATION
 //#define ALWAYS_SPLIT_CONES
 // #define USE_FALLOFF_FUNCTION
+// #define USE_INTENSITY
 
 #ifdef USE_EARLY_TERMINATION
 const float max_ext=log(1./.05);
@@ -111,6 +112,7 @@ vec4 getExtCoeff(vec3 worldPos){
     vec4 sampleColor=textureLod(extCoeffSampler,texPos,float(mipLevel));
     // return sampleColor;
     
+    #ifndef USE_INTENSITY
     // 当extCoeffSampler存的是高低8位时使用下面的代码
     float intensity=sampleColor.r*255.+sampleColor.g*255.*255.-abs(dicomUbo.minVal);
     intensity=(intensity-dicomUbo.windowCenter)/dicomUbo.windowWidth+.5;
@@ -120,13 +122,15 @@ vec4 getExtCoeff(vec3 worldPos){
     // return vec4(color,intensity);
     return vec4(intensity);
     
+    #else
     // 当extCoeffSampler存的是intensity时使用下面的代码
-    // float intensity=sampleColor.r;
-    // intensity=clamp(intensity,0.,1.);
-    // if(intensity==0.)return vec4(0.);
-    // vec3 color=texture(lutTexSampler,intensity).rgb;
-    // // return vec4(color,intensity);
-    // return vec4(intensity);
+    float intensity=sampleColor.r;
+    intensity=clamp(intensity,0.,1.);
+    if(intensity==0.)return vec4(0.);
+    vec3 color=texture(lutTexSampler,intensity).rgb;
+    // return vec4(color,intensity);
+    return vec4(intensity);
+    #endif
     
 }
 
@@ -163,6 +167,7 @@ float GetGaussianExtinction(vec3 volume_pos,float mipmaplevel){
     // tex_pos = clamp(tex_pos, 0., 1.); // !如果不clamp，那么在最前方的体素会接收到后方的遮蔽，因为纹理是repeat的，导致最前方出现黑色遮蔽值
     vec4 sampleColor=textureLod(extCoeffSampler,tex_pos,mipmaplevel);
     
+    #ifndef USE_INTENSITY
     // 当extCoeffSampler存的是高低8位时使用下面的代码
     float intensity=sampleColor.r*255.+sampleColor.g*255.*255.-abs(dicomUbo.minVal);
     intensity=(intensity-dicomUbo.windowCenter)/dicomUbo.windowWidth+.5;
@@ -170,9 +175,11 @@ float GetGaussianExtinction(vec3 volume_pos,float mipmaplevel){
     // return 1.-intensity;
     return intensity;
     
+    #else
     // 当extCoeffSampler存的是intensity时使用下面的代码
-    // if(sampleColor.r==0.)return 0.;
-    // return sampleColor.r;
+    if(sampleColor.r==0.)return 0.;
+    return sampleColor.r;
+    #endif
 }
 
 float Cone7RayOcclusion(vec3 volume_pos_from_zero,float track_distance,vec3 coneDir,vec3 cameraUp,vec3 cameraRight)

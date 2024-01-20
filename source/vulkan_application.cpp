@@ -1105,18 +1105,29 @@ void VulkanApplication::prepareTextureTarget() {
     assert(formatProperties.optimalTilingFeatures & VK_FORMAT_FEATURE_STORAGE_IMAGE_BIT);
 
     // Prepare blit target texture
+    int32_t mipWidth, mipHeight, mipDepth;
+    if (isHighResolution) {
+        mipWidth = 512;
+        mipHeight = 512;
+        mipDepth = 512;
+    }
+    else{
+        mipWidth = volumeRender->getDicomTags().voxelResolution[0];
+        mipHeight = volumeRender->getDicomTags().voxelResolution[1];
+        mipDepth = volumeRender->getDicomTags().voxelResolution[2];
+    } 
     VkImageCreateInfo imageCreateInfo = {};
     imageCreateInfo.sType = VK_STRUCTURE_TYPE_IMAGE_CREATE_INFO;
     imageCreateInfo.imageType = VK_IMAGE_TYPE_3D;
     imageCreateInfo.format = VK_FORMAT_R8G8B8A8_UNORM;
-    imageCreateInfo.extent = { static_cast<unsigned int>(512)
-        , static_cast<unsigned int>(512)
-        , static_cast<unsigned int>(512) };
+    imageCreateInfo.extent = { static_cast<unsigned int>(mipWidth)
+        , static_cast<unsigned int>(mipHeight)
+        , static_cast<unsigned int>(mipDepth) };
     textureTarget.mipLevels = static_cast<uint32_t>(std::floor(
         std::log2(
             std::max(
-                std::max(512, 512),
-                512)
+                std::max(mipWidth, mipHeight),
+                mipDepth)
         ))) + 1;  // mipmap 级别  
     imageCreateInfo.mipLevels = textureTarget.mipLevels;
     imageCreateInfo.arrayLayers = 1;
@@ -1429,8 +1440,9 @@ void VulkanApplication::recordComputeCommandBuffer(uint32_t currentFrame) {
     vkCmdBindDescriptorSets(computeResources.commandBuffers[currentFrame], VK_PIPELINE_BIND_POINT_COMPUTE, computeResources.pipelineLayout, 0, 1, &computeResources.descriptorSets[currentFrame], 0, 0);
 
     // Dispatch the compute job
-    // vkCmdDispatch(computeResources.commandBuffers[currentFrame], volumeRender->getDicomTags().voxelResolution[0] / 8, volumeRender->getDicomTags().voxelResolution[1] / 8, volumeRender->getDicomTags().voxelResolution[2] / 8);
-    vkCmdDispatch(computeResources.commandBuffers[currentFrame], 512/8, 512/8, 512/8);
+    if (isHighResolution) vkCmdDispatch(computeResources.commandBuffers[currentFrame], 512 / 8, 512 / 8, 512 / 8);
+    else vkCmdDispatch(computeResources.commandBuffers[currentFrame], volumeRender->getDicomTags().voxelResolution[0] / 8, volumeRender->getDicomTags().voxelResolution[1] / 8, volumeRender->getDicomTags().voxelResolution[2] / 8);
+
 
     // end recording command buffer
     if (vkEndCommandBuffer(computeResources.commandBuffers[currentFrame]) != VK_SUCCESS) { // 结束记录命令缓冲区
@@ -1609,12 +1621,18 @@ void VulkanApplication::recordGenExtCoffMipmaps(uint32_t currentFrame) {
         0, nullptr,
         1, &barrier);
 
-    // int32_t mipWidth = volumeRender->getDicomTags().voxelResolution[0];
-    // int32_t mipHeight = volumeRender->getDicomTags().voxelResolution[1];
-    // int32_t mipDepth = volumeRender->getDicomTags().voxelResolution[2];
-    int32_t mipWidth = 512;
-    int32_t mipHeight = 512;
-    int32_t mipDepth = 512;
+    int32_t mipWidth, mipHeight, mipDepth;
+    if (isHighResolution) {
+        mipWidth = 512;
+        mipHeight = 512;
+        mipDepth = 512;
+    }
+    else{
+        mipWidth = volumeRender->getDicomTags().voxelResolution[0];
+        mipHeight = volumeRender->getDicomTags().voxelResolution[1];
+        mipDepth = volumeRender->getDicomTags().voxelResolution[2];
+    }
+
     // Copy down mips from n-1 to n
     for (uint32_t i = 1; i < textureTarget.mipLevels; i++) {
         // Transition current mip level to transfer dest
@@ -1704,13 +1722,17 @@ void VulkanApplication::recordGenExtCoffMipmaps(uint32_t currentFrame) {
 void VulkanApplication::recordGenGaussianMipmaps() {
     vkQueueWaitIdle(computeResources.queue);
 
-    // int32_t mipWidth = volumeRender->getDicomTags().voxelResolution[0];
-    // int32_t mipHeight = volumeRender->getDicomTags().voxelResolution[1];
-    // int32_t mipDepth = volumeRender->getDicomTags().voxelResolution[2];
-    int32_t mipWidth = 512;
-    int32_t mipHeight = 512;
-    int32_t mipDepth = 512;    
-    int currentLevel = 1;
+    int32_t mipWidth, mipHeight, mipDepth;
+    if (isHighResolution) {
+        mipWidth = 512;
+        mipHeight = 512;
+        mipDepth = 512;
+    }
+    else{
+        mipWidth = volumeRender->getDicomTags().voxelResolution[0];
+        mipHeight = volumeRender->getDicomTags().voxelResolution[1];
+        mipDepth = volumeRender->getDicomTags().voxelResolution[2];
+    }
     for (size_t currentLevel = 1; currentLevel < textureTarget.mipLevels; currentLevel++) {
 
         if (mipWidth > 1) mipWidth /= 2;
