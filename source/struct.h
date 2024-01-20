@@ -156,18 +156,22 @@ struct ExampleConfig {
 cameraPos: -1.40192, -0.117714, 0.534995
 cameraFront: 0.950949, 0.308853, -0.017497
 cameraUp: 0.0168407, 0.00479104, 0.999847
+
+-------------intensity0-------------
+    250.0f,
+    250.0f,
  */
 static inline ExampleConfig head = {
     "head",
     "C:\\Users\\Dream\\Documents\\00.Dicom\\ede6fe9eda6e44a98b3ad20da6f9116a Anonymized29\\Unknown Study\\CT Head 5.0000\\",
-    glm::vec3(-1.40192, -0.117714, 0.534995),
-    glm::vec3(0.950949, 0.308853, -0.017497),
-    glm::vec3(0.0168407, 0.00479104, 0.999847),
-    250.0f,
-    250.0f,
-    0.001f,
-    100.0f,
-    1.5f
+    glm::vec3(0.0709212, -1.45329, 0.47473),
+    glm::vec3(0.214537, 0.976634, 0.012635),
+    glm::vec3(-0.0384151, -0.00448895, 0.999252),
+    250.0f, // windowCenter
+    250.0f, // windowWidth
+    0.001f, // stepLength
+    100.0f, // alphaCorrection
+    1.5f // glow
 };
 
 

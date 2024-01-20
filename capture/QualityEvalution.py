@@ -7,8 +7,11 @@ from PIL import Image
 import lpips
 import torch
 
-curExampleID = 0
-angleID = 2
+# 测试配置
+curExampleID = 0 # 测试用例ID
+angleID = 2 # 角度ID
+wlwwID = 0 # 窗宽窗位ID
+basePath = 'capture/example'+str(curExampleID)+'/angle'+str(angleID)+'/wlww'+str(wlwwID)+'/' # 测试用例路径
 
 # 测试两张图片的PSNR值，值越大，表示两张图片越相似
 """ 
@@ -82,114 +85,60 @@ def diff(image1_path, image2_path):
     cv2.imwrite('capture/Gaussian0/example'+str(curExampleID)+'/diff/diff.png', diff)
     return diff
 
-def testAngle1():
-    angleID = 1
-    curPT = 'capture/PT/example'+str(curExampleID)+'/angle'+str(angleID)+'.png' 
+"""
+测试方法：是否使用intensity+是否使用高分辨率
+"""
+def mainTest():
+    curPT = basePath+'PT.png'
 
-    angleX = 'capture/Gaussian0/example'+str(curExampleID)+'/angle'+str(angleID)+'.png'
-    angle1_highRes = 'capture/Gaussian0/example'+str(curExampleID)+'/angle'+str(angleID)+'_highRes.png'
-    angle1_sigm_fixed_highRes = 'capture/GaussianMip/example'+str(curExampleID)+'/angle'+str(angleID)+'_sigm_fixed_highRes.png'
-    angle1_sigm_fixed_highRes_Cone8 = 'capture/GaussianMip/example'+str(curExampleID)+'/angle'+str(angleID)+'_sigm_fixed_highRes_Cone8.png'
-    angle1_sigm_fixed = 'capture/GaussianMip/example'+str(curExampleID)+'/angle'+str(angleID)+'_sigm_fixed.png'
-    angle1_sigm_vary = 'capture/GaussianMip/example'+str(curExampleID)+'/angle'+str(angleID)+'_sigm_vary.png'
-    angle1_sigm_fixed_lod= 'capture/GaussianMip/example'+str(curExampleID)+'/angle'+str(angleID)+'_sigm_fixed_lod.png'
-    angle1_sigm_vary_lod = 'capture/GaussianMip/example'+str(curExampleID)+'/angle'+str(angleID)+'_sigm_vary_lod.png'
+    fixed_lowRes = basePath+'fixed_lowRes.png'
+    vary_lowRes = basePath+'vary_lowRes.png'
+    fixed_highRes = basePath+'fixed_highRes.png'
+    vary_highRes = basePath+'vary_highRes.png'
 
-    angleX_intensity = 'capture/Gaussian0/example'+str(curExampleID)+'/angle'+str(angleID)+'_intensity.png'
-    angle1_sigm_fixed_intensity = 'capture/GaussianMip/example'+str(curExampleID)+'/angle'+str(angleID)+'_sigm_fixed_intensity.png'
-    angle1_sigm_vary_intensity = 'capture/GaussianMip/example'+str(curExampleID)+'/angle'+str(angleID)+'_sigm_vary_intensity.png'
-    angle1_sigm_fixed_intensity_lod = 'capture/GaussianMip/example'+str(curExampleID)+'/angle'+str(angleID)+'_sigm_fixed_intensity_lod.png'
-    angle1_sigm_vary_intensity_lod = 'capture/GaussianMip/example'+str(curExampleID)+'/angle'+str(angleID)+'_sigm_vary_intensity_lod.png'
-
+    fixed_lowRes_intensity = basePath+'fixed_lowRes_intensity.png'
+    vary_lowRes_intensity = basePath+'vary_lowRes_intensity.png'
+    fixed_highRes_intensity = basePath+'fixed_highRes_intensity.png'
+    vary_highRes_intensity = basePath+'vary_highRes_intensity.png'
 
     print("----------psnr-----------")
-    print(psnr(curPT, angleX)) #36.309629798918394
-    print(psnr(curPT, angle1_highRes)) # 36.81266191148056
-    print(psnr(curPT, angle1_sigm_fixed_highRes)) # 36.74755612418086
-    print(psnr(curPT, angle1_sigm_fixed_highRes_Cone8)) # 36.352496083533794
-    print(psnr(curPT, angle1_sigm_fixed)) #36.61542375432933
-    print(psnr(curPT, angle1_sigm_vary)) #36.27420600443534
-    print(psnr(curPT, angle1_sigm_fixed_lod)) #36.61542375432933
-    print(psnr(curPT, angle1_sigm_vary_lod)) #36.24794802172406
-    # print("----------psnr_intensity-----------")
-    # print(psnr(curPT, angleX_intensity)) #37.92412527586112
-    # print(psnr(curPT, angle1_sigm_fixed_intensity)) #37.89633017011268
-    # print(psnr(curPT, angle1_sigm_vary_intensity)) #! 38.198993179552005
-    # print(psnr(curPT, angle1_sigm_fixed_intensity_lod)) #37.95013853543789
-    # print(psnr(curPT, angle1_sigm_vary_intensity_lod)) #38.15523852205405
-
-    print("----------ssim-----------")
-    print(ssim(curPT, angleX)) #0.9698171643386634
-    print(ssim(curPT, angle1_highRes)) #0.9785990552768546
-    print(ssim(curPT, angle1_sigm_fixed_highRes)) #0.9785904879706786
-    print(ssim(curPT, angle1_sigm_fixed_highRes_Cone8)) #0.9746597403066031
-    print(ssim(curPT, angle1_sigm_fixed)) #0.9735029343157304
-    print(ssim(curPT, angle1_sigm_vary)) #0.9698835268702423
-    print(ssim(curPT, angle1_sigm_fixed_lod)) #0.9735029343157304
-    print(ssim(curPT, angle1_sigm_vary_lod)) #0.9692338226701316
-    # print("----------ssim_intensity-----------")
-    # print(ssim(curPT, angleX_intensity)) #! 0.974892510737444
-    # print(ssim(curPT, angle1_sigm_fixed_intensity)) #0.9738586277718134
-    # print(ssim(curPT, angle1_sigm_vary_intensity)) #0.9725451701517486
-    # print(ssim(curPT, angle1_sigm_fixed_intensity_lod)) #0.9738369617295769
-    # print(ssim(curPT, angle1_sigm_vary_intensity_lod)) #0.9723973537708711
-
-"""
-测试方法：角度+是否使用intensity+是否使用高分辨率
-"""
-def testHeadAngle2():
-    angleID = 2
-    curPT = 'capture/PT/example'+str(curExampleID)+'/angle'+str(angleID)+'.png'
-
-    angle2_sigm_fixed_lowRes = 'capture/GaussianMip/example'+str(curExampleID)+'/angle'+str(angleID)+'_sigm_fixed_lowRes.png'
-    angle2_sigm_vary_lowRes = 'capture/GaussianMip/example'+str(curExampleID)+'/angle'+str(angleID)+'_sigm_vary_lowRes.png'
-    angle2_sigm_fixed_highRes = 'capture/GaussianMip/example'+str(curExampleID)+'/angle'+str(angleID)+'_sigm_fixed_highRes.png'
-    angle2_sigm_vary_highRes = 'capture/GaussianMip/example'+str(curExampleID)+'/angle'+str(angleID)+'_sigm_vary_highRes.png'
-
-    angle2_sigm_fixed_lowRes_intensity = 'capture/GaussianMip/example'+str(curExampleID)+'/angle'+str(angleID)+'_sigm_fixed_lowRes_intensity.png'
-    angle2_sigm_vary_lowRes_intensity = 'capture/GaussianMip/example'+str(curExampleID)+'/angle'+str(angleID)+'_sigm_vary_lowRes_intensity.png'
-    angle2_sigm_fixed_highRes_intensity = 'capture/GaussianMip/example'+str(curExampleID)+'/angle'+str(angleID)+'_sigm_fixed_highRes_intensity.png'
-    angle2_sigm_vary_highRes_intensity = 'capture/GaussianMip/example'+str(curExampleID)+'/angle'+str(angleID)+'_sigm_vary_highRes_intensity.png'
-
-    print("----------psnr-----------")
-    # print(psnr(curPT, angle2_sigm_fixed_lowRes)) # 34.236170970305004 
-    print(psnr(curPT, angle2_sigm_vary_lowRes)) # 33.9792714836159
-    # print(psnr(curPT, angle2_sigm_fixed_highRes)) # 35.896154543860625
-    print(psnr(curPT, angle2_sigm_vary_highRes)) # 35.77892888310162
+    # print(psnr(curPT, fixed_lowRes)) # 34.236170970305004 
+    print(psnr(curPT, vary_lowRes)) # 33.9792714836159
+    # print(psnr(curPT, fixed_highRes)) # 35.896154543860625
+    print(psnr(curPT, vary_highRes)) # 35.77892888310162
     print("----------psnr_intensity-----------")
-    # print(psnr(curPT, angle2_sigm_fixed_lowRes_intensity)) # 
-    print(psnr(curPT, angle2_sigm_vary_lowRes_intensity)) # 31.45566439924559
-    # print(psnr(curPT, angle2_sigm_fixed_highRes_intensity)) # 
-    print(psnr(curPT, angle2_sigm_vary_highRes_intensity)) # 39.60437649787264
+    # print(psnr(curPT, fixed_lowRes_intensity)) # 
+    print(psnr(curPT, vary_lowRes_intensity)) # 31.45566439924559
+    # print(psnr(curPT, fixed_highRes_intensity)) # 
+    print(psnr(curPT, vary_highRes_intensity)) # 39.60437649787264
     # 结论：高分辨率intensity>高分辨率高低8位>低分辨率高低8位>低分辨率intensity
 
     print("----------ssim-----------")
-    # print(ssim(curPT, angle2_sigm_fixed_lowRes)) # 
-    print(ssim(curPT, angle2_sigm_vary_lowRes)) # 0.9857400794862187
-    # print(ssim(curPT, angle2_sigm_fixed_highRes)) # 
-    print(ssim(curPT, angle2_sigm_vary_highRes)) # 0.9892738495638302
+    # print(ssim(curPT, fixed_lowRes)) # 
+    print(ssim(curPT, vary_lowRes)) # 0.9857400794862187
+    # print(ssim(curPT, fixed_highRes)) # 
+    print(ssim(curPT, vary_highRes)) # 0.9892738495638302
     print("----------ssim_intensity-----------")
-    # print(ssim(curPT, angle2_sigm_fixed_lowRes_intensity)) # 
-    print(ssim(curPT, angle2_sigm_vary_lowRes_intensity)) # 0.9770597676123973
-    # print(ssim(curPT, angle2_sigm_fixed_highRes_intensity)) # 
-    print(ssim(curPT, angle2_sigm_vary_highRes_intensity)) # 0.9943743766202002
+    # print(ssim(curPT, fixed_lowRes_intensity)) # 
+    print(ssim(curPT, vary_lowRes_intensity)) # 0.9770597676123973
+    # print(ssim(curPT, fixed_highRes_intensity)) # 
+    print(ssim(curPT, vary_highRes_intensity)) # 0.9943743766202002
     # 结论：高分辨率intensity>高分辨率高低8位>低分辨率高低8位>低分辨率intensity
 
     print("----------LPIPS-----------")
-    # print(LPIPS(curPT, angle2_sigm_fixed_lowRes)) # 
-    print(LPIPS(curPT, angle2_sigm_vary_lowRes)) # 0.025452062487602234
-    # print(LPIPS(curPT, angle2_sigm_fixed_highRes)) # 
-    print(LPIPS(curPT, angle2_sigm_vary_highRes)) # 0.01834018900990486
+    # print(LPIPS(curPT, fixed_lowRes)) # 
+    print(LPIPS(curPT, vary_lowRes)) # 0.025452062487602234
+    # print(LPIPS(curPT, fixed_highRes)) # 
+    print(LPIPS(curPT, vary_highRes)) # 0.01834018900990486
     print("----------LPIPS_intensity-----------")
-    # print(LPIPS(curPT, angle2_sigm_fixed_lowRes_intensity)) # 
-    print(LPIPS(curPT, angle2_sigm_vary_lowRes_intensity)) # 0.04378775879740715
-    # print(LPIPS(curPT, angle2_sigm_fixed_highRes_intensity)) # 
-    print(LPIPS(curPT, angle2_sigm_vary_highRes_intensity)) # 0.008849206380546093
+    # print(LPIPS(curPT, fixed_lowRes_intensity)) # 
+    print(LPIPS(curPT, vary_lowRes_intensity)) # 0.04378775879740715
+    # print(LPIPS(curPT, fixed_highRes_intensity)) # 
+    print(LPIPS(curPT, vary_highRes_intensity)) # 0.008849206380546093
     # 结论：高分辨率intensity>高分辨率高低8位>低分辨率高低8位>低分辨率intensity
 
 def testPSNR():
     print("----------psnr-----------")
 
 if __name__ == '__main__':
-    # testAngle1()
-    testHeadAngle2()
+    mainTest()
