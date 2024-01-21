@@ -78,7 +78,7 @@ public:
 	std::shared_ptr<Camera> camera;
 
 private:
-	int currentExampleID = 0; // * 当前的示例ID
+	int currentExampleID = 1; // * 当前的示例ID
 	std::vector<Vertex> vertices;
 	std::vector<uint16_t> indices;
 	GLFWwindow* window;
@@ -217,7 +217,8 @@ private:
 	// end imgui
 
 	// begin compute
-	bool isHighResolution = true; // *是否使用高分辨率,同时需要设置generateExtinctionCoefMipmap.comp和generateExtinctionCoef.comp中的高分辨率宏	
+	bool isHighResolution = false; // *是否使用高分辨率,同时需要设置generateExtinctionCoefMipmap.comp和generateExtinctionCoef.comp中的高分辨率宏	
+	bool isLowResolution = false; // *是否使用低分辨率,同时需要设置generateExtinctionCoefMipmap.comp和generateExtinctionCoef.comp中的低分辨率宏
 	Compute computeResources;   // Compute resources
 	TextureTarget textureTarget; // Target image for compute shader writes
 	StaticCompute gaussianComputeResources; // Gaussian compute resources

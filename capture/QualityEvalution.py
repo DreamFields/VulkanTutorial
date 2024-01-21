@@ -8,8 +8,8 @@ import lpips
 import torch
 
 # 测试配置
-curExampleID = 0 # 测试用例ID
-angleID = 0 # 角度ID
+curExampleID = 1 # 测试用例ID
+angleID = 1 # 角度ID
 wlwwID = 0 # 窗宽窗位ID
 basePath = 'capture/example'+str(curExampleID)+'/angle'+str(angleID)+'/wlww'+str(wlwwID)+'/' # 测试用例路径
 

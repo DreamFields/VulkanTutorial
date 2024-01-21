@@ -153,7 +153,7 @@ struct ExampleConfig {
     glm::vec3(0.950949, 0.308853, -0.017497),
     glm::vec3(0.0168407, 0.00479104, 0.999847),
 
--------------intensity0-------------
+-------------wlww0-------------
     250.0f,
     250.0f,
  */
@@ -180,6 +180,9 @@ static inline ExampleConfig head = {
     glm::vec3(-0.956015, 1.27532, 1.6312),
     glm::vec3(0.727942, -0.387625, -0.56555),
     glm::vec3(0.247846, 0.91784, -0.31007),
+-------------wlww0-------------
+    2000.0f,
+    50.0f,
  */
 static inline ExampleConfig mouse = {
     "mouse",
@@ -187,11 +190,11 @@ static inline ExampleConfig mouse = {
     glm::vec3(-0.956015, 1.27532, 1.6312),
     glm::vec3(0.727942, -0.387625, -0.56555),
     glm::vec3(0.247846, 0.91784, -0.31007),
-    2000.0f,
-    50.0f,
-    0.01f,
-    25.0f,
-    2.5f
+    2000.0f, // windowCenter
+    50.0f, // windowWidth
+    0.01f, // stepLength
+    25.0f,  // alphaCorrection
+    2.5f // glow
 };
 
 static inline ExampleConfig chest = {

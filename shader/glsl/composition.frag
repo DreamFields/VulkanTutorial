@@ -53,6 +53,7 @@ layout(location=0)out vec4 outColor;
 // #define USE_EARLY_TERMINATION
 //#define ALWAYS_SPLIT_CONES
 // #define USE_FALLOFF_FUNCTION
+
 // #define USE_INTENSITY
 
 #ifdef USE_EARLY_TERMINATION
@@ -154,8 +155,8 @@ float last_amptau[7];
 float OccInitialStep=3.;
 float OccRay7AdjWeight=.972955;
 // vec4 OccConeRayAxes[10];
-// int OccConeIntegrationSamples[3]=int[](1,10,0);// mouse
-int OccConeIntegrationSamples[3]=int[](1,14,0);// head
+int OccConeIntegrationSamples[3]=int[](1,10,0);// mouse
+// int OccConeIntegrationSamples[3]=int[](1,14,0);// head
 
 vec4 GetOcclusionSectionInfo(int id)
 {

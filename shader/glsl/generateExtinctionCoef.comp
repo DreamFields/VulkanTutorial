@@ -12,7 +12,7 @@ layout(binding=2)uniform DicomUniformBufferObject{
     vec3 voxelSize;
     vec3 voxelResolution;
     vec3 boxSize;
-    vec3 realSize; //! 忘记更新了，导致窗宽窗位完全错误
+    vec3 realSize;//! 忘记更新了，导致窗宽窗位完全错误
     float windowCenter;
     float windowWidth;
     float minVal;
@@ -26,13 +26,18 @@ layout(binding=3)uniform sampler1D lutTexSampler;
 // 假设每个工作组的大小为8x8x8
 layout(local_size_x=8,local_size_y=8,local_size_z=8)in;
 
-#define USE_HIGH_RESOLUTION
+// #define USE_HIGH_RESOLUTION
+// #define USE_LOW_RESOLUTION
 // #define USE_INTENSITY
 
 #ifdef USE_HIGH_RESOLUTION
 vec3 curResolution=vec3(512.,512.,512.);
 #else
-vec3 curResolution= dicomUbo.voxelResolution;
+#ifdef USE_LOW_RESOLUTION
+vec3 curResolution=vec3(128.,128.,128.);
+#else
+vec3 curResolution=dicomUbo.voxelResolution;
+#endif
 #endif
 
 vec4 get3DTextureColor(vec3 texPos){
@@ -182,7 +187,7 @@ void main(){
     ivec3 globalIdx=ivec3(gl_GlobalInvocationID.xyz);// 计算着色器在3D图像中的位置
     
     // if(globalIdx.x>dicomUbo.voxelResolution.x-1
-    //     ||globalIdx.y>dicomUbo.voxelResolution.y-1
+        //     ||globalIdx.y>dicomUbo.voxelResolution.y-1
     // ||globalIdx.z>dicomUbo.voxelResolution.z-1)
     // return;
     
@@ -197,8 +202,8 @@ void main(){
     // 将颜色值写入输出的3D图像
     // imageStore(TexOutputVolume,ivec3(globalIdx),vec4(intensity,0.,0.,0.));// 直接存储intensity
     // imageStore(TexOutputVolume,ivec3(globalIdx),texture(TexInputVolume,samplePos));// 直接存储高低8位
-
-    #ifdef USE_INTENSITY    
+    
+    #ifdef USE_INTENSITY
     imageStore(TexOutputVolume,ivec3(globalIdx),vec4(GaussianFilterIntensity(globalIdx).r,0.,0.,0.));// 高斯滤波，存储intensity
     #else
     imageStore(TexOutputVolume,ivec3(globalIdx),vec4(GaussianFilter(globalIdx).rgb,1.));// 高斯滤波，存储高低8位

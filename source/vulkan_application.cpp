@@ -1111,6 +1111,11 @@ void VulkanApplication::prepareTextureTarget() {
         mipHeight = 512;
         mipDepth = 512;
     }
+    else if(isLowResolution){
+        mipWidth = 128;
+        mipHeight = 128;
+        mipDepth = 128;
+    } 
     else{
         mipWidth = volumeRender->getDicomTags().voxelResolution[0];
         mipHeight = volumeRender->getDicomTags().voxelResolution[1];
@@ -1441,6 +1446,7 @@ void VulkanApplication::recordComputeCommandBuffer(uint32_t currentFrame) {
 
     // Dispatch the compute job
     if (isHighResolution) vkCmdDispatch(computeResources.commandBuffers[currentFrame], 512 / 8, 512 / 8, 512 / 8);
+    else if (isLowResolution) vkCmdDispatch(computeResources.commandBuffers[currentFrame], 128 / 8, 128 / 8, 128 / 8);
     else vkCmdDispatch(computeResources.commandBuffers[currentFrame], volumeRender->getDicomTags().voxelResolution[0] / 8, volumeRender->getDicomTags().voxelResolution[1] / 8, volumeRender->getDicomTags().voxelResolution[2] / 8);
 
 
@@ -1627,6 +1633,11 @@ void VulkanApplication::recordGenExtCoffMipmaps(uint32_t currentFrame) {
         mipHeight = 512;
         mipDepth = 512;
     }
+    else if(isLowResolution){
+        mipWidth = 128;
+        mipHeight = 128;
+        mipDepth = 128;
+    }
     else{
         mipWidth = volumeRender->getDicomTags().voxelResolution[0];
         mipHeight = volumeRender->getDicomTags().voxelResolution[1];
@@ -1727,6 +1738,11 @@ void VulkanApplication::recordGenGaussianMipmaps() {
         mipWidth = 512;
         mipHeight = 512;
         mipDepth = 512;
+    }
+    else if(isLowResolution){
+        mipWidth = 128;
+        mipHeight = 128;
+        mipDepth = 128;
     }
     else{
         mipWidth = volumeRender->getDicomTags().voxelResolution[0];
