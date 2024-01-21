@@ -9,7 +9,7 @@ import torch
 
 # 测试配置
 curExampleID = 0 # 测试用例ID
-angleID = 2 # 角度ID
+angleID = 0 # 角度ID
 wlwwID = 0 # 窗宽窗位ID
 basePath = 'capture/example'+str(curExampleID)+'/angle'+str(angleID)+'/wlww'+str(wlwwID)+'/' # 测试用例路径
 
@@ -88,7 +88,7 @@ def diff(image1_path, image2_path):
 """
 测试方法：是否使用intensity+是否使用高分辨率
 """
-def mainTest():
+def mainTestHeadAngle1():
     curPT = basePath+'PT.png'
 
     fixed_lowRes = basePath+'fixed_lowRes.png'
@@ -137,8 +137,33 @@ def mainTest():
     print(LPIPS(curPT, vary_highRes_intensity)) # 0.008849206380546093
     # 结论：高分辨率intensity>高分辨率高低8位>低分辨率高低8位>低分辨率intensity
 
-def testPSNR():
+def mainTest():
+    PT = basePath+'PT.png'
+    lowRes = basePath+'lowRes.png'
+    highRes = basePath+'highRes.png'
+    lowRes_intensity = basePath+'lowRes_intensity.png'
+    highRes_intensity = basePath+'highRes_intensity.png'
+
     print("----------psnr-----------")
+    print(psnr(PT, lowRes)) # 
+    print(psnr(PT, highRes)) #
+    print("----------psnr_intensity-----------")
+    print(psnr(PT, lowRes_intensity)) #
+    print(psnr(PT, highRes_intensity)) #
+
+    print("----------ssim-----------")
+    print(ssim(PT, lowRes)) #
+    print(ssim(PT, highRes)) #
+    print("----------ssim_intensity-----------")
+    print(ssim(PT, lowRes_intensity)) #
+    print(ssim(PT, highRes_intensity)) #
+
+    print("----------LPIPS-----------")
+    print(LPIPS(PT, lowRes)) #
+    print(LPIPS(PT, highRes)) #
+    print("----------LPIPS_intensity-----------")
+    print(LPIPS(PT, lowRes_intensity)) #
+    print(LPIPS(PT, highRes_intensity)) #
 
 if __name__ == '__main__':
     mainTest()
