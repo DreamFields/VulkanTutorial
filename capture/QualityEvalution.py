@@ -8,7 +8,7 @@ import lpips
 import torch
 
 # 测试配置
-curExampleID = 1 # 测试用例ID
+curExampleID = 0 # 测试用例ID
 angleID = 1 # 角度ID
 wlwwID = 0 # 窗宽窗位ID
 basePath = 'capture/example'+str(curExampleID)+'/angle'+str(angleID)+'/wlww'+str(wlwwID)+'/' # 测试用例路径
@@ -143,6 +143,8 @@ def mainTest():
     highRes = basePath+'highRes.png'
     lowRes_intensity = basePath+'lowRes_intensity.png'
     highRes_intensity = basePath+'highRes_intensity.png'
+    highRes_intensity_vtk3 = basePath+'highRes_intensity_vtk3.png'
+    highRes_intensity_vtk10 = basePath+'highRes_intensity_vtk10.png'
 
     print("----------psnr-----------")
     print(psnr(PT, lowRes)) # 
@@ -150,6 +152,8 @@ def mainTest():
     print("----------psnr_intensity-----------")
     print(psnr(PT, lowRes_intensity)) #
     print(psnr(PT, highRes_intensity)) #
+    print(psnr(PT, highRes_intensity_vtk3)) #
+    print(psnr(PT, highRes_intensity_vtk10)) #
 
     print("----------ssim-----------")
     print(ssim(PT, lowRes)) #
@@ -157,6 +161,8 @@ def mainTest():
     print("----------ssim_intensity-----------")
     print(ssim(PT, lowRes_intensity)) #
     print(ssim(PT, highRes_intensity)) #
+    print(ssim(PT, highRes_intensity_vtk3)) #
+    print(ssim(PT, highRes_intensity_vtk10)) #
 
     print("----------LPIPS-----------")
     print(LPIPS(PT, lowRes)) #
@@ -164,6 +170,8 @@ def mainTest():
     print("----------LPIPS_intensity-----------")
     print(LPIPS(PT, lowRes_intensity)) #
     print(LPIPS(PT, highRes_intensity)) #
+    print(LPIPS(PT, highRes_intensity_vtk3)) #
+    print(LPIPS(PT, highRes_intensity_vtk10)) #
 
 if __name__ == '__main__':
     mainTest()

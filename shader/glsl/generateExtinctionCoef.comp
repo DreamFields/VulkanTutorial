@@ -132,6 +132,41 @@ vec4 GaussianFilterIntensity(uvec3 globalIdx){
     return vec4(resIntensity);
 }
 
+vec4 GaussianFilterIntensitySplit(uvec3 globalIdx){
+    float sumOfIntensity=0.f;
+    float sumOfWeight=0.f;
+    
+    // Compute the current Gaussian filter from [-vtk, vtk]
+    int vtk=3;
+    float sigma=1.;
+    // Apply the 1D Gaussian filter along the x, y, and z directions.
+    for (int dir = 0; dir < 3; ++dir) {
+        for (int pt = -vtk; pt <= vtk; pt++) {
+            float f = float(pt) * sigma;
+            // 计算当前位置的高斯权重
+            float weight = sigma * exp(-f * f / (2.0 * sigma * sigma));
+            // 计算采样位置，采样位置为当前全局索引除以3D纹理的尺寸，以保证采样坐标在[0, 1]的范围内
+            vec3 samplePos = vec3(globalIdx)+vec3(.5);
+            samplePos[dir] += f;
+            samplePos = samplePos / curResolution;
+            // 采样当前位置的颜色值
+            vec4 sampleColor=texture(TexInputVolume,samplePos);
+            float intensity=sampleColor.r*255.+sampleColor.g*255.*255.-abs(dicomUbo.minVal);
+            intensity=(intensity-dicomUbo.windowCenter)/dicomUbo.windowWidth+.5;
+            intensity=clamp(intensity,0.,1.);
+            
+            // 计算当前位置的高斯权重与颜色值的乘积
+            sumOfIntensity+=weight*intensity;
+            
+            // 计算当前位置的高斯权重之和
+            sumOfWeight+=weight;
+        }
+    }
+
+    float resIntensity=clamp(sumOfIntensity/sumOfWeight,0.,1.);
+    return vec4(resIntensity);
+}
+
 // todo 生成距离场的精度太低，导致渲染有噪点
 vec4 genDistanceField(uvec3 globalIdx){
     // 计算采样位置，采样位置为当前全局索引除以3D纹理的尺寸，以保证采样坐标在[0, 1]的范围内
@@ -204,7 +239,8 @@ void main(){
     // imageStore(TexOutputVolume,ivec3(globalIdx),texture(TexInputVolume,samplePos));// 直接存储高低8位
     
     #ifdef USE_INTENSITY
-    imageStore(TexOutputVolume,ivec3(globalIdx),vec4(GaussianFilterIntensity(globalIdx).r,0.,0.,0.));// 高斯滤波，存储intensity
+    imageStore(TexOutputVolume,ivec3(globalIdx),vec4(GaussianFilterIntensitySplit(globalIdx).r,0.,0.,0.));// 拆分高斯滤波，存储intensity
+    // imageStore(TexOutputVolume,ivec3(globalIdx),vec4(GaussianFilterIntensity(globalIdx).r,0.,0.,0.));// 高斯滤波，存储intensity
     #else
     imageStore(TexOutputVolume,ivec3(globalIdx),vec4(GaussianFilter(globalIdx).rgb,1.));// 高斯滤波，存储高低8位
     #endif

@@ -1760,6 +1760,8 @@ private:
 		// --------------------Compute submission-----------------
 		// !不必每一帧都提交计算命令，只有在计算命令完成之前才需要提交计算命令，如果之后修改了一些参数，只需要把isComplete设置为false即可
 		if (!computeResources.isComplete) {
+			// 测试下面代码的运行时间
+			auto start = std::chrono::high_resolution_clock::now();
 			// vkWaitForFences(device, 1, &computeResources.inFlightFences[currentFrame], VK_TRUE, UINT64_MAX);
 
 			// update uniform buffer
@@ -1788,6 +1790,10 @@ private:
 			recordGenExtCoffMipmaps(currentFrame);
 
 			recordGenGaussianMipmaps();
+
+			auto end = std::chrono::high_resolution_clock::now();
+			std::chrono::duration<double, std::milli> elapsed = end - start;
+			std::cout << "compute time: " << elapsed.count() << " ms" << std::endl;
 		}
 
 
