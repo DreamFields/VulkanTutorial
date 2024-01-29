@@ -54,7 +54,7 @@ layout(location=0)out vec4 outColor;
 //#define ALWAYS_SPLIT_CONES
 // #define USE_FALLOFF_FUNCTION
 
-// #define USE_INTENSITY
+#define USE_INTENSITY
 
 #ifdef USE_EARLY_TERMINATION
 const float max_ext=log(1./.05);

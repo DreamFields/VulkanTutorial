@@ -156,6 +156,9 @@ struct ExampleConfig {
 -------------wlww0-------------
     250.0f,
     250.0f,
+-------------wlww1-------------
+    1500.0f,
+    50.0f,
  */
 static inline ExampleConfig head = {
     "head",

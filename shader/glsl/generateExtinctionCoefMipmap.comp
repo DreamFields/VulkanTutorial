@@ -29,9 +29,9 @@ layout( push_constant ) uniform GenGaussianMMPushConstants
 // 假设每个工作组的大小为8x8x8
 layout(local_size_x=4,local_size_y=4,local_size_z=4)in;
 
-// #define USE_HIGH_RESOLUTION
+#define USE_HIGH_RESOLUTION
 // #define USE_LOW_RESOLUTION
-// #define USE_INTENSITY
+#define USE_INTENSITY
 
 #ifdef USE_HIGH_RESOLUTION
 vec3 curResolution=vec3(512.,512.,512.);

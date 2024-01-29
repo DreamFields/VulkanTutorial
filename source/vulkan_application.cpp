@@ -1024,8 +1024,12 @@ void VulkanApplication::drawImGui() {
         ImGui::SliderFloat("alphaCorrection", &volumeRender->dicomParamControl.alphaCorrection, 0.0f, 256.0f);
         ImGui::SliderInt("steps", &volumeRender->dicomParamControl.steps, 0, 1500);
         ImGui::SliderFloat("stepLength", &volumeRender->dicomParamControl.stepLength, 0.0f, 0.02f);
-        ImGui::SliderFloat("WindowWidth", &volumeRender->dicomParamControl.windowWidth, 0.0f, 1500.0f);
-        ImGui::SliderFloat("WindowCenter", &volumeRender->dicomParamControl.windowCenter, 50.0f, 2500.0f);
+        if(ImGui::SliderFloat("WindowWidth", &volumeRender->dicomParamControl.windowWidth, 0.0f, 1500.0f)){
+            computeResources.isComplete = false;
+        }
+        if(ImGui::SliderFloat("WindowCenter", &volumeRender->dicomParamControl.windowCenter, 50.0f, 2500.0f)){
+            computeResources.isComplete = false;
+        }
         ImGui::SliderFloat("glow", &volumeRender->dicomParamControl.glow, 0.0f, 30.0f);
 
         // add button ,once clicked, add the counter

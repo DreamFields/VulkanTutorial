@@ -78,7 +78,6 @@ public:
 	std::shared_ptr<Camera> camera;
 
 private:
-	int currentExampleID = 1; // * 当前的示例ID
 	std::vector<Vertex> vertices;
 	std::vector<uint16_t> indices;
 	GLFWwindow* window;
@@ -216,9 +215,13 @@ private:
 	void recordImGuiCommandBuffer(VkCommandBuffer commandBuffer, uint32_t imageIndex);
 	// end imgui
 
-	// begin compute
-	bool isHighResolution = false; // *是否使用高分辨率,同时需要设置generateExtinctionCoefMipmap.comp和generateExtinctionCoef.comp中的高分辨率宏	
+	// begin test
+	bool isHighResolution = true; // *是否使用高分辨率,同时需要设置generateExtinctionCoefMipmap.comp和generateExtinctionCoef.comp中的高分辨率宏	
 	bool isLowResolution = false; // *是否使用低分辨率,同时需要设置generateExtinctionCoefMipmap.comp和generateExtinctionCoef.comp中的低分辨率宏
+	int currentExampleID = 0; // * 当前的示例ID
+	// end test
+
+	// begin compute
 	Compute computeResources;   // Compute resources
 	TextureTarget textureTarget; // Target image for compute shader writes
 	StaticCompute gaussianComputeResources; // Gaussian compute resources
@@ -341,7 +344,7 @@ private:
 
 		prepareCompute();
 
-		prepareGaussianCompute();	
+		prepareGaussianCompute();
 
 		createDescriptorSets();
 		createCommandBuffers();
@@ -380,7 +383,7 @@ private:
 		vkDestroyImage(device, textureTarget.image, nullptr);
 		vkFreeMemory(device, textureTarget.memory, nullptr);
 		vkDestroyImageView(device, textureTarget.imageView, nullptr);
-		vkDestroySampler(device, textureTarget.sampler, nullptr);	
+		vkDestroySampler(device, textureTarget.sampler, nullptr);
 		vkDestroyDescriptorSetLayout(device, computeResources.descriptorSetLayout, nullptr);
 		vkDestroyPipelineLayout(device, computeResources.pipelineLayout, nullptr);
 		vkDestroyPipeline(device, computeResources.pipelines[0], nullptr);
@@ -400,7 +403,7 @@ private:
 		vkDestroyPipelineLayout(device, gaussianComputeResources.pipelineLayout, nullptr);
 		vkDestroyPipeline(device, gaussianComputeResources.pipelines[0], nullptr);
 		vkDestroyCommandPool(device, gaussianComputeResources.commandPool, nullptr);
-		vkDestroyFence(device,gaussianComputeResources.inFlightFence, nullptr);
+		vkDestroyFence(device, gaussianComputeResources.inFlightFence, nullptr);
 		vkDestroySemaphore(device, gaussianComputeResources.finishedSemaphore, nullptr);
 
 		// Cleanup DearImGui
@@ -1773,8 +1776,8 @@ private:
 			computeSubmitInfo.sType = VK_STRUCTURE_TYPE_SUBMIT_INFO;
 			computeSubmitInfo.commandBufferCount = 1;
 			computeSubmitInfo.pCommandBuffers = &computeResources.commandBuffers[currentFrame];
-			computeSubmitInfo.signalSemaphoreCount = 1;
-			computeSubmitInfo.pSignalSemaphores = &computeResources.finishedSemaphores[currentFrame]; // 计算命令完成时发送信号
+			// computeSubmitInfo.signalSemaphoreCount = 1;
+			// computeSubmitInfo.pSignalSemaphores = &computeResources.finishedSemaphores[currentFrame]; // 计算命令完成时发送信号
 
 			if (vkQueueSubmit(computeResources.queue, 1, &computeSubmitInfo, VK_NULL_HANDLE) != VK_SUCCESS) {
 				throw std::runtime_error("failed to submit compute command buffer!");
@@ -1841,7 +1844,7 @@ private:
 		// }
 		// else {
 		// std::cout << "compute complete" << std::endl;
-		
+
 		VkSemaphore graphicWaitSemaphores[] = { imageAvailableSemaphores[currentFrame] };
 		VkPipelineStageFlags graphicWaitStages[] = { VK_PIPELINE_STAGE_COLOR_ATTACHMENT_OUTPUT_BIT };
 
