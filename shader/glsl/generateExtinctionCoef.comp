@@ -91,12 +91,20 @@ vec4 GaussianFilter(uvec3 globalIdx){
     return sumOfColor/sumOfWeight;
 }
 
+float temp=sqrt(2.*3.14159265359)*sqrt(2.*3.14159265359)*sqrt(2.*3.14159265359);
+
 // 只对intensity进行高斯滤波，并存储intensity
 // 缺点：窗宽窗位的调整会失效
 // 优点：具有数学依据
 vec4 GaussianFilterIntensity(uvec3 globalIdx){
     float sumOfIntensity=0.f;
     float sumOfWeight=0.f;
+    
+    vec3 centerPos=(vec3(globalIdx)+vec3(.5))/curResolution;
+    vec4 centerColor=texture(TexInputVolume,centerPos);
+    float centerIntensity=centerColor.r*255.+centerColor.g*255.*255.-abs(dicomUbo.minVal);
+    centerIntensity=(centerIntensity-dicomUbo.windowCenter)/dicomUbo.windowWidth+.5;
+    centerIntensity=clamp(centerIntensity,0.,1.);
     
     // Compute the current Gaussian filter from [-vtk, vtk]
     int vtk=3;
@@ -109,8 +117,6 @@ vec4 GaussianFilterIntensity(uvec3 globalIdx){
                 float fx=float(ptx)*sigma;
                 float fy=float(pty)*sigma;
                 float fz=float(ptz)*sigma;
-                // 计算当前位置的高斯权重
-                float weight=(sigma*sigma*sigma)*exp(-(fx*fx+fy*fy+fz*fz)/(2.*sigma*sigma));
                 // 计算采样位置，采样位置为当前全局索引除以3D纹理的尺寸，以保证采样坐标在[0, 1]的范围内
                 vec3 samplePos=(vec3(globalIdx)+vec3(fx,fy,fz)+vec3(.5))/curResolution;
                 // 采样当前位置的颜色值
@@ -118,6 +124,10 @@ vec4 GaussianFilterIntensity(uvec3 globalIdx){
                 float intensity=sampleColor.r*255.+sampleColor.g*255.*255.-abs(dicomUbo.minVal);
                 intensity=(intensity-dicomUbo.windowCenter)/dicomUbo.windowWidth+.5;
                 intensity=clamp(intensity,0.,1.);
+                
+                // 计算当前位置的高斯权重
+                float weight=exp(-(fx*fx+fy*fy+fz*fz)/(2.*sigma*sigma));
+                // float weight=exp(-(fx*fx+fy*fy+fz*fz)/(2.*sigma*sigma)-(intensity-centerIntensity)*(intensity-centerIntensity)/(2.*sigma*sigma));
                 
                 // 计算当前位置的高斯权重与颜色值的乘积
                 sumOfIntensity+=weight*intensity;
@@ -139,21 +149,33 @@ vec4 GaussianFilterIntensitySplit(uvec3 globalIdx){
     // Compute the current Gaussian filter from [-vtk, vtk]
     int vtk=3;
     float sigma=1.;
+    
+    vec3 centerPos=(vec3(globalIdx)+vec3(.5))/curResolution;
+    vec4 centerColor=texture(TexInputVolume,centerPos);
+    float centerIntensity=centerColor.r*255.+centerColor.g*255.*255.-abs(dicomUbo.minVal);
+    centerIntensity=(centerIntensity-dicomUbo.windowCenter)/dicomUbo.windowWidth+.5;
+    centerIntensity=clamp(centerIntensity,0.,1.);
+    
     // Apply the 1D Gaussian filter along the x, y, and z directions.
-    for (int dir = 0; dir < 3; ++dir) {
-        for (int pt = -vtk; pt <= vtk; pt++) {
-            float f = float(pt) * sigma;
-            // 计算当前位置的高斯权重
-            float weight = sigma * exp(-f * f / (2.0 * sigma * sigma));
+    for(int dir=0;dir<3;++dir){
+        for(int pt=-vtk;pt<=vtk;pt++){
+            float f=float(pt)*sigma;
             // 计算采样位置，采样位置为当前全局索引除以3D纹理的尺寸，以保证采样坐标在[0, 1]的范围内
-            vec3 samplePos = vec3(globalIdx)+vec3(.5);
-            samplePos[dir] += f;
-            samplePos = samplePos / curResolution;
+            vec3 samplePos=vec3(globalIdx)+vec3(.5);
+            samplePos[dir]+=f;
+            samplePos=samplePos/curResolution;
             // 采样当前位置的颜色值
             vec4 sampleColor=texture(TexInputVolume,samplePos);
             float intensity=sampleColor.r*255.+sampleColor.g*255.*255.-abs(dicomUbo.minVal);
             intensity=(intensity-dicomUbo.windowCenter)/dicomUbo.windowWidth+.5;
             intensity=clamp(intensity,0.,1.);
+            
+            // 计算当前位置的高斯权重
+            float weight=exp(-f*f/(2.*sigma*sigma));
+            // float weight=exp(-f*f/(2.*sigma*sigma)-(intensity-centerIntensity)*(intensity-centerIntensity)/(2.*sigma*sigma)); // !双边高斯滤波，效果不如原始高斯滤波
+
+            // 计算当前位置的Laplacian权重
+            // float weight=exp(-f*f/(2.*sigma*sigma))*(-1.f+2.f*f*f/(sigma*sigma));
             
             // 计算当前位置的高斯权重与颜色值的乘积
             sumOfIntensity+=weight*intensity;
@@ -162,7 +184,7 @@ vec4 GaussianFilterIntensitySplit(uvec3 globalIdx){
             sumOfWeight+=weight;
         }
     }
-
+    
     float resIntensity=clamp(sumOfIntensity/sumOfWeight,0.,1.);
     return vec4(resIntensity);
 }

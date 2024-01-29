@@ -143,8 +143,10 @@ def mainTest():
     highRes = basePath+'highRes.png'
     lowRes_intensity = basePath+'lowRes_intensity.png'
     highRes_intensity = basePath+'highRes_intensity.png'
-    highRes_intensity_vtk3 = basePath+'highRes_intensity_vtk3.png'
-    highRes_intensity_vtk10 = basePath+'highRes_intensity_vtk10.png'
+    highRes_intensity_combine = basePath+'highRes_intensity_combine.png' # 双边高斯滤波的结果
+    highRes_intensity_split = basePath+'highRes_intensity_split.png' # 拆分高斯滤波的结果
+    highRes_intensity_split_combine = basePath+'highRes_intensity_split_combine.png' # 拆分、双边高斯滤波的结果
+    highRes_lpls = basePath+'highRes_lpls.png' # 拉普拉斯滤波的结果（并未更改积分的过程，因此不准确）
 
     print("----------psnr-----------")
     print(psnr(PT, lowRes)) # 
@@ -152,8 +154,10 @@ def mainTest():
     print("----------psnr_intensity-----------")
     print(psnr(PT, lowRes_intensity)) #
     print(psnr(PT, highRes_intensity)) #
-    print(psnr(PT, highRes_intensity_vtk3)) #
-    print(psnr(PT, highRes_intensity_vtk10)) #
+    print(psnr(PT, highRes_intensity_combine)) #
+    print(psnr(PT, highRes_intensity_split)) #
+    print(psnr(PT, highRes_intensity_split_combine)) #
+    print(psnr(PT, highRes_lpls)) #
 
     print("----------ssim-----------")
     print(ssim(PT, lowRes)) #
@@ -161,8 +165,10 @@ def mainTest():
     print("----------ssim_intensity-----------")
     print(ssim(PT, lowRes_intensity)) #
     print(ssim(PT, highRes_intensity)) #
-    print(ssim(PT, highRes_intensity_vtk3)) #
-    print(ssim(PT, highRes_intensity_vtk10)) #
+    print(ssim(PT, highRes_intensity_combine)) #
+    print(ssim(PT, highRes_intensity_split)) #
+    print(ssim(PT, highRes_intensity_split_combine)) #
+    print(ssim(PT, highRes_lpls)) #
 
     print("----------LPIPS-----------")
     print(LPIPS(PT, lowRes)) #
@@ -170,8 +176,10 @@ def mainTest():
     print("----------LPIPS_intensity-----------")
     print(LPIPS(PT, lowRes_intensity)) #
     print(LPIPS(PT, highRes_intensity)) #
-    print(LPIPS(PT, highRes_intensity_vtk3)) #
-    print(LPIPS(PT, highRes_intensity_vtk10)) #
+    print(LPIPS(PT, highRes_intensity_combine)) #
+    print(LPIPS(PT, highRes_intensity_split)) #
+    print(LPIPS(PT, highRes_intensity_split_combine)) #
+    print(LPIPS(PT, highRes_lpls)) #
 
 if __name__ == '__main__':
     mainTest()

@@ -326,8 +326,8 @@ void ConeGaussianSampler::ComputeAdditionalInfo(double min_sg_gaussian)
     // gaussian integral based on sampled sigma
     double Ig = si->sampled_gaussian_sigma * glm::sqrt(2.0 * glm::pi<double>());
 
-    //si->amplitude = ((pr*pr) * (Ig*Ig)) / Ac;
-    si->amplitude = ((pr * pr) * (Ig * Ig)) / (4.0f * cone_radius_t * cone_radius_t); // 分母变为矩形区域，分母越大，影响的是环境光遮蔽的效果，阴影越不明显
+    si->amplitude = ((pr*pr) * (Ig*Ig)) / Ac;
+    // si->amplitude = ((pr * pr) * (Ig * Ig)) / (4.0f * cone_radius_t * cone_radius_t); // 分母变为矩形区域，分母越大，影响的是环境光遮蔽的效果，阴影越不明显
 
     //std::cout << i << ": " << si->d_integral << " " << si->amplitude << std::endl;
 
