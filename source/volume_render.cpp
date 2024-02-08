@@ -300,6 +300,14 @@ bool VolumeRender::getPixelRGBA(int& width, int& height, int& numSlice, unsigned
 			value += +abs(dicomTags.minVal);
 			rgba[i * width * height * channel + j * channel + 0] = static_cast<unsigned char>(value & 0xff);
 			rgba[i * width * height * channel + j * channel + 1] = static_cast<unsigned char>((value >> 8) & 0xff);
+
+			// test 保存intensity
+			// Sint16 value = static_cast<Sint16> (pixelData[j]);
+			// double intensity = static_cast<double>((value - 250) / 250) + 0.5f;
+			// if (intensity < 0.0f) intensity = 0.0f;
+			// if (intensity > 1.0f) intensity = 1.0f;
+			// rgba[i * width * height * channel + j * channel + 0] = static_cast<unsigned char>(intensity * 255);
+			// rgba[i * width * height * channel + j * channel + 0] = static_cast<unsigned char>(intensity * 255);
 		}
 
 	}
