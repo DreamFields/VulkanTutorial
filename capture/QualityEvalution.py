@@ -206,21 +206,30 @@ def mainTestMouse(curExampleID, angleID, wlwwID):
     basePath = setConfig(curExampleID, angleID, wlwwID)
     PT = basePath+'PT.png'
     idao = basePath + "origin.png"
-    ours = basePath + "ours.png"
-    ours_detail = basePath + "ours_detail.png"
+    ours128 = basePath + "ours128.png"
+    ours128_detail = basePath + "ours128_detail.png"
+    # ours256 = basePath + "ours256.png"
+    # ours256_detail = basePath + "ours256_detail.png"
 
     print("----------psnr-----------")
     print(psnr(PT, idao)) #
-    print(psnr(PT, ours)) #
-    print(psnr(PT, ours_detail)) #
+    print(psnr(PT, ours128)) #
+    print(psnr(PT, ours128_detail)) #
+    # print(psnr(PT, ours256)) #
+    # print(psnr(PT, ours256_detail)) #
     print("----------ssim-----------")
     print(ssim(PT, idao)) #
-    print(ssim(PT, ours)) #
-    print(ssim(PT, ours_detail)) #
+    print(ssim(PT, ours128)) #
+    print(ssim(PT, ours128_detail)) #
+    # print(ssim(PT, ours256)) #
+    # print(ssim(PT, ours256_detail)) #
     print("----------LPIPS-----------")
     print(LPIPS(PT, idao)) #
-    print(LPIPS(PT, ours)) #
-    print(LPIPS(PT, ours_detail)) #
+    print(LPIPS(PT, ours128)) #
+    print(LPIPS(PT, ours128_detail)) #
+    # print(LPIPS(PT, ours256)) #
+    # print(LPIPS(PT, ours256_detail)) #
 
 if __name__ == '__main__':
-    mainTestHead(0,1,1)
+    # mainTestHead(1,0,0)
+    mainTestMouse(1,1,1)

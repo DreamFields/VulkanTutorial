@@ -1024,10 +1024,10 @@ void VulkanApplication::drawImGui() {
         ImGui::SliderFloat("alphaCorrection", &volumeRender->dicomParamControl.alphaCorrection, 0.0f, 256.0f);
         ImGui::SliderInt("steps", &volumeRender->dicomParamControl.steps, 0, 1500);
         ImGui::SliderFloat("stepLength", &volumeRender->dicomParamControl.stepLength, 0.0f, 0.02f);
-        if(ImGui::SliderFloat("WindowWidth", &volumeRender->dicomParamControl.windowWidth, 0.0f, 1500.0f)){
+        if(ImGui::SliderFloat("WindowWidth", &volumeRender->dicomParamControl.windowWidth, 0.0f, 540.0f)){
             computeResources.isComplete = false;
         }
-        if(ImGui::SliderFloat("WindowCenter", &volumeRender->dicomParamControl.windowCenter, 50.0f, 2500.0f)){
+        if(ImGui::SliderFloat("WindowCenter", &volumeRender->dicomParamControl.windowCenter, 50.0f, 800.0f)){
             computeResources.isComplete = false;
         }
         ImGui::SliderFloat("glow", &volumeRender->dicomParamControl.glow, 0.0f, 30.0f);
@@ -1116,9 +1116,9 @@ void VulkanApplication::prepareTextureTarget() {
         mipDepth = 512;
     }
     else if(isLowResolution){
-        mipWidth = 128;
-        mipHeight = 128;
-        mipDepth = 128;
+        mipWidth = lowResVal;
+        mipHeight = lowResVal;
+        mipDepth = lowResVal;
     } 
     else{
         mipWidth = volumeRender->getDicomTags().voxelResolution[0];
@@ -1450,7 +1450,7 @@ void VulkanApplication::recordComputeCommandBuffer(uint32_t currentFrame) {
 
     // Dispatch the compute job
     if (isHighResolution) vkCmdDispatch(computeResources.commandBuffers[currentFrame], 512 / 8, 512 / 8, 512 / 8);
-    else if (isLowResolution) vkCmdDispatch(computeResources.commandBuffers[currentFrame], 128 / 8, 128 / 8, 128 / 8);
+    else if (isLowResolution) vkCmdDispatch(computeResources.commandBuffers[currentFrame], lowResVal / 8, lowResVal / 8, lowResVal / 8);
     else vkCmdDispatch(computeResources.commandBuffers[currentFrame], volumeRender->getDicomTags().voxelResolution[0] / 8, volumeRender->getDicomTags().voxelResolution[1] / 8, volumeRender->getDicomTags().voxelResolution[2] / 8);
 
 
@@ -1638,9 +1638,9 @@ void VulkanApplication::recordGenExtCoffMipmaps(uint32_t currentFrame) {
         mipDepth = 512;
     }
     else if(isLowResolution){
-        mipWidth = 128;
-        mipHeight = 128;
-        mipDepth = 128;
+        mipWidth = lowResVal;
+        mipHeight = lowResVal;
+        mipDepth = lowResVal;
     }
     else{
         mipWidth = volumeRender->getDicomTags().voxelResolution[0];
@@ -1744,9 +1744,9 @@ void VulkanApplication::recordGenGaussianMipmaps() {
         mipDepth = 512;
     }
     else if(isLowResolution){
-        mipWidth = 128;
-        mipHeight = 128;
-        mipDepth = 128;
+        mipWidth = lowResVal;
+        mipHeight = lowResVal;
+        mipDepth = lowResVal;
     }
     else{
         mipWidth = volumeRender->getDicomTags().voxelResolution[0];

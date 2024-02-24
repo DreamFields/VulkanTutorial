@@ -193,13 +193,20 @@ static inline ExampleConfig head = {
 -------------wlww0-------------
     2000.0f,
     50.0f,
+    0.01f, // stepLength
+    25.0f,  // alphaCorrection
+-------------wlww1-------------
+    540.0f,
+    800.0f,
+    0.003f,
+    25.0f,
  */
 static inline ExampleConfig mouse = {
     "mouse",
     "C:\\Users\\Dream\\Documents\\00.Dicom\\mouse512\\",
-    glm::vec3(-0.956015, 1.27532, 1.6312),
-    glm::vec3(0.727942, -0.387625, -0.56555),
-    glm::vec3(0.247846, 0.91784, -0.31007),
+    glm::vec3(1.0173, 1.20632, 2.29839),
+    glm::vec3(-0.258629, -0.353131, -0.899116),
+    glm::vec3(-0.121613, 0.935281, -0.332354),
     2000.0f, // windowCenter
     50.0f, // windowWidth
     0.01f, // stepLength
