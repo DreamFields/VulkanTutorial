@@ -649,6 +649,8 @@ void main(){
     mouse的用例ww=600，wc=250左右时明显。
     */
     // outColor=vec4(insideEmpty,insideEmpty,insideEmpty,1.);
+
+    // outColor = vec4(get3DTextureColor(vec3(inTexCoord.x,inTexCoord.y,0.5)).rgb,1.0);
     
     // vec2 texCoord=vec2(inTexCoord.x,inTexCoord.y);
     // vec3 testPos=vec3(texCoord.y,27./41.,texCoord.x);// todo 由于立方体尺寸改变，这里需要重新计算纹理坐标

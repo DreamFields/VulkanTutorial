@@ -29,7 +29,7 @@ layout(push_constant)uniform GenGaussianMMPushConstants
 // 假设每个工作组的大小为8x8x8
 layout(local_size_x=4,local_size_y=4,local_size_z=4)in;
 
-#define USE_HIGH_RESOLUTION
+// #define USE_HIGH_RESOLUTION
 // #define USE_LOW_RESOLUTION
 #define USE_INTENSITY
 
@@ -209,8 +209,8 @@ void main(){
     // imageStore(TexOutputVolume,ivec3(globalIdx),texture(TexInputVolume,samplePos));// 直接存储高低8位
     
     #ifdef USE_INTENSITY
-    imageStore(TexOutputVolume,ivec3(globalIdx),vec4(GaussianFilterIntensitySplit(globalIdx).r,0.,0.,0.));// 拆分高斯滤波，存储intensity
-    // imageStore(TexOutputVolume,ivec3(globalIdx),vec4(GaussianFilterIntensity(globalIdx).r,0.,0.,0.));// 高斯滤波，存储intensity
+    // imageStore(TexOutputVolume,ivec3(globalIdx),vec4(GaussianFilterIntensitySplit(globalIdx).r,0.,0.,0.));// 拆分高斯滤波，存储intensity
+    imageStore(TexOutputVolume,ivec3(globalIdx),vec4(GaussianFilterIntensity(globalIdx).r,0.,0.,0.));// 高斯滤波，存储intensity
     #else
     imageStore(TexOutputVolume,ivec3(globalIdx),vec4(GaussianFilter(globalIdx).rgb,1.));// 高斯滤波，存储高低8位
     #endif

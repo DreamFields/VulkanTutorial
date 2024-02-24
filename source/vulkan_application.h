@@ -216,7 +216,7 @@ private:
 	// end imgui
 
 	// begin test
-	bool isHighResolution = true; // *是否使用高分辨率,同时需要设置generateExtinctionCoefMipmap.comp和generateExtinctionCoef.comp中的高分辨率宏	
+	bool isHighResolution = false; // *是否使用高分辨率,同时需要设置generateExtinctionCoefMipmap.comp和generateExtinctionCoef.comp中的高分辨率宏	
 	bool isLowResolution = false; // *是否使用低分辨率,同时需要设置generateExtinctionCoefMipmap.comp和generateExtinctionCoef.comp中的低分辨率宏
 	int currentExampleID = 0; // * 当前的示例ID
 	// end test

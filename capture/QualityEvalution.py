@@ -8,10 +8,12 @@ import lpips
 import torch
 
 # 测试配置
-curExampleID = 0 # 测试用例ID
-angleID = 1 # 角度ID
-wlwwID = 0 # 窗宽窗位ID
-basePath = 'capture/example'+str(curExampleID)+'/angle'+str(angleID)+'/wlww'+str(wlwwID)+'/' # 测试用例路径
+def setConfig(curID, angleID, wlwwID):
+    curExampleID = curID # 测试用例ID
+    angleID = angleID # 角度ID
+    wlwwID = wlwwID # 窗宽窗位ID
+    basePath = 'capture/example'+str(curExampleID)+'/angle'+str(angleID)+'/wlww'+str(wlwwID)+'/' # 测试用例路径
+    return basePath
 
 # 测试两张图片的PSNR值，值越大，表示两张图片越相似
 """ 
@@ -89,6 +91,7 @@ def diff(image1_path, image2_path):
 测试方法：是否使用intensity+是否使用高分辨率
 """
 def mainTestHeadAngle1():
+    basePath = setConfig(0,1,0)
     curPT = basePath+'PT.png'
 
     fixed_lowRes = basePath+'fixed_lowRes.png'
@@ -137,7 +140,8 @@ def mainTestHeadAngle1():
     print(LPIPS(curPT, vary_highRes_intensity)) # 0.008849206380546093
     # 结论：高分辨率intensity>高分辨率高低8位>低分辨率高低8位>低分辨率intensity
 
-def mainTest():
+def gaussianTest():
+    basePath = setConfig(0,0,0)
     PT = basePath+'PT.png'
     lowRes = basePath+'lowRes.png'
     highRes = basePath+'highRes.png'
@@ -181,5 +185,42 @@ def mainTest():
     print(LPIPS(PT, highRes_intensity_split_combine)) #
     print(LPIPS(PT, highRes_lpls)) #
 
+
+def mainTestHead(curExampleID, angleID, wlwwID):
+    basePath = setConfig(curExampleID, angleID, wlwwID)
+    PT = basePath+'PT.png'
+    idao = basePath + "lowRes_intensity.png"
+    ours = basePath + "highRes_intensity_split.png"
+
+    print("----------psnr-----------")
+    print(psnr(PT, idao)) #
+    print(psnr(PT, ours)) #
+    print("----------ssim-----------")
+    print(ssim(PT, idao)) #
+    print(ssim(PT, ours)) #
+    print("----------LPIPS-----------")
+    print(LPIPS(PT, idao)) #
+    print(LPIPS(PT, ours)) #
+
+def mainTestMouse(curExampleID, angleID, wlwwID):
+    basePath = setConfig(curExampleID, angleID, wlwwID)
+    PT = basePath+'PT.png'
+    idao = basePath + "origin.png"
+    ours = basePath + "ours.png"
+    ours_detail = basePath + "ours_detail.png"
+
+    print("----------psnr-----------")
+    print(psnr(PT, idao)) #
+    print(psnr(PT, ours)) #
+    print(psnr(PT, ours_detail)) #
+    print("----------ssim-----------")
+    print(ssim(PT, idao)) #
+    print(ssim(PT, ours)) #
+    print(ssim(PT, ours_detail)) #
+    print("----------LPIPS-----------")
+    print(LPIPS(PT, idao)) #
+    print(LPIPS(PT, ours)) #
+    print(LPIPS(PT, ours_detail)) #
+
 if __name__ == '__main__':
-    mainTest()
+    mainTestHead(0,1,1)
