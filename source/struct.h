@@ -157,15 +157,15 @@ struct ExampleConfig {
     glm::vec3(-0.6809, -0.408873, -0.607617),
     glm::vec3(-0.274107, 0.911624, -0.306278),
 -------------wlww0-------------
-    250.0f,
-    250.0f,
-    0.01f,
-    100.0f,
+    250.0f, // windowCenter
+    250.0f, // windowWidth
+    0.01f, // stepLength
+    100.0f, // alphaCorrection
 -------------wlww1-------------
-    1500.0f,
-    50.0f,
-    0.001f,
-    200.0f,
+    1500.0f, // windowCenter
+    50.0f, // windowWidth
+    0.001f, // stepLength
+    200.0f, // alphaCorrection
  */
 static inline ExampleConfig head = {
     "head",
@@ -173,10 +173,10 @@ static inline ExampleConfig head = {
     glm::vec3(0.0709212, -1.45329, 0.47473),
     glm::vec3(0.214537, 0.976634, 0.012635),
     glm::vec3(-0.0384151, -0.00448895, 0.999252),
-    1500.0f, // windowCenter
-    50.0f, // windowWidth
-    0.001f, // stepLength
-    200.0f, // alphaCorrection
+    250.0f, // windowCenter
+    250.0f, // windowWidth
+    0.01f, // stepLength
+    100.0f, // alphaCorrection
     1.5f // glow
 };
 
