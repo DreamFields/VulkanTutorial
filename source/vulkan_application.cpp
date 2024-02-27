@@ -19,7 +19,11 @@ void VulkanApplication::initVolume() {
     // std::string path = "C:\\Users\\Dream\\Documents\\00.Dicom\\ede6fe9eda6e44a98b3ad20da6f9116a Anonymized29\\Unknown Study\\CT Head 5.0000\\";
     // std::string path = "C:\\Users\\Dream\\Documents\\00.Dicom\\mouse512\\";
     // std::string path = "C:\\Users\\Dream\\Documents\\00.Dicom\\liudan_wholebodyls_thorax\\";
-    volumeRender->loadDicom(dicomExamples[currentExampleID].path);
+    if(currentExampleID>3) {
+        volumeRender->loadNRRD(dicomExamples[currentExampleID].path);
+    } else {
+        volumeRender->loadDicom(dicomExamples[currentExampleID].path);
+    }
 
     // generate gaussian samples
     volumeRender->GenerateConeSamples();
@@ -205,14 +209,18 @@ void VulkanApplication::create2DTextureImage() {
 }
 
 void VulkanApplication::create3DTextureImage() {
-    int texWidth, texHeight, texDepth = 41;
+    int texWidth, texHeight, texDepth;
     // STBI_rgb_alpha 值会强制加载图像的 alpha 通道，即使图像没有 alpha 通道也是如此，这有利于将来与其他纹理保持一致。
     // 中间三个参数用于输出图像的宽度、高度和实际通道数。
     // 返回的指针是像素值数组的第一个元素。
     // stbi_uc* pixels = stbi_load("D:\\00.CG_project\\VulkanTutorial\\textures\\texture.jpg", &texWidth, &texHeight, &texChannels, STBI_rgb_alpha);
     unsigned char* pixels = nullptr;
     short channel = 2;
-    volumeRender->getPixelRGBA(texWidth, texHeight, texDepth, pixels, channel);
+    if(currentExampleID>3) {
+        volumeRender->getNRRDPixelRGBA(texWidth, texHeight, texDepth, pixels, channel);
+    } else {
+        volumeRender->getPixelRGBA(texWidth, texHeight, texDepth, pixels, channel);
+    }
 
     VkDeviceSize imageSize = texWidth * texHeight * texDepth * channel;
 

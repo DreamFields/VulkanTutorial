@@ -141,6 +141,76 @@ configure_file(${DCMTK_DIR}/bin/dcmimgle.dll ${CMAKE_CURRENT_BINARY_DIR}/dcmimgl
 
 # end DCMTK
 
+# begin vtk8.2.0
+set(VTK_DIR ${LIBRARY_DIR}/vtk8.2.0)
+
+# Add include directories
+include_directories(${VTK_DIR}/include/vtk-8.2)
+
+# Add link directories
+link_directories(${VTK_DIR}/lib)
+
+# Add libraries
+add_library(vtkCommonCore SHARED IMPORTED)
+
+set_target_properties(vtkCommonCore PROPERTIES
+  IMPORTED_LOCATION ${VTK_DIR}/bin/vtkCommonCore-8.2.dll
+  IMPORTED_IMPLIB ${VTK_DIR}/lib/vtkCommonCore-8.2.lib)
+
+add_library(vtkCommonDataModel SHARED IMPORTED)
+
+set_target_properties(vtkCommonDataModel PROPERTIES
+  IMPORTED_LOCATION ${VTK_DIR}/bin/vtkCommonDataModel-8.2.dll
+  IMPORTED_IMPLIB ${VTK_DIR}/lib/vtkCommonDataModel-8.2.lib)
+
+add_library(vtkCommonExecutionModel SHARED IMPORTED)
+
+set_target_properties(vtkCommonExecutionModel PROPERTIES
+  IMPORTED_LOCATION ${VTK_DIR}/bin/vtkCommonExecutionModel-8.2.dll
+  IMPORTED_IMPLIB ${VTK_DIR}/lib/vtkCommonExecutionModel-8.2.lib)
+
+add_library(vtkFiltersCore SHARED IMPORTED)
+
+set_target_properties(vtkFiltersCore PROPERTIES
+  IMPORTED_LOCATION ${VTK_DIR}/bin/vtkFiltersCore-8.2.dll
+  IMPORTED_IMPLIB ${VTK_DIR}/lib/vtkFiltersCore-8.2.lib)
+
+add_library(vtkIOImage SHARED IMPORTED)
+
+set_target_properties(vtkIOImage PROPERTIES
+  IMPORTED_LOCATION ${VTK_DIR}/bin/vtkIOImage-8.2.dll
+  IMPORTED_IMPLIB ${VTK_DIR}/lib/vtkIOImage-8.2.lib)
+
+target_link_libraries(${PROJECT_NAME} PUBLIC vtkCommonCore vtkCommonDataModel vtkCommonExecutionModel vtkFiltersCore vtkIOImage)
+
+# 将所有.dll文件复制到输出目录
+
+file(COPY ${VTK_DIR}/bin DESTINATION ${CMAKE_CURRENT_BINARY_DIR})
+file(COPY ${VTK_DIR}/bin/ DESTINATION ${CMAKE_CURRENT_BINARY_DIR})
+
+
+
+# configure_file(${VTK_DIR}/bin/vtkCommonCore-8.2.dll ${CMAKE_CURRENT_BINARY_DIR}/vtkCommonCore-8.2.dll COPYONLY)
+
+# configure_file(${VTK_DIR}/bin/vtkCommonDataModel-8.2.dll ${CMAKE_CURRENT_BINARY_DIR}/vtkCommonDataModel-8.2.dll COPYONLY)
+
+# configure_file(${VTK_DIR}/bin/vtkCommonExecutionModel-8.2.dll ${CMAKE_CURRENT_BINARY_DIR}/vtkCommonExecutionModel-8.2.dll COPYONLY)
+
+# configure_file(${VTK_DIR}/bin/vtkFiltersCore-8.2.dll ${CMAKE_CURRENT_BINARY_DIR}/vtkFiltersCore-8.2.dll COPYONLY)
+
+# configure_file(${VTK_DIR}/bin/vtkIOImage-8.2.dll ${CMAKE_CURRENT_BINARY_DIR}/vtkIOImage-8.2.dll COPYONLY)
+
+# configure_file(${VTK_DIR}/bin/vtksys-8.2.dll ${CMAKE_CURRENT_BINARY_DIR}/vtksys-8.2.dll COPYONLY)
+
+# configure_file(${VTK_DIR}/bin/vtkCommonTransforms-8.2.dll ${CMAKE_CURRENT_BINARY_DIR}/vtkCommonTransforms-8.2.dll COPYONLY)
+
+# end vtk8.2.0
+
+set_target_properties(vtkIOImage PROPERTIES
+  IMPORTED_LOCATION ${VTK_DIR}/bin/vtkIOImage-8.2.dll
+  IMPORTED_IMPLIB ${VTK_DIR}/lib/vtkIOImage-8.2.lib)
+
+
 # begin glm
 target_include_directories(${PROJECT_NAME} PUBLIC ${LIBRARY_DIR}/glm)
 

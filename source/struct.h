@@ -227,9 +227,38 @@ static inline ExampleConfig chest = {
     1.5f
 };
 
+static inline ExampleConfig chest2 = {
+    "chest2",
+    "C:\\Users\\Dream\\Documents\\00.Dicom\\liudan_wholebodyls_thorax\\",
+    glm::vec3(0.44323, -1.26454, 1.43985),
+    glm::vec3(0.0283847, 0.882255, -0.469916),
+    glm::vec3(-0.0319244, 0.470665, 0.881734),
+    2000.0f,
+    50.0f,
+    0.001f,
+    100.0f,
+    1.5f
+};
+
+static inline ExampleConfig frog={
+    "frog_256x256x44_uint8",
+    "C:\\Users\\Dream\\Documents\\00.NRRD\\frog_256x256x44_uint8",
+    glm::vec3(1.47557, 0.912226, -1.19671),
+    glm::vec3(-0.487754, -0.206101, 0.848303),
+    glm::vec3(-0.769853, -0.35662, -0.52929),
+    250.0f,
+    150.0f,
+    0.001f,
+    100.0f,
+    1.5f
+};
+
 static inline std::unordered_map<int, ExampleConfig> dicomExamples = {
     {0, head},
     {1, mouse},
-    {2, chest}
+    {2, chest},
+    {3, chest2},
+    {4, frog}
 };
+
 

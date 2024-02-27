@@ -5,6 +5,11 @@
 #include "struct.h"
 #include "coneGaussianSampler.h"
 
+#include <vtkNrrdReader.h>
+//vtkSmartPointer 
+#include <vtkSmartPointer.h>
+#include <vtkImageData.h>
+
 #include <glm.hpp>
 #include <string>
 #include <iostream>
@@ -14,6 +19,7 @@
 #include <map>
 #include <math.h>
 
+// 将NRRD文件的数据也转换到这个结构体中
 struct DicomTags {
     std::string folderPath;
     std::vector<std::string> fileIndex;
@@ -70,6 +76,8 @@ public:
     ~VolumeRender();
 
     bool loadDicom(std::string path);
+    bool loadNRRD(std::string path);
+    bool getNRRDPixelRGBA(int& width, int& height, int& numSlice, unsigned char*& rgba, short channel);
     bool getPixelRGBA(int& width, int& height, int& numSlice, unsigned char*& rgba, short channel);
     DicomTags getDicomTags();
     const std::vector<Vertex> getBoxVertices();

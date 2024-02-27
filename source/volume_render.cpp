@@ -227,6 +227,121 @@ bool VolumeRender::loadDicom(std::string path)
 	return true;
 }
 
+// 利用vtk库读取nrrd文件
+bool VolumeRender::loadNRRD(std::string path){
+
+	// 取path的最后一个'/'的位置
+	size_t pos = path.find_last_of('\\');
+	std::string fileName = path.substr(pos + 1);
+	std::string nhdrPath = path + "\\" + fileName + ".nhdr";
+
+	// folder path
+	dicomTags.folderPath = path;
+	dicomTags.numSlice = 0;
+	dicomTags.maxVal = INT_MIN;
+	dicomTags.minVal = INT_MAX;
+	dicomTags.voxelSize = glm::vec3(1.0f, 1.0f, 1.0f);
+	dicomTags.realSize = glm::vec3(1.0f, 1.0f, 1.0f);
+	dicomTags.boxSize = glm::vec3(1.0f, 1.0f, 1.0f);
+	
+	vtkSmartPointer<vtkNrrdReader> reader = vtkSmartPointer<vtkNrrdReader>::New();	
+	reader->SetFileName(nhdrPath.c_str());
+	reader->Update();
+	vtkSmartPointer<vtkImageData> imageData = reader->GetOutput();
+	int* dims = imageData->GetDimensions();
+	std::cout << "Dims: " << dims[0] << " " << dims[1] << " " << dims[2] << std::endl;
+	double* spacing = imageData->GetSpacing();
+	std::cout << "Spacing: " << spacing[0] << " " << spacing[1] << " " << spacing[2] << std::endl;
+	double* origin = imageData->GetOrigin();
+	std::cout << "Origin: " << origin[0] << " " << origin[1] << " " << origin[2] << std::endl;
+	double* range = imageData->GetScalarRange();
+	std::cout << "Range: " << range[0] << " " << range[1] << std::endl;
+
+	// 写入dicomTags
+	dicomTags.numSlice = dims[2];
+	dicomTags.voxelSize = glm::vec3(spacing[0], spacing[1], spacing[2]);
+	dicomTags.realSize = glm::vec3(spacing[0] * dims[0], spacing[1] * dims[1], spacing[2] * dims[2]);
+	dicomTags.voxelResolution = glm::vec3(dims[0], dims[1], dims[2]);
+	dicomTags.windowCenter = (range[1] + range[0]) / 2;
+	dicomTags.windowWidth = range[1] - range[0];
+	dicomTags.rescaleSlope = 1.0;
+	dicomTags.rescaleIntercept = 0.0;
+
+	// realSize
+	dicomTags.realSize[0] = dicomTags.voxelSize[0] * dicomTags.voxelResolution[0];
+	dicomTags.realSize[1] = dicomTags.voxelSize[1] * dicomTags.voxelResolution[1];
+	dicomTags.realSize[2] = dicomTags.voxelSize[2] * dicomTags.numSlice;
+
+	// boxGeometry
+	glm::float32 maxSize = std::max(dicomTags.realSize[0], std::max(dicomTags.realSize[1], dicomTags.realSize[2]));
+	dicomTags.boxSize[0] = dicomTags.realSize[0] / maxSize;
+	dicomTags.boxSize[1] = dicomTags.realSize[1] / maxSize;
+	dicomTags.boxSize[2] = dicomTags.realSize[2] / maxSize;
+
+	unsigned char* ptr = static_cast<unsigned char*>(imageData->GetScalarPointer());
+
+	for (int i = 0; i < dims[2]; i++){
+		for (int j = 0; j < dims[1]; j++){
+			for (int k = 0; k < dims[0]; k++){
+				int index = i * dims[0] * dims[1] + j * dims[0] + k;
+				unsigned char value = ptr[index];
+				if (value > dicomTags.maxVal) dicomTags.maxVal = value;
+				if (value < dicomTags.minVal) dicomTags.minVal = value;
+			}
+		}
+	}
+
+
+	// cout dicomtags
+	std::cout << "Folder Path: " << dicomTags.folderPath << std::endl;
+	std::cout << "Num Slice: " << dicomTags.numSlice << std::endl;
+	std::cout << "Box Width: " << dicomTags.voxelResolution[0] << std::endl;
+	std::cout << "Box Height: " << dicomTags.voxelResolution[1] << std::endl;
+	std::cout << "Window Center: " << dicomTags.windowCenter << std::endl;
+	std::cout << "Window Width: " << dicomTags.windowWidth << std::endl;
+	std::cout << "Rescale Slope: " << dicomTags.rescaleSlope << std::endl;
+	std::cout << "Rescale Intercept: " << dicomTags.rescaleIntercept << std::endl;
+	std::cout << "Max Value: " << dicomTags.maxVal << std::endl;
+	std::cout << "Min Value: " << dicomTags.minVal << std::endl;
+
+	dicomParamControl.windowCenter = static_cast<float>(dicomExamples[currentExampleID].windowCenter);
+	dicomParamControl.windowWidth = static_cast<float>(dicomExamples[currentExampleID].windowWidth);
+	dicomParamControl.alphaCorrection = dicomExamples[currentExampleID].alphaCorrection;
+	dicomParamControl.steps = 130;
+	dicomParamControl.stepLength = dicomExamples[currentExampleID].stepLength;
+	dicomParamControl.glow = dicomExamples[currentExampleID].glow;
+
+	return true;
+}
+
+bool VolumeRender::getNRRDPixelRGBA(int& width, int& height, int& numSlice, unsigned char*& rgba, short channel){
+	// 取path的最后一个'/'的位置
+	size_t pos = dicomTags.folderPath.find_last_of('\\');
+	std::string fileName = dicomTags.folderPath.substr(pos + 1);
+	std::string nhdrPath = dicomTags.folderPath + "\\" + fileName + ".nhdr";
+
+	vtkSmartPointer<vtkNrrdReader> reader = vtkSmartPointer<vtkNrrdReader>::New();
+	reader->SetFileName(nhdrPath.c_str());
+	reader->Update();
+	vtkSmartPointer<vtkImageData> imageData = reader->GetOutput();
+	int* dims = imageData->GetDimensions();
+	width = dims[0];
+	height = dims[1];
+	numSlice = dims[2];
+	rgba = new unsigned char[width * height * numSlice * channel];
+	unsigned char* ptr = static_cast<unsigned char*>(imageData->GetScalarPointer());
+	for (int i = 0; i < numSlice; i++){
+		for (int j = 0; j < height; j++){
+			for (int k = 0; k < width; k++){
+				int index = i * width * height * channel + j * width * channel + k * channel;
+				rgba[index + 0] = ptr[i * width * height  + j * width  + k];
+				rgba[index + 1] = 0;
+			}
+		}
+	}
+	return true;
+}
+
 bool VolumeRender::getPixelRGBA(int& width, int& height, int& numSlice, unsigned char*& rgba, short channel)
 {
 	width = dicomTags.voxelResolution[0];
