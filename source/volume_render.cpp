@@ -228,7 +228,7 @@ bool VolumeRender::loadDicom(std::string path)
 }
 
 // 利用vtk库读取nrrd文件
-bool VolumeRender::loadNRRD(std::string path){
+bool VolumeRender::loadNRRD(std::string path) {
 
 	// 取path的最后一个'/'的位置
 	size_t pos = path.find_last_of('\\');
@@ -243,8 +243,8 @@ bool VolumeRender::loadNRRD(std::string path){
 	dicomTags.voxelSize = glm::vec3(1.0f, 1.0f, 1.0f);
 	dicomTags.realSize = glm::vec3(1.0f, 1.0f, 1.0f);
 	dicomTags.boxSize = glm::vec3(1.0f, 1.0f, 1.0f);
-	
-	vtkSmartPointer<vtkNrrdReader> reader = vtkSmartPointer<vtkNrrdReader>::New();	
+
+	vtkSmartPointer<vtkNrrdReader> reader = vtkSmartPointer<vtkNrrdReader>::New();
 	reader->SetFileName(nhdrPath.c_str());
 	reader->Update();
 	vtkSmartPointer<vtkImageData> imageData = reader->GetOutput();
@@ -278,17 +278,40 @@ bool VolumeRender::loadNRRD(std::string path){
 	dicomTags.boxSize[1] = dicomTags.realSize[1] / maxSize;
 	dicomTags.boxSize[2] = dicomTags.realSize[2] / maxSize;
 
-	unsigned char* ptr = static_cast<unsigned char*>(imageData->GetScalarPointer());
+	// imageData的data type
+	std::string dataType = imageData->GetScalarTypeAsString();
+	std::cout << "Data Type: " << dataType << std::endl;
+	// 根据data type的不同，进行不同的处理
+	if (dataType == "unsigned short") {
+		unsigned short* ptr = static_cast<unsigned short*>(imageData->GetScalarPointer());
 
-	for (int i = 0; i < dims[2]; i++){
-		for (int j = 0; j < dims[1]; j++){
-			for (int k = 0; k < dims[0]; k++){
-				int index = i * dims[0] * dims[1] + j * dims[0] + k;
-				unsigned char value = ptr[index];
-				if (value > dicomTags.maxVal) dicomTags.maxVal = value;
-				if (value < dicomTags.minVal) dicomTags.minVal = value;
+		for (int i = 0; i < dims[2]; i++) {
+			for (int j = 0; j < dims[1]; j++) {
+				for (int k = 0; k < dims[0]; k++) {
+					int index = i * dims[0] * dims[1] + j * dims[0] + k;
+					unsigned short value = ptr[index];
+					if (value > dicomTags.maxVal) dicomTags.maxVal = value;
+					if (value < dicomTags.minVal) dicomTags.minVal = value;
+				}
 			}
 		}
+	}
+	else if (dataType == "unsigned char") {
+		unsigned char* ptr = static_cast<unsigned char*>(imageData->GetScalarPointer());
+
+		for (int i = 0; i < dims[2]; i++) {
+			for (int j = 0; j < dims[1]; j++) {
+				for (int k = 0; k < dims[0]; k++) {
+					int index = i * dims[0] * dims[1] + j * dims[0] + k;
+					unsigned char value = ptr[index];
+					if (value > dicomTags.maxVal) dicomTags.maxVal = value;
+					if (value < dicomTags.minVal) dicomTags.minVal = value;
+				}
+			}
+		}
+	}
+	else {
+		std::cout << "Cannot resolve Data Type: " << imageData->GetScalarTypeAsString() << std::endl;
 	}
 
 
@@ -314,7 +337,7 @@ bool VolumeRender::loadNRRD(std::string path){
 	return true;
 }
 
-bool VolumeRender::getNRRDPixelRGBA(int& width, int& height, int& numSlice, unsigned char*& rgba, short channel){
+bool VolumeRender::getNRRDPixelRGBA(int& width, int& height, int& numSlice, unsigned char*& rgba, short channel) {
 	// 取path的最后一个'/'的位置
 	size_t pos = dicomTags.folderPath.find_last_of('\\');
 	std::string fileName = dicomTags.folderPath.substr(pos + 1);
@@ -328,17 +351,39 @@ bool VolumeRender::getNRRDPixelRGBA(int& width, int& height, int& numSlice, unsi
 	width = dims[0];
 	height = dims[1];
 	numSlice = dims[2];
+	// imageData的data type
+	std::string dataType = imageData->GetScalarTypeAsString();
+	std::cout << "Data Type: " << dataType << std::endl;
 	rgba = new unsigned char[width * height * numSlice * channel];
-	unsigned char* ptr = static_cast<unsigned char*>(imageData->GetScalarPointer());
-	for (int i = 0; i < numSlice; i++){
-		for (int j = 0; j < height; j++){
-			for (int k = 0; k < width; k++){
-				int index = i * width * height * channel + j * width * channel + k * channel;
-				rgba[index + 0] = ptr[i * width * height  + j * width  + k];
-				rgba[index + 1] = 0;
+	// 根据data type的不同，进行不同的处理
+	if (dataType == "unsigned short") {
+		unsigned short* ptr = static_cast<unsigned short*>(imageData->GetScalarPointer());
+		for (int i = 0; i < numSlice; i++) {
+			for (int j = 0; j < height; j++) {
+				for (int k = 0; k < width; k++) {
+					int index = i * width * height * channel + j * width * channel + k * channel;
+					rgba[index + 0] = ptr[i * width * height + j * width + k] & 0xff;
+					rgba[index + 1] = (ptr[i * width * height + j * width + k] >> 8) & 0xff;
+				}
 			}
 		}
 	}
+	else if (dataType == "unsigned char") {
+		unsigned char* ptr = static_cast<unsigned char*>(imageData->GetScalarPointer());
+		for (int i = 0; i < numSlice; i++) {
+			for (int j = 0; j < height; j++) {
+				for (int k = 0; k < width; k++) {
+					int index = i * width * height * channel + j * width * channel + k * channel;
+					rgba[index + 0] = ptr[i * width * height + j * width + k];
+					rgba[index + 1] = 0;
+				}
+			}
+		}
+	}
+	else {
+		std::cout << "Cannot resolve Data Type: " << imageData->GetScalarTypeAsString() << std::endl;
+	}
+
 	return true;
 }
 

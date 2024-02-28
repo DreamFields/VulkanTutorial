@@ -632,15 +632,15 @@ void main(){
     vec4 color=absorptionMethod(stepLength,rayLength,dir,currentPos);
     
     outColor=color;
-    vec4 forwardCastRes=casingTest(stepLength,rayLength,dir,currentPos);// 正向投射
-    vec4 backwardCastRes=casingTest(stepLength,rayLength,-dir,backPos);// 反向投射
-    // |  beforFrontEmpty    |  insideEmpty+valid  |  afterBackEmpty    |
-    // |  forwardCastRes.r   |  forwardCastRes.g  + forwardCastRes.b    |
-    // |  backwardCastRes.g + backwardCastRes.b    |  backwardCastRes.r |
-    float beforFrontEmpty=forwardCastRes.r;
-    float insideEmpty=forwardCastRes.g-backwardCastRes.r;
-    float afterBackEmpty=backwardCastRes.r;
-    float allEmpty=forwardCastRes.a;// == backwardCastRes.a
+    // vec4 forwardCastRes=casingTest(stepLength,rayLength,dir,currentPos);// 正向投射
+    // vec4 backwardCastRes=casingTest(stepLength,rayLength,-dir,backPos);// 反向投射
+    // // |  beforFrontEmpty    |  insideEmpty+valid  |  afterBackEmpty    |
+    // // |  forwardCastRes.r   |  forwardCastRes.g  + forwardCastRes.b    |
+    // // |  backwardCastRes.g + backwardCastRes.b    |  backwardCastRes.r |
+    // float beforFrontEmpty=forwardCastRes.r;
+    // float insideEmpty=forwardCastRes.g-backwardCastRes.r;
+    // float afterBackEmpty=backwardCastRes.r;
+    // float allEmpty=forwardCastRes.a;// == backwardCastRes.a
     // outColor=vec4((beforFrontEmpty+insideEmpty+afterBackEmpty)/allEmpty); // 测试是否正确
     
     /*

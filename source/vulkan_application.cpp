@@ -1029,13 +1029,13 @@ void VulkanApplication::drawImGui() {
         ImGui::Text(" %.3f ms/frame (%.1f FPS)", 1000.0f / ImGui::GetIO().Framerate,
             ImGui::GetIO().Framerate);
 
-        ImGui::SliderFloat("alphaCorrection", &volumeRender->dicomParamControl.alphaCorrection, 0.0f, 256.0f);
+        ImGui::SliderFloat("alphaCorrection", &volumeRender->dicomParamControl.alphaCorrection, 0.0f, 500.0f);
         ImGui::SliderInt("steps", &volumeRender->dicomParamControl.steps, 0, 1500);
         ImGui::SliderFloat("stepLength", &volumeRender->dicomParamControl.stepLength, 0.0f, 0.02f);
-        if(ImGui::SliderFloat("WindowWidth", &volumeRender->dicomParamControl.windowWidth, 0.0f, 540.0f)){
+        if(ImGui::SliderFloat("WindowWidth", &volumeRender->dicomParamControl.windowWidth, 0.0f, 6000.0f)){
             computeResources.isComplete = false;
         }
-        if(ImGui::SliderFloat("WindowCenter", &volumeRender->dicomParamControl.windowCenter, 50.0f, 800.0f)){
+        if(ImGui::SliderFloat("WindowCenter", &volumeRender->dicomParamControl.windowCenter, 0.0f, 6000.0f)){
             computeResources.isComplete = false;
         }
         ImGui::SliderFloat("glow", &volumeRender->dicomParamControl.glow, 0.0f, 30.0f);

@@ -253,12 +253,98 @@ static inline ExampleConfig frog={
     1.5f
 };
 
+static inline ExampleConfig tooth={
+    "tooth_103x94x161_uint8",
+    "C:\\Users\\Dream\\Documents\\00.NRRD\\tooth_103x94x161_uint8",
+    glm::vec3( 0.189795, 1.87083, 1.92314),
+    glm::vec3(0.155088, -0.685352, -0.711505),
+    glm::vec3(0.0876571, -0.707832, 0.700921),
+    175.0f,
+    175.0f,
+    0.001f,
+    200.0f,
+    1.5f
+};
+
+// static inline ExampleConfig vertebra={
+//     "vertebra_512x512x512_uint16",
+//     "C:\\Users\\Dream\\Documents\\00.NRRD\\vertebra_512x512x512_uint16",
+//     glm::vec3(1.47557, 0.912226, -1.19671),
+//     glm::vec3(-0.487754, -0.206101, 0.848303),
+//     glm::vec3(-0.769853, -0.35662, -0.52929),
+//     400.0f,
+//     750.0f,
+//     0.001f,
+//     256.0f,
+//     1.5f
+// };
+
+static inline ExampleConfig stage_beetle={
+    "stag_beetle_832x832x494_uint16",
+    "C:\\Users\\Dream\\Documents\\00.NRRD\\stag_beetle_832x832x494_uint16",
+    glm::vec3( 0.683341, 1.93495, -0.881284),
+    glm::vec3(-0.0916631, -0.717417, 0.690587),
+    glm::vec3( 0.181913, -0.6939, -0.696714),
+    1175.0f,
+    750.0f,
+    0.001f,
+    500.0f,
+    1.5f
+};
+
+// 数据读取错误
+// static inline ExampleConfig chameleon={
+//     "chameleon_1024x1024x1080_uint16",
+//     "C:\\Users\\Dream\\Documents\\00.NRRD\\chameleon_1024x1024x1080_uint16",
+//     glm::vec3(1.47557, 0.912226, -1.19671),
+//     glm::vec3(-0.487754, -0.206101, 0.848303),
+//     glm::vec3(-0.769853, -0.35662, -0.52929),
+//     250.0f,
+//     150.0f,
+//     0.001f,
+//     100.0f,
+//     1.5f
+// };
+
+static inline ExampleConfig prone={
+    "prone_512x512x463_uint16",
+    "C:\\Users\\Dream\\Documents\\00.NRRD\\prone_512x512x463_uint16",
+    glm::vec3(-0.180568, -1.38087, 0.502245),
+    glm::vec3(0.340248, 0.940335, -0.00112224),
+    glm::vec3(0.138838, -0.0514169, -0.98898),
+    650.0f,
+    1475.0f,
+    0.001f,
+    500.0f,
+    1.5f
+};
+
+// 数据读取错误
+// static inline ExampleConfig beechnut={
+//     "beechnut_1024x1024x1546_uint16",
+//     "C:\\Users\\Dream\\Documents\\00.NRRD\\beechnut_1024x1024x1546_uint16",
+//     glm::vec3(-0.180568, -1.38087, 0.502245),
+//     glm::vec3(0.340248, 0.940335, -0.00112224),
+//     glm::vec3(0.138838, -0.0514169, -0.98898),
+//     650.0f,
+//     1475.0f,
+//     0.001f,
+//     500.0f,
+//     1.5f
+// };
+
 static inline std::unordered_map<int, ExampleConfig> dicomExamples = {
     {0, head},
     {1, mouse},
     {2, chest},
     {3, chest2},
-    {4, frog}
+    {4, frog},
+    {5, tooth},
+    // {6, vertebra},
+    {6, stage_beetle},
+    // {7, chameleon}
+    {7, prone},
+    // {8, beechnut}
 };
 
 
