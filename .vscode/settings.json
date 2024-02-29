@@ -120,6 +120,7 @@
     "functional": "cpp",
     "codecvt": "cpp",
     "numeric": "cpp",
-    "random": "cpp"
+    "random": "cpp",
+    "complex": "cpp"
   }
 }

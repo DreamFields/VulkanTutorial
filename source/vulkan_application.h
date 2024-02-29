@@ -216,7 +216,7 @@ private:
 	// end imgui
 
 	// begin test
-	bool isHighResolution = false; // *是否使用高分辨率,同时需要设置generateExtinctionCoefMipmap.comp和generateExtinctionCoef.comp中的高分辨率宏	
+	bool isHighResolution = true; // *是否使用高分辨率,同时需要设置generateExtinctionCoefMipmap.comp和generateExtinctionCoef.comp中的高分辨率宏	
 	bool isLowResolution = false; // *是否使用低分辨率,同时需要设置generateExtinctionCoefMipmap.comp和generateExtinctionCoef.comp中的低分辨率宏
 	int currentExampleID = 7; // * 当前的示例ID
 	int lowResVal=128; // *低分辨率值
@@ -1788,7 +1788,7 @@ private:
 
 			computeResources.isComplete = true;
 
-			recordGenExtCoffMipmaps(currentFrame);
+			// recordGenExtCoffMipmaps(currentFrame);
 
 			recordGenGaussianMipmaps();
 

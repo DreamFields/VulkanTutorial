@@ -26,7 +26,7 @@ layout(binding=3)uniform sampler1D lutTexSampler;
 // 假设每个工作组的大小为8x8x8
 layout(local_size_x=8,local_size_y=8,local_size_z=8)in;
 
-// #define USE_HIGH_RESOLUTION
+#define USE_HIGH_RESOLUTION
 // #define USE_LOW_RESOLUTION
 #define USE_INTENSITY
 

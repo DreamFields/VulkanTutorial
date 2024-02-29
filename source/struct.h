@@ -159,7 +159,7 @@ struct ExampleConfig {
 -------------wlww0-------------
     250.0f, // windowCenter
     250.0f, // windowWidth
-    0.01f, // stepLength
+    0.001f, // stepLength
     100.0f, // alphaCorrection
 -------------wlww1-------------
     1500.0f, // windowCenter
@@ -175,7 +175,7 @@ static inline ExampleConfig head = {
     glm::vec3(-0.0384151, -0.00448895, 0.999252),
     250.0f, // windowCenter
     250.0f, // windowWidth
-    0.01f, // stepLength
+    0.001f, // stepLength
     100.0f, // alphaCorrection
     1.5f // glow
 };
@@ -223,8 +223,8 @@ static inline ExampleConfig chest = {
     2000.0f,
     50.0f,
     0.001f,
-    100.0f,
-    1.5f
+    200.0f,
+    4.0f
 };
 
 static inline ExampleConfig chest2 = {
@@ -246,7 +246,7 @@ static inline ExampleConfig frog={
     glm::vec3(1.47557, 0.912226, -1.19671),
     glm::vec3(-0.487754, -0.206101, 0.848303),
     glm::vec3(-0.769853, -0.35662, -0.52929),
-    250.0f,
+    180.0f,
     150.0f,
     0.001f,
     100.0f,

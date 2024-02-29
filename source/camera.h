@@ -25,6 +25,7 @@ public:
     bool isSurround = true; // 相机是否环绕
 public:
     Camera(int exampleID);
+    void updateCameraByConfig(int exampleID);
     void onMouseMove(GLFWwindow* window, double xpos, double ypos);
     void onMouseButton(GLFWwindow* window, int button, int action, int mods);
     void updateCameraMove(GLFWwindow* window);

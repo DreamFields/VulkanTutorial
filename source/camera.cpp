@@ -6,6 +6,13 @@ Camera::Camera(int exampleID) {
     cameraUp = curConfig.cameraUp;
 }
 
+void Camera::updateCameraByConfig(int currentExampleID) {
+    ExampleConfig curConfig = dicomExamples[currentExampleID];
+    cameraPos = curConfig.cameraPos;
+    cameraFront = curConfig.cameraFront;
+    cameraUp = curConfig.cameraUp;
+}
+
 void Camera::onMouseMove(GLFWwindow* window, double xpos, double ypos)
 {
     if (leftMouseDown) {
