@@ -232,6 +232,7 @@ private:
 	void recordGenExtCoffMipmaps(uint32_t currentFrame);
 	void prepareGaussianCompute();
 	void recordGenGaussianMipmaps();
+	void changeExample();
 	// end compute
 
 	// begin TexOccConeSectionsInfo

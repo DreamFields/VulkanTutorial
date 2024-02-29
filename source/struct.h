@@ -249,8 +249,8 @@ static inline ExampleConfig frog={
     180.0f,
     150.0f,
     0.001f,
-    100.0f,
-    1.5f
+    9.0f,
+    10.5f
 };
 
 static inline ExampleConfig tooth={
@@ -262,8 +262,8 @@ static inline ExampleConfig tooth={
     175.0f,
     175.0f,
     0.001f,
-    200.0f,
-    1.5f
+    8.5f,
+    10.5f
 };
 
 // static inline ExampleConfig vertebra={
@@ -288,8 +288,8 @@ static inline ExampleConfig stage_beetle={
     1175.0f,
     750.0f,
     0.001f,
-    500.0f,
-    1.5f
+    55.0f,
+    8.0f
 };
 
 // 数据读取错误
@@ -315,8 +315,8 @@ static inline ExampleConfig prone={
     650.0f,
     1475.0f,
     0.001f,
-    500.0f,
-    1.5f
+    130.0f,
+    2.5f
 };
 
 // 数据读取错误

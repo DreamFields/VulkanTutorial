@@ -1009,6 +1009,106 @@ void VulkanApplication::createImGuiSyncObjects() {
     }
 }
 
+void VulkanApplication::changeExample() {
+    initVolume();
+    initGeometry();
+
+    vkDestroyImage(device, texture3DImage, nullptr);
+    vkFreeMemory(device, texture3DImageMemory, nullptr);
+    create3DTextureImage();
+
+    vkDestroyBuffer(device, vertexBuffer, nullptr);
+    vkFreeMemory(device, vertexBufferMemory, nullptr);
+    createVertexBuffer();
+
+    vkDestroyImageView(device, texture3DImageView, nullptr);
+    texture3DImageView = createImageView(texture3DImage, VK_FORMAT_R8G8_UNORM, VK_IMAGE_VIEW_TYPE_3D, maxMipLevels);
+
+    // 更新相机参数
+    camera->updateCameraByConfig(currentExampleID);
+
+    // 更新计算着色器描述符集
+    vkDestroyImage(device, textureTarget.image, nullptr);
+    vkFreeMemory(device, textureTarget.memory, nullptr);
+    vkDestroyImageView(device, textureTarget.imageView, nullptr);
+    vkDestroySampler(device, textureTarget.sampler, nullptr);
+    prepareTextureTarget();
+    for (size_t i = 0; i < MAX_FRAMES_IN_FLIGHT; i++) {
+        // 输入的是3D的纹理
+        VkDescriptorImageInfo inputImageInfo{};
+        inputImageInfo.imageLayout = VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL; // 图像布局
+        inputImageInfo.imageView = texture3DImageView; // 图像视图
+        inputImageInfo.sampler = textureTarget.sampler; // 纹理采样器
+
+        VkWriteDescriptorSet inputImageDescriptorWrite{};
+        inputImageDescriptorWrite.sType = VK_STRUCTURE_TYPE_WRITE_DESCRIPTOR_SET;
+        inputImageDescriptorWrite.dstSet = computeResources.descriptorSets[i]; // 目标描述符集
+        inputImageDescriptorWrite.dstBinding = 0; // 目标绑定点
+        inputImageDescriptorWrite.dstArrayElement = 0; // 目标数组元素
+        inputImageDescriptorWrite.descriptorType = VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER; // 描述符类型
+        inputImageDescriptorWrite.descriptorCount = 1; // 描述符数量
+        inputImageDescriptorWrite.pBufferInfo = nullptr; // 缓冲区信息
+        inputImageDescriptorWrite.pImageInfo = &inputImageInfo; // 图像信息
+
+        // 输出的是3D的纹理
+        VkDescriptorImageInfo outputImageInfo{};
+        outputImageInfo.imageLayout = VK_IMAGE_LAYOUT_GENERAL; // 图像布局
+        outputImageInfo.imageView = textureTarget.imageView; // 图像视图
+        outputImageInfo.sampler = textureTarget.sampler; // 纹理采样器
+
+        VkWriteDescriptorSet outputImageDescriptorWrite{};
+        outputImageDescriptorWrite.sType = VK_STRUCTURE_TYPE_WRITE_DESCRIPTOR_SET;
+        outputImageDescriptorWrite.dstSet = computeResources.descriptorSets[i]; // 目标描述符集
+        outputImageDescriptorWrite.dstBinding = 1; // 目标绑定点
+        outputImageDescriptorWrite.dstArrayElement = 0; // 目标数组元素
+        outputImageDescriptorWrite.descriptorType = VK_DESCRIPTOR_TYPE_STORAGE_IMAGE; // 描述符类型
+        outputImageDescriptorWrite.descriptorCount = 1; // 描述符数量
+        outputImageDescriptorWrite.pBufferInfo = nullptr; // 缓冲区信息
+        outputImageDescriptorWrite.pImageInfo = &outputImageInfo; // 图像信息
+
+        std::array<VkWriteDescriptorSet, 2> computeWrites = {
+            inputImageDescriptorWrite,
+            outputImageDescriptorWrite
+        };
+
+        vkUpdateDescriptorSets(device, static_cast<uint32_t>(computeWrites.size()), computeWrites.data(), 0, nullptr);
+    }
+
+    // 更新特定的描述符集
+    for (size_t i = 0; i < MAX_FRAMES_IN_FLIGHT; i++) {
+        VkDescriptorImageInfo imageInfo{};
+        imageInfo.imageLayout = VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL; // 图像布局
+        imageInfo.imageView = texture3DImageView; // 图像视图
+        imageInfo.sampler = textureSampler; // 纹理采样器
+
+        VkDescriptorImageInfo extCoefImageInfo{};
+        extCoefImageInfo.imageLayout = VK_IMAGE_LAYOUT_GENERAL; // 图像布局
+        extCoefImageInfo.imageView = textureTarget.imageView;
+        extCoefImageInfo.sampler = textureSampler; // 纹理采样器
+
+        std::array<VkWriteDescriptorSet, 2> descriptorWrite{};
+        descriptorWrite[0].sType = VK_STRUCTURE_TYPE_WRITE_DESCRIPTOR_SET;
+        descriptorWrite[0].dstSet = descriptorSets.compositionDescriptorSets[i]; // 目标描述符集
+        descriptorWrite[0].dstBinding = 1; // 目标绑定
+        descriptorWrite[0].dstArrayElement = 0; // 目标数组元素
+        descriptorWrite[0].descriptorType = VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER; // 描述符类型
+        descriptorWrite[0].descriptorCount = 1; // 描述符数量
+        descriptorWrite[0].pImageInfo = &imageInfo; // 图像信息
+
+        descriptorWrite[1].sType = VK_STRUCTURE_TYPE_WRITE_DESCRIPTOR_SET;
+        descriptorWrite[1].dstSet = descriptorSets.compositionDescriptorSets[i]; // 目标描述符集
+        descriptorWrite[1].dstBinding = 5; // 目标绑定
+        descriptorWrite[1].dstArrayElement = 0; // 目标数组元素
+        descriptorWrite[1].descriptorType = VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER; // 描述符类型
+        descriptorWrite[1].descriptorCount = 1; // 描述符数量
+        descriptorWrite[1].pImageInfo = &extCoefImageInfo; // 图像信息
+
+        vkUpdateDescriptorSets(device, static_cast<uint32_t>(descriptorWrite.size()), descriptorWrite.data(), 0, nullptr);
+    }
+
+    computeResources.isComplete = false;
+}
+
 void VulkanApplication::drawImGui() {
     // start the Dear ImGui frame
     ImGui_ImplVulkan_NewFrame();
@@ -1037,104 +1137,7 @@ void VulkanApplication::drawImGui() {
             items[i] = static_cast<const char*>(dicomExamples[i].name.c_str());
         }
         if (ImGui::Combo("Dicom Type", &currentExampleID, items, IM_ARRAYSIZE(items))) {
-
-            initVolume();
-            initGeometry();
-
-            vkDestroyImage(device, texture3DImage, nullptr);
-            vkFreeMemory(device, texture3DImageMemory, nullptr);
-            create3DTextureImage();
-
-            vkDestroyBuffer(device, vertexBuffer, nullptr);
-            vkFreeMemory(device, vertexBufferMemory, nullptr);
-            createVertexBuffer();
-
-            vkDestroyImageView(device, texture3DImageView, nullptr);
-            texture3DImageView = createImageView(texture3DImage, VK_FORMAT_R8G8_UNORM, VK_IMAGE_VIEW_TYPE_3D, maxMipLevels);
-
-            // 更新相机参数
-            camera->updateCameraByConfig(currentExampleID);
-
-            // 更新计算着色器描述符集
-            vkDestroyImage(device, textureTarget.image, nullptr);
-            vkFreeMemory(device, textureTarget.memory, nullptr);
-            vkDestroyImageView(device, textureTarget.imageView, nullptr);
-            vkDestroySampler(device, textureTarget.sampler, nullptr);
-            prepareTextureTarget();
-            for (size_t i = 0; i < MAX_FRAMES_IN_FLIGHT; i++) {
-                // 输入的是3D的纹理
-                VkDescriptorImageInfo inputImageInfo{};
-                inputImageInfo.imageLayout = VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL; // 图像布局
-                inputImageInfo.imageView = texture3DImageView; // 图像视图
-                inputImageInfo.sampler = textureTarget.sampler; // 纹理采样器
-
-                VkWriteDescriptorSet inputImageDescriptorWrite{};
-                inputImageDescriptorWrite.sType = VK_STRUCTURE_TYPE_WRITE_DESCRIPTOR_SET;
-                inputImageDescriptorWrite.dstSet = computeResources.descriptorSets[i]; // 目标描述符集
-                inputImageDescriptorWrite.dstBinding = 0; // 目标绑定点
-                inputImageDescriptorWrite.dstArrayElement = 0; // 目标数组元素
-                inputImageDescriptorWrite.descriptorType = VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER; // 描述符类型
-                inputImageDescriptorWrite.descriptorCount = 1; // 描述符数量
-                inputImageDescriptorWrite.pBufferInfo = nullptr; // 缓冲区信息
-                inputImageDescriptorWrite.pImageInfo = &inputImageInfo; // 图像信息
-
-                // 输出的是3D的纹理
-                VkDescriptorImageInfo outputImageInfo{};
-                outputImageInfo.imageLayout = VK_IMAGE_LAYOUT_GENERAL; // 图像布局
-                outputImageInfo.imageView = textureTarget.imageView; // 图像视图
-                outputImageInfo.sampler = textureTarget.sampler; // 纹理采样器
-
-                VkWriteDescriptorSet outputImageDescriptorWrite{};
-                outputImageDescriptorWrite.sType = VK_STRUCTURE_TYPE_WRITE_DESCRIPTOR_SET;
-                outputImageDescriptorWrite.dstSet = computeResources.descriptorSets[i]; // 目标描述符集
-                outputImageDescriptorWrite.dstBinding = 1; // 目标绑定点
-                outputImageDescriptorWrite.dstArrayElement = 0; // 目标数组元素
-                outputImageDescriptorWrite.descriptorType = VK_DESCRIPTOR_TYPE_STORAGE_IMAGE; // 描述符类型
-                outputImageDescriptorWrite.descriptorCount = 1; // 描述符数量
-                outputImageDescriptorWrite.pBufferInfo = nullptr; // 缓冲区信息
-                outputImageDescriptorWrite.pImageInfo = &outputImageInfo; // 图像信息
-
-                std::array<VkWriteDescriptorSet, 2> computeWrites = {
-                    inputImageDescriptorWrite,
-                    outputImageDescriptorWrite
-                };
-
-                vkUpdateDescriptorSets(device, static_cast<uint32_t>(computeWrites.size()), computeWrites.data(), 0, nullptr);
-            }
-
-            // 更新特定的描述符集
-            for (size_t i = 0; i < MAX_FRAMES_IN_FLIGHT; i++) {
-                VkDescriptorImageInfo imageInfo{};
-                imageInfo.imageLayout = VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL; // 图像布局
-                imageInfo.imageView = texture3DImageView; // 图像视图
-                imageInfo.sampler = textureSampler; // 纹理采样器
-
-                VkDescriptorImageInfo extCoefImageInfo{};
-                extCoefImageInfo.imageLayout = VK_IMAGE_LAYOUT_GENERAL; // 图像布局
-                extCoefImageInfo.imageView = textureTarget.imageView;
-                extCoefImageInfo.sampler = textureSampler; // 纹理采样器
-
-                std::array<VkWriteDescriptorSet, 2> descriptorWrite{};
-                descriptorWrite[0].sType = VK_STRUCTURE_TYPE_WRITE_DESCRIPTOR_SET;
-                descriptorWrite[0].dstSet = descriptorSets.compositionDescriptorSets[i]; // 目标描述符集
-                descriptorWrite[0].dstBinding = 1; // 目标绑定
-                descriptorWrite[0].dstArrayElement = 0; // 目标数组元素
-                descriptorWrite[0].descriptorType = VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER; // 描述符类型
-                descriptorWrite[0].descriptorCount = 1; // 描述符数量
-                descriptorWrite[0].pImageInfo = &imageInfo; // 图像信息
-
-                descriptorWrite[1].sType = VK_STRUCTURE_TYPE_WRITE_DESCRIPTOR_SET;
-                descriptorWrite[1].dstSet = descriptorSets.compositionDescriptorSets[i]; // 目标描述符集
-                descriptorWrite[1].dstBinding = 5; // 目标绑定
-                descriptorWrite[1].dstArrayElement = 0; // 目标数组元素
-                descriptorWrite[1].descriptorType = VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER; // 描述符类型
-                descriptorWrite[1].descriptorCount = 1; // 描述符数量
-                descriptorWrite[1].pImageInfo = &extCoefImageInfo; // 图像信息
-
-                vkUpdateDescriptorSets(device, static_cast<uint32_t>(descriptorWrite.size()), descriptorWrite.data(), 0, nullptr);
-            }
-
-            computeResources.isComplete = false;
+            changeExample();
         }
 
         ImGui::SliderFloat("alphaCorrection", &volumeRender->dicomParamControl.alphaCorrection, 0.0f, 500.0f);
