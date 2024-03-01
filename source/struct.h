@@ -214,17 +214,30 @@ static inline ExampleConfig mouse = {
     2.5f // glow
 };
 
-static inline ExampleConfig thorax = {
-    "thorax512*512*49",
-    "C:\\Users\\Dream\\Documents\\00.Dicom\\liudan_wholebodyls_thorax\\",
-    glm::vec3(0.44323, -1.26454, 1.43985),
-    glm::vec3(0.0283847, 0.882255, -0.469916),
-    glm::vec3(-0.0319244, 0.470665, 0.881734),
-    2000.0f,
-    50.0f,
+// static inline ExampleConfig thorax = {
+//     "thorax512*512*49",
+//     "C:\\Users\\Dream\\Documents\\00.Dicom\\liudan_wholebodyls_thorax\\",
+//     glm::vec3(0.44323, -1.26454, 1.43985),
+//     glm::vec3(0.0283847, 0.882255, -0.469916),
+//     glm::vec3(-0.0319244, 0.470665, 0.881734),
+//     2000.0f,
+//     50.0f,
+//     0.001f,
+//     200.0f,
+//     4.0f
+// };
+
+static inline ExampleConfig brain ={
+    "brain",
+    "C:\\Users\\Dream\\Documents\\00.Dicom\\brain\\",
+    glm::vec3(1.58988, -0.58501, -0.778855),
+    glm::vec3(-0.544902, 0.542467, 0.639383),
+    glm::vec3(-0.583504, 0.302292, -0.753752),
+    1325.0f,
+    3100.0f,
     0.001f,
-    200.0f,
-    4.0f
+    40.0f,
+    4.5f
 };
 
 static inline ExampleConfig whole_body = {
@@ -336,7 +349,8 @@ static inline ExampleConfig prone = {
 static inline std::unordered_map<int, ExampleConfig> dicomExamples = {
     {0, head},
     {1, mouse},
-    {2, thorax},
+    // {2, thorax},
+    {2, brain},
     {3, whole_body},
     {4, frog},
     {5, tooth},
