@@ -9,6 +9,8 @@
 //vtkSmartPointer 
 #include <vtkSmartPointer.h>
 #include <vtkImageData.h>
+#include <vtkDICOMImageReader.h>
+#include <vtkImageCast.h>
 
 #include <glm.hpp>
 #include <string>
@@ -75,9 +77,11 @@ public:
     VolumeRender(int exampleID);
     ~VolumeRender();
 
-    bool loadDicom(std::string path);
-    bool loadNRRD(std::string path);
+    bool loadDicom(std::string path); // dcmtk
+    bool loadNRRD(std::string path); // vtk
+    bool loadDICOM(std::string path); // vtk
     bool getNRRDPixelRGBA(int& width, int& height, int& numSlice, unsigned char*& rgba, short channel);
+    bool getDICOMPixelRGBA(int& width, int& height, int& numSlice, unsigned char*& rgba, short channel);
     bool getPixelRGBA(int& width, int& height, int& numSlice, unsigned char*& rgba, short channel);
     DicomTags getDicomTags();
     const std::vector<Vertex> getBoxVertices();

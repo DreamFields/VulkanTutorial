@@ -23,8 +23,10 @@ void VulkanApplication::initVolume() {
         volumeRender->loadNRRD(dicomExamples[currentExampleID].path);
     }
     else {
-        volumeRender->loadDicom(dicomExamples[currentExampleID].path);
+        // volumeRender->loadDicom(dicomExamples[currentExampleID].path);
+        volumeRender->loadDICOM(dicomExamples[currentExampleID].path);
     }
+
 
     // generate gaussian samples
     volumeRender->GenerateConeSamples();
@@ -51,9 +53,8 @@ void VulkanApplication::create1DTextureImage() {
     // STBI_rgb_alpha 值会强制加载图像的 alpha 通道，即使图像没有 alpha 通道也是如此，这有利于将来与其他纹理保持一致。
     // 中间三个参数用于输出图像的宽度、高度和实际通道数。
     // 返回的指针是像素值数组的第一个元素。
-    stbi_uc* pixels = stbi_load("D:\\00.CG_project\\00.VulkanTutorial\\textures\\cm_viridis.png", &texWidth, &texHeight, &texChannels, STBI_rgb_alpha);
-    // unsigned char* pixels = nullptr;
-    // volumeRender->getPixelRGBA("C:\\Users\\Dream\\Documents\\00.Dicom\\ede6fe9eda6e44a98b3ad20da6f9116a Anonymized29\\Unknown Study\\CT Head 5.0000\\CT000027.dcm", texWidth, texHeight, texChannels, pixels);
+    // stbi_uc* pixels = stbi_load("D:\\00.CG_project\\00.VulkanTutorial\\textures\\cm_viridis.png", &texWidth, &texHeight, &texChannels, STBI_rgb_alpha);
+    stbi_uc* pixels = stbi_load((lutPath + lookUpTables[currentLUTID] + ".png").c_str(), &texWidth, &texHeight, &texChannels, STBI_rgb_alpha);
 
     VkDeviceSize imageSize = texWidth * 4;
 
@@ -221,7 +222,8 @@ void VulkanApplication::create3DTextureImage() {
         volumeRender->getNRRDPixelRGBA(texWidth, texHeight, texDepth, pixels, channel);
     }
     else {
-        volumeRender->getPixelRGBA(texWidth, texHeight, texDepth, pixels, channel);
+        // volumeRender->getPixelRGBA(texWidth, texHeight, texDepth, pixels, channel);
+        volumeRender->getDICOMPixelRGBA(texWidth, texHeight, texDepth, pixels, channel);
     }
 
     VkDeviceSize imageSize = texWidth * texHeight * texDepth * channel;
@@ -1136,8 +1138,43 @@ void VulkanApplication::drawImGui() {
         for (int i = 0; i < dicomExamples.size(); i++) {
             items[i] = static_cast<const char*>(dicomExamples[i].name.c_str());
         }
-        if (ImGui::Combo("Dicom Type", &currentExampleID, items, IM_ARRAYSIZE(items))) {
+        if (ImGui::Combo("Example", &currentExampleID, items, IM_ARRAYSIZE(items))) {
             changeExample();
+        }
+
+        // 添加下拉框，用于选择不同的currentLUTID，然后根据currentLUTID的值来进行不同的操作
+        const char* lutItems[5];
+        for (int i = 0; i < 5; i++) {
+            lutItems[i] = static_cast<const char*>(lookUpTables[i].c_str());
+        }
+        if (ImGui::Combo("LUT Type", &currentLUTID, lutItems, IM_ARRAYSIZE(lutItems))) {
+
+            // todo 如果直接使用下面的代码，会vulkan报错，因为正在使用
+            // vkDestroyImage(device, lutImage, nullptr);
+            // vkFreeMemory(device, lutImageMemory, nullptr);
+            create1DTextureImage();
+
+            vkDestroyImageView(device, lutImageView, nullptr);
+            lutImageView = createImageView(lutImage, VK_FORMAT_R8G8B8A8_UNORM, VK_IMAGE_VIEW_TYPE_1D);
+
+            // 更新特定的描述符集
+            for (size_t i = 0; i < MAX_FRAMES_IN_FLIGHT; i++) {
+                VkDescriptorImageInfo lutImageInfo{};
+                lutImageInfo.imageLayout = VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL; // 图像布局
+                lutImageInfo.imageView = lutImageView; // 图像视图
+                lutImageInfo.sampler = textureSampler; // 纹理采样器
+
+                std::array<VkWriteDescriptorSet, 1> descriptorWrite{};
+                descriptorWrite[0].sType = VK_STRUCTURE_TYPE_WRITE_DESCRIPTOR_SET;
+                descriptorWrite[0].dstSet = descriptorSets.compositionDescriptorSets[i]; // 目标描述符集
+                descriptorWrite[0].dstBinding = 4; // 目标绑定
+                descriptorWrite[0].dstArrayElement = 0; // 目标数组元素
+                descriptorWrite[0].descriptorType = VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER; // 描述符类型
+                descriptorWrite[0].descriptorCount = 1; // 描述符数量
+                descriptorWrite[0].pImageInfo = &lutImageInfo; // 图像信息
+
+                vkUpdateDescriptorSets(device, static_cast<uint32_t>(descriptorWrite.size()), descriptorWrite.data(), 0, nullptr);
+            }
         }
 
         ImGui::SliderFloat("alphaCorrection", &volumeRender->dicomParamControl.alphaCorrection, 0.0f, 500.0f);

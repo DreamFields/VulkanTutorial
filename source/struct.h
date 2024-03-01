@@ -168,7 +168,7 @@ struct ExampleConfig {
     200.0f, // alphaCorrection
  */
 static inline ExampleConfig head = {
-    "head",
+    "head512*512*41",
     "C:\\Users\\Dream\\Documents\\00.Dicom\\ede6fe9eda6e44a98b3ad20da6f9116a Anonymized29\\Unknown Study\\CT Head 5.0000\\",
     glm::vec3(0.0709212, -1.45329, 0.47473),
     glm::vec3(0.214537, 0.976634, 0.012635),
@@ -202,7 +202,7 @@ static inline ExampleConfig head = {
     25.0f,
  */
 static inline ExampleConfig mouse = {
-    "mouse",
+    "mouse512*512*512",
     "C:\\Users\\Dream\\Documents\\00.Dicom\\mouse512\\",
     glm::vec3(1.0173, 1.20632, 2.29839),
     glm::vec3(-0.258629, -0.353131, -0.899116),
@@ -214,8 +214,8 @@ static inline ExampleConfig mouse = {
     2.5f // glow
 };
 
-static inline ExampleConfig chest = {
-    "chest",
+static inline ExampleConfig thorax = {
+    "thorax512*512*49",
     "C:\\Users\\Dream\\Documents\\00.Dicom\\liudan_wholebodyls_thorax\\",
     glm::vec3(0.44323, -1.26454, 1.43985),
     glm::vec3(0.0283847, 0.882255, -0.469916),
@@ -227,20 +227,20 @@ static inline ExampleConfig chest = {
     4.0f
 };
 
-static inline ExampleConfig chest2 = {
-    "chest2",
-    "C:\\Users\\Dream\\Documents\\00.Dicom\\liudan_wholebodyls_thorax\\",
-    glm::vec3(0.44323, -1.26454, 1.43985),
-    glm::vec3(0.0283847, 0.882255, -0.469916),
-    glm::vec3(-0.0319244, 0.470665, 0.881734),
-    2000.0f,
-    50.0f,
+static inline ExampleConfig whole_body = {
+    "whole body",
+    "C:\\Users\\Dream\\Documents\\00.Dicom\\zzw_wholebodyls_756\\",
+    glm::vec3(0.940602, 1.83424, 0.504027),
+    glm::vec3(-0.313571, -0.949561, -0.00286614),
+    glm::vec3(-0.030254, 0.0130074, -0.999458),
+    6000.0f,
+    1600.0f,
     0.001f,
     100.0f,
     1.5f
 };
 
-static inline ExampleConfig frog={
+static inline ExampleConfig frog = {
     "frog_256x256x44_uint8",
     "C:\\Users\\Dream\\Documents\\00.NRRD\\frog_256x256x44_uint8",
     glm::vec3(1.47557, 0.912226, -1.19671),
@@ -253,10 +253,10 @@ static inline ExampleConfig frog={
     10.5f
 };
 
-static inline ExampleConfig tooth={
+static inline ExampleConfig tooth = {
     "tooth_103x94x161_uint8",
     "C:\\Users\\Dream\\Documents\\00.NRRD\\tooth_103x94x161_uint8",
-    glm::vec3( 0.189795, 1.87083, 1.92314),
+    glm::vec3(0.189795, 1.87083, 1.92314),
     glm::vec3(0.155088, -0.685352, -0.711505),
     glm::vec3(0.0876571, -0.707832, 0.700921),
     175.0f,
@@ -279,12 +279,12 @@ static inline ExampleConfig tooth={
 //     1.5f
 // };
 
-static inline ExampleConfig stage_beetle={
+static inline ExampleConfig stage_beetle = {
     "stag_beetle_832x832x494_uint16",
     "C:\\Users\\Dream\\Documents\\00.NRRD\\stag_beetle_832x832x494_uint16",
-    glm::vec3( 0.683341, 1.93495, -0.881284),
+    glm::vec3(0.683341, 1.93495, -0.881284),
     glm::vec3(-0.0916631, -0.717417, 0.690587),
-    glm::vec3( 0.181913, -0.6939, -0.696714),
+    glm::vec3(0.181913, -0.6939, -0.696714),
     1175.0f,
     750.0f,
     0.001f,
@@ -306,7 +306,7 @@ static inline ExampleConfig stage_beetle={
 //     1.5f
 // };
 
-static inline ExampleConfig prone={
+static inline ExampleConfig prone = {
     "prone_512x512x463_uint16",
     "C:\\Users\\Dream\\Documents\\00.NRRD\\prone_512x512x463_uint16",
     glm::vec3(-0.180568, -1.38087, 0.502245),
@@ -336,8 +336,8 @@ static inline ExampleConfig prone={
 static inline std::unordered_map<int, ExampleConfig> dicomExamples = {
     {0, head},
     {1, mouse},
-    {2, chest},
-    {3, chest2},
+    {2, thorax},
+    {3, whole_body},
     {4, frog},
     {5, tooth},
     // {6, vertebra},
@@ -347,4 +347,12 @@ static inline std::unordered_map<int, ExampleConfig> dicomExamples = {
     // {8, beechnut}
 };
 
+const std::string lutPath = "D:\\00.CG_project\\00.VulkanTutorial\\textures\\";
+static inline std::unordered_map<int, std::string> lookUpTables = {
+    {0,"cm_viridis"},
+    {1,"pet"},
+    {2,"spectral"},
+    {3,"NIH"},
+    {4,"normal2"},
+};
 

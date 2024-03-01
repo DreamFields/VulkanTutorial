@@ -387,6 +387,154 @@ bool VolumeRender::getNRRDPixelRGBA(int& width, int& height, int& numSlice, unsi
 	return true;
 }
 
+// 利用vtk 读取dicom文件夹
+bool VolumeRender::loadDICOM(std::string path) {
+	// folder path
+	dicomTags.folderPath = path;
+	dicomTags.maxVal = INT_MIN;
+	dicomTags.minVal = INT_MAX;
+	dicomTags.voxelSize = glm::vec3(1.0f, 1.0f, 1.0f);
+	dicomTags.realSize = glm::vec3(1.0f, 1.0f, 1.0f);
+	dicomTags.boxSize = glm::vec3(1.0f, 1.0f, 1.0f);
+
+	// 利用vtk 读取dicom文件夹
+	vtkSmartPointer<vtkDICOMImageReader> reader = vtkSmartPointer<vtkDICOMImageReader>::New();
+	reader->SetDirectoryName(path.c_str());
+	reader->Update();
+	vtkSmartPointer<vtkImageData> imageData = reader->GetOutput();
+	int* dims = imageData->GetDimensions();
+	std::cout << "Dims: " << dims[0] << " " << dims[1] << " " << dims[2] << std::endl;
+	// imageData的data type
+	std::string dataType = imageData->GetScalarTypeAsString();
+	std::cout << "Data Type: " << dataType << std::endl;
+
+	// spacing
+	double* spacing = imageData->GetSpacing();
+	std::cout << "Spacing: " << spacing[0] << " " << spacing[1] << " " << spacing[2] << std::endl;
+
+	// origin
+	double* origin = imageData->GetOrigin();
+	std::cout << "Origin: " << origin[0] << " " << origin[1] << " " << origin[2] << std::endl;
+
+	// rescale slope
+	double rescaleSlope = reader->GetRescaleSlope();
+	// std::cout << "Rescale Slope: " << rescaleSlope << std::endl;
+
+	// rescale intercept
+	double rescaleIntercept = reader->GetRescaleOffset();
+	// std::cout << "Rescale Intercept: " << rescaleIntercept << std::endl;
+
+	// 写入dicomTags
+	dicomTags.numSlice = dims[2];
+	dicomTags.voxelSize = glm::vec3(spacing[0], spacing[1], spacing[2]);
+	dicomTags.realSize = glm::vec3(spacing[0] * dims[0], spacing[1] * dims[1], spacing[2] * dims[2]);
+	dicomTags.voxelResolution = glm::vec3(dims[0], dims[1], dims[2]);
+	dicomTags.windowCenter = 0;
+	dicomTags.windowWidth = 0;
+	dicomTags.rescaleSlope = rescaleSlope;
+	dicomTags.rescaleIntercept = rescaleIntercept;
+
+	// realSize
+	dicomTags.realSize[0] = dicomTags.voxelSize[0] * dicomTags.voxelResolution[0];
+	dicomTags.realSize[1] = dicomTags.voxelSize[1] * dicomTags.voxelResolution[1];
+	dicomTags.realSize[2] = dicomTags.voxelSize[2] * dicomTags.numSlice;
+
+	// boxGeometry
+	glm::float32 maxSize = std::max(dicomTags.realSize[0], std::max(dicomTags.realSize[1], dicomTags.realSize[2]));
+	dicomTags.boxSize[0] = dicomTags.realSize[0] / maxSize;
+	dicomTags.boxSize[1] = dicomTags.realSize[1] / maxSize;
+	dicomTags.boxSize[2] = dicomTags.realSize[2] / maxSize;
+
+	if (dataType != "short") {
+		vtkSmartPointer<vtkImageCast> cast = vtkSmartPointer<vtkImageCast>::New();
+		cast->SetInputData(imageData);
+		cast->SetOutputScalarTypeToShort();
+		cast->Update();
+		imageData = cast->GetOutput();
+	}
+
+	// max and min value
+	short* ptr = static_cast<short*>(imageData->GetScalarPointer());
+	for (int i = 0; i < dims[2]; i++) {
+		for (int j = 0; j < dims[1]; j++) {
+			for (int k = 0; k < dims[0]; k++) {
+				int index = i * dims[0] * dims[1] + j * dims[0] + k;
+				short value = ptr[index];
+				if (value > dicomTags.maxVal) dicomTags.maxVal = value;
+				if (value < dicomTags.minVal) dicomTags.minVal = value;
+			}
+		}
+	}
+
+
+	// cout dicomtags
+	std::cout << "Folder Path: " << dicomTags.folderPath << std::endl;
+	std::cout << "Num Slice: " << dicomTags.numSlice << std::endl;
+	std::cout << "Box Width: " << dicomTags.voxelResolution[0] << std::endl;
+	std::cout << "Box Height: " << dicomTags.voxelResolution[1] << std::endl;
+	std::cout << "Window Center: " << dicomTags.windowCenter << std::endl;
+	std::cout << "Window Width: " << dicomTags.windowWidth << std::endl;
+	std::cout << "Rescale Slope: " << dicomTags.rescaleSlope << std::endl;
+	std::cout << "Rescale Intercept: " << dicomTags.rescaleIntercept << std::endl;
+	std::cout << "Max Value: " << dicomTags.maxVal << std::endl;
+	std::cout << "Min Value: " << dicomTags.minVal << std::endl;
+
+	dicomParamControl.windowCenter = static_cast<float>(dicomExamples[currentExampleID].windowCenter);
+	dicomParamControl.windowWidth = static_cast<float>(dicomExamples[currentExampleID].windowWidth);
+	dicomParamControl.alphaCorrection = dicomExamples[currentExampleID].alphaCorrection;
+	dicomParamControl.steps = 130;
+	dicomParamControl.stepLength = dicomExamples[currentExampleID].stepLength;
+	dicomParamControl.glow = dicomExamples[currentExampleID].glow;
+
+	return true;
+}
+
+bool VolumeRender::getDICOMPixelRGBA(int& width, int& height, int& numSlice, unsigned char*& rgba, short channel) {
+	// 利用vtk 读取dicom文件夹
+	vtkSmartPointer<vtkDICOMImageReader> reader = vtkSmartPointer<vtkDICOMImageReader>::New();
+	reader->SetDirectoryName(dicomTags.folderPath.c_str());
+
+	// 读取dicom文件夹
+	reader->Update();
+	vtkSmartPointer<vtkImageData> imageData = reader->GetOutput();
+	int* dims = imageData->GetDimensions();
+	width = dims[0];
+	height = dims[1];
+	numSlice = dims[2];
+	// imageData的data type
+	std::string dataType = imageData->GetScalarTypeAsString();
+	std::cout << "Data Type: " << dataType << std::endl;
+	rgba = new unsigned char[width * height * numSlice * channel];
+
+
+	if (dataType != "short") {
+		vtkSmartPointer<vtkImageCast> cast = vtkSmartPointer<vtkImageCast>::New();
+		cast->SetInputData(imageData);
+		cast->SetOutputScalarTypeToShort();
+		cast->Update();
+		imageData = cast->GetOutput();
+		std::cout << "new dataType: " << imageData->GetScalarTypeAsString() << std::endl;
+	}
+
+	// 根据data type的不同，进行不同的处理
+	// if (dataType == "short") {
+	short* ptr = static_cast<short*>(imageData->GetScalarPointer());
+	for (int i = 0; i < numSlice; i++) {
+		for (int j = 0; j < height; j++) {
+			for (int k = 0; k < width; k++) {
+				int index = i * width * height * channel + j * width * channel + k * channel;
+				int value = static_cast<int> (ptr[i * width * height + j * width + k]);
+				value += +abs(dicomTags.minVal);
+				rgba[index + 0] = static_cast<unsigned char>(value & 0xff);
+				rgba[index + 1] = static_cast<unsigned char>((value >> 8) & 0xff);
+			}
+		}
+	}
+	// }
+
+	return true;
+}
+
 bool VolumeRender::getPixelRGBA(int& width, int& height, int& numSlice, unsigned char*& rgba, short channel)
 {
 	width = dicomTags.voxelResolution[0];

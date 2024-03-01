@@ -181,7 +181,39 @@ set_target_properties(vtkIOImage PROPERTIES
   IMPORTED_LOCATION ${VTK_DIR}/bin/vtkIOImage-8.2.dll
   IMPORTED_IMPLIB ${VTK_DIR}/lib/vtkIOImage-8.2.lib)
 
-target_link_libraries(${PROJECT_NAME} PUBLIC vtkCommonCore vtkCommonDataModel vtkCommonExecutionModel vtkFiltersCore vtkIOImage)
+# image cast
+add_library(vtkImagingColor SHARED IMPORTED)
+
+set_target_properties(vtkImagingColor PROPERTIES
+  IMPORTED_LOCATION ${VTK_DIR}/bin/vtkImagingColor-8.2.dll
+  IMPORTED_IMPLIB ${VTK_DIR}/lib/vtkImagingColor-8.2.lib)
+
+add_library(vtkImagingCore SHARED IMPORTED)
+
+set_target_properties(vtkImagingCore PROPERTIES
+  IMPORTED_LOCATION ${VTK_DIR}/bin/vtkImagingCore-8.2.dll
+  IMPORTED_IMPLIB ${VTK_DIR}/lib/vtkImagingCore-8.2.lib)
+
+add_library(vtkImagingGeneral SHARED IMPORTED)
+
+set_target_properties(vtkImagingGeneral PROPERTIES
+  IMPORTED_LOCATION ${VTK_DIR}/bin/vtkImagingGeneral-8.2.dll
+  IMPORTED_IMPLIB ${VTK_DIR}/lib/vtkImagingGeneral-8.2.lib)
+
+add_library(vtkImagingHybrid SHARED IMPORTED)
+
+set_target_properties(vtkImagingHybrid PROPERTIES
+  IMPORTED_LOCATION ${VTK_DIR}/bin/vtkImagingHybrid-8.2.dll
+  IMPORTED_IMPLIB ${VTK_DIR}/lib/vtkImagingHybrid-8.2.lib)
+
+add_library(vtkImagingMath SHARED IMPORTED)
+
+set_target_properties(vtkImagingMath PROPERTIES
+  IMPORTED_LOCATION ${VTK_DIR}/bin/vtkImagingMath-8.2.dll
+  IMPORTED_IMPLIB ${VTK_DIR}/lib/vtkImagingMath-8.2.lib)
+
+
+target_link_libraries(${PROJECT_NAME} PUBLIC vtkCommonCore vtkCommonDataModel vtkCommonExecutionModel vtkFiltersCore vtkIOImage vtkImagingColor vtkImagingCore vtkImagingGeneral vtkImagingHybrid vtkImagingMath)
 
 # 将所有.dll文件复制到输出目录
 
