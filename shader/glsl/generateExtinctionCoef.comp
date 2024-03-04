@@ -23,23 +23,30 @@ layout(binding=2)uniform DicomUniformBufferObject{
 }dicomUbo;
 layout(binding=3)uniform sampler1D lutTexSampler;
 
+layout(push_constant)uniform GenGaussianMMPushConstants
+{
+    float currentLevel;
+    bool isCustomResolution;
+    int customResolution;
+}pushConstants;
+
 // 假设每个工作组的大小为8x8x8
 layout(local_size_x=8,local_size_y=8,local_size_z=8)in;
 
-#define USE_HIGH_RESOLUTION
+// #define USE_HIGH_RESOLUTION
 // #define USE_LOW_RESOLUTION
 #define USE_INTENSITY
 
-#ifdef USE_HIGH_RESOLUTION
-vec3 curResolution=vec3(512.,512.,512.);
-#else
-#ifdef USE_LOW_RESOLUTION
-vec3 curResolution=vec3(128.,128.,128.);
-// vec3 curResolution=vec3(256.,256.,256.);
-#else
-vec3 curResolution=dicomUbo.voxelResolution;
-#endif
-#endif
+// #ifdef USE_HIGH_RESOLUTION
+// vec3 curResolution=vec3(512.,512.,512.);
+// #else
+// #ifdef USE_LOW_RESOLUTION
+// vec3 curResolution=vec3(128.,128.,128.);
+// // vec3 curResolution=vec3(256.,256.,256.);
+// #else
+// vec3 curResolution=dicomUbo.voxelResolution;
+// #endif
+// #endif
 
 vec4 get3DTextureColor(vec3 texPos){
     if(texPos.x<0.f||texPos.y<0.f||texPos.z<0.f
@@ -57,7 +64,7 @@ vec4 get3DTextureColor(vec3 texPos){
 // 对原始像素值的高低8位进行高斯滤波，并存储高低8位
 // 缺点：滤波有效性待评估
 // 优点：窗宽窗位的调整有效
-vec4 GaussianFilter(uvec3 globalIdx){
+vec4 GaussianFilter(uvec3 globalIdx,vec3 curResolution){
     vec4 sumOfColor=vec4(0.f);
     float sumOfWeight=0.f;
     
@@ -97,7 +104,7 @@ float temp=sqrt(2.*3.14159265359)*sqrt(2.*3.14159265359)*sqrt(2.*3.14159265359);
 // 只对intensity进行高斯滤波，并存储intensity
 // 缺点：窗宽窗位的调整会失效
 // 优点：具有数学依据
-vec4 GaussianFilterIntensity(uvec3 globalIdx){
+vec4 GaussianFilterIntensity(uvec3 globalIdx,vec3 curResolution){
     float sumOfIntensity=0.f;
     float sumOfWeight=0.f;
     
@@ -143,7 +150,7 @@ vec4 GaussianFilterIntensity(uvec3 globalIdx){
     return vec4(resIntensity);
 }
 
-vec4 GaussianFilterIntensitySplit(uvec3 globalIdx){
+vec4 GaussianFilterIntensitySplit(uvec3 globalIdx,vec3 curResolution){
     float sumOfIntensity=0.f;
     float sumOfWeight=0.f;
     
@@ -174,7 +181,7 @@ vec4 GaussianFilterIntensitySplit(uvec3 globalIdx){
             // 计算当前位置的高斯权重
             float weight=exp(-f*f/(2.*sigma*sigma));
             // float weight=exp(-f*f/(2.*sigma*sigma)-(intensity-centerIntensity)*(intensity-centerIntensity)/(2.*sigma*sigma)); // !双边高斯滤波，效果不如原始高斯滤波
-
+            
             // 计算当前位置的Laplacian权重
             // float weight=exp(-f*f/(2.*sigma*sigma))*(-1.f+2.f*f*f/(sigma*sigma));
             
@@ -261,16 +268,23 @@ void main(){
     // imageStore(TexOutputVolume,ivec3(globalIdx),vec4(intensity,0.,0.,0.));// 直接存储intensity
     // imageStore(TexOutputVolume,ivec3(globalIdx),texture(TexInputVolume,samplePos));// 直接存储高低8位
     
-    #ifdef USE_INTENSITY
-    imageStore(TexOutputVolume,ivec3(globalIdx),vec4(GaussianFilterIntensitySplit(globalIdx).r,0.,0.,0.));// 拆分高斯滤波，存储intensity
-    // imageStore(TexOutputVolume,ivec3(globalIdx),vec4(GaussianFilterIntensity(globalIdx).r,0.,0.,0.));// 高斯滤波，存储intensity
-    #else
-    imageStore(TexOutputVolume,ivec3(globalIdx),vec4(GaussianFilter(globalIdx).rgb,1.));// 高斯滤波，存储高低8位
-    #endif
+    vec3 curResolution=dicomUbo.voxelResolution;
+    if(pushConstants.isCustomResolution){
+        curResolution=vec3(pushConstants.customResolution);
+        imageStore(TexOutputVolume,ivec3(globalIdx),vec4(GaussianFilterIntensitySplit(globalIdx,curResolution).r,0.,0.,0.));// 拆分高斯滤波，存储intensity
+    }
+    else imageStore(TexOutputVolume,ivec3(globalIdx),vec4(GaussianFilterIntensity(globalIdx,curResolution).r,0.,0.,0.));// 高斯滤波，存储intensity
+    
+    // #ifdef USE_INTENSITY
+    // //
+    // #else
+    // imageStore(TexOutputVolume,ivec3(globalIdx),vec4(GaussianFilter(globalIdx).rgb,1.));// 高斯滤波，存储高低8位
+    // #endif
     
     // test
     // imageStore(TexOutputVolume,ivec3(globalIdx),genDistanceField(globalIdx));
     // imageStore(TexOutputVolume,ivec3(globalIdx),vec4(GaussianFilter(globalIdx).rgb,genDistanceField(globalIdx).r));
     // imageStore(TexOutputVolume,ivec3(globalIdx),get3DTextureColor(samplePos));
     // imageStore(TexOutputVolume,ivec3(globalIdx),vec4(dicomUbo.windowCenter,dicomUbo.windowWidth,0.,0.)/vec4(255.));
+    // imageStore(TexOutputVolume,ivec3(globalIdx),vec4(curResolution.r/1024.,0.,0.,1.));
 }

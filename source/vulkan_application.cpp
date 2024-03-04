@@ -1132,6 +1132,7 @@ void VulkanApplication::drawImGui() {
         ImGui::Begin("Dicom Param Control");
         ImGui::Text(" %.3f ms/frame (%.1f FPS)", 1000.0f / ImGui::GetIO().Framerate,
             ImGui::GetIO().Framerate);
+        ImGui::Text("Pre compute time: %.3f ms", preComputeTime);
 
         // 添加下拉框，用于选择不同的currentExampleID，然后根据currentExampleID的值来进行不同的操作
         const char* items[8];
@@ -1177,27 +1178,40 @@ void VulkanApplication::drawImGui() {
             }
         }
 
-        ImGui::SliderFloat("alphaCorrection", &volumeRender->dicomParamControl.alphaCorrection, 0.0f, 500.0f);
-        ImGui::SliderInt("steps", &volumeRender->dicomParamControl.steps, 0, 1500);
-        ImGui::SliderFloat("stepLength", &volumeRender->dicomParamControl.stepLength, 0.0f, 0.02f);
-        if (ImGui::SliderFloat("WindowWidth", &volumeRender->dicomParamControl.windowWidth, 0.0f, 6000.0f)) {
+        if(ImGui::Checkbox("custom res", &isCustomResolution)){
+            // computeResources.isComplete = false;
+            changeExample();
+        }
+
+        if(ImGui::InputInt("custom resolution", &customResolution,128,512)){
+            // computeResources.isComplete = false;
+            if(isCustomResolution) changeExample();
+        }
+
+        if (ImGui::SliderFloat("WinWidth", &volumeRender->dicomParamControl.windowWidth, 0.0f, 6000.0f)) {
             computeResources.isComplete = false;
         }
-        if (ImGui::SliderFloat("WindowCenter", &volumeRender->dicomParamControl.windowCenter, 0.0f, 6000.0f)) {
+        if (ImGui::SliderFloat("WinCenter", &volumeRender->dicomParamControl.windowCenter, 0.0f, 6000.0f)) {
             computeResources.isComplete = false;
         }
+
+        ImGui::SliderFloat("alphaCorrection", &volumeRender->dicomParamControl.alphaCorrection, 0.0f, 1000.0f);
         ImGui::SliderFloat("glow", &volumeRender->dicomParamControl.glow, 0.0f, 30.0f);
 
+        ImGui::SliderInt("steps", &volumeRender->dicomParamControl.steps, 0, 1500);
+
+        ImGui::SliderFloat("stepLength", &volumeRender->dicomParamControl.stepLength, 0.0f, 0.01f);
+
         // add button ,once clicked, add the counter
-        if (ImGui::Button("Capture Image")) {
-            ++currentCaptureID;
-            isNeedCapture = true;
-        }
+        // if (ImGui::Button("Capture Image")) {
+        //     ++currentCaptureID;
+        //     isNeedCapture = true;
+        // }
 
-        // ImGui::SliderInt("method", &volumeRender->dicomParamControl.renderMethod, 0, 3);
+        // // ImGui::SliderInt("method", &volumeRender->dicomParamControl.renderMethod, 0, 3);
 
-        ImGui::Checkbox("Demo Window", &showDemoWindow);      // Edit bools storing our window open/close state
-        ImGui::Checkbox("Another Window", &showAnotherWindow);
+        // ImGui::Checkbox("Demo Window", &showDemoWindow);      // Edit bools storing our window open/close state
+        // ImGui::Checkbox("Another Window", &showAnotherWindow);
         ImGui::End();
     }
 
@@ -1266,15 +1280,20 @@ void VulkanApplication::prepareTextureTarget() {
 
     // Prepare blit target texture
     int32_t mipWidth, mipHeight, mipDepth;
-    if (isHighResolution) {
-        mipWidth = 512;
-        mipHeight = 512;
-        mipDepth = 512;
-    }
-    else if (isLowResolution) {
-        mipWidth = lowResVal;
-        mipHeight = lowResVal;
-        mipDepth = lowResVal;
+    // if (isHighResolution) {
+    //     mipWidth = 512;
+    //     mipHeight = 512;
+    //     mipDepth = 512;
+    // }
+    // else if (isLowResolution) {
+    //     mipWidth = lowResVal;
+    //     mipHeight = lowResVal;
+    //     mipDepth = lowResVal;
+    // }
+    if(isCustomResolution){
+        mipWidth = customResolution;
+        mipHeight = customResolution;
+        mipDepth = customResolution;
     }
     else {
         mipWidth = volumeRender->getDicomTags().voxelResolution[0];
@@ -1428,6 +1447,14 @@ void VulkanApplication::prepareCompute()
     pipelineLayoutInfo.sType = VK_STRUCTURE_TYPE_PIPELINE_LAYOUT_CREATE_INFO;
     pipelineLayoutInfo.setLayoutCount = 1; // 描述符集布局数量
     pipelineLayoutInfo.pSetLayouts = &computeResources.descriptorSetLayout; // 描述符集布局
+
+    VkPushConstantRange pushConstantRange{};
+    pushConstantRange.stageFlags = VK_SHADER_STAGE_COMPUTE_BIT; // 着色器阶段
+    pushConstantRange.offset = 0; // 偏移量
+    pushConstantRange.size = sizeof(GenGaussianMMPushConstants); // 大小
+
+    pipelineLayoutInfo.pushConstantRangeCount = 1; // 推送常量范围数量
+    pipelineLayoutInfo.pPushConstantRanges = &pushConstantRange; // 推送常量范围
 
     if (vkCreatePipelineLayout(device, &pipelineLayoutInfo, nullptr, &computeResources.pipelineLayout) != VK_SUCCESS) { // 创建管线布局
         throw std::runtime_error("failed to create pipeline layout!");
@@ -1604,9 +1631,20 @@ void VulkanApplication::recordComputeCommandBuffer(uint32_t currentFrame) {
     // Bind descriptor sets
     vkCmdBindDescriptorSets(computeResources.commandBuffers[currentFrame], VK_PIPELINE_BIND_POINT_COMPUTE, computeResources.pipelineLayout, 0, 1, &computeResources.descriptorSets[currentFrame], 0, 0);
 
+    // upload push constants
+    GenGaussianMMPushConstants pushConstants{};
+    pushConstants.currentLevel = static_cast<glm::vec1>(0.0f);
+    pushConstants.isCustomResolution = isCustomResolution;
+    pushConstants.customResolution = customResolution;
+
+    vkCmdPushConstants(computeResources.commandBuffers[currentFrame], computeResources.pipelineLayout, VK_SHADER_STAGE_COMPUTE_BIT, 0, sizeof(GenGaussianMMPushConstants), &pushConstants);
+
     // Dispatch the compute job
-    if (isHighResolution) vkCmdDispatch(computeResources.commandBuffers[currentFrame], 512 / 8, 512 / 8, 512 / 8);
-    else if (isLowResolution) vkCmdDispatch(computeResources.commandBuffers[currentFrame], lowResVal / 8, lowResVal / 8, lowResVal / 8);
+    // if (isHighResolution) vkCmdDispatch(computeResources.commandBuffers[currentFrame], 512 / 8, 512 / 8, 512 / 8);
+    // else if (isLowResolution) vkCmdDispatch(computeResources.commandBuffers[currentFrame], lowResVal / 8, lowResVal / 8, lowResVal / 8);
+    if(isCustomResolution){
+        vkCmdDispatch(computeResources.commandBuffers[currentFrame], customResolution / 8, customResolution / 8, customResolution / 8);
+    }
     else vkCmdDispatch(computeResources.commandBuffers[currentFrame], volumeRender->getDicomTags().voxelResolution[0] / 8, volumeRender->getDicomTags().voxelResolution[1] / 8, volumeRender->getDicomTags().voxelResolution[2] / 8);
 
 
@@ -1788,15 +1826,20 @@ void VulkanApplication::recordGenExtCoffMipmaps(uint32_t currentFrame) {
         1, &barrier);
 
     int32_t mipWidth, mipHeight, mipDepth;
-    if (isHighResolution) {
-        mipWidth = 512;
-        mipHeight = 512;
-        mipDepth = 512;
-    }
-    else if (isLowResolution) {
-        mipWidth = lowResVal;
-        mipHeight = lowResVal;
-        mipDepth = lowResVal;
+    // if (isHighResolution) {
+    //     mipWidth = 512;
+    //     mipHeight = 512;
+    //     mipDepth = 512;
+    // }
+    // else if (isLowResolution) {
+    //     mipWidth = lowResVal;
+    //     mipHeight = lowResVal;
+    //     mipDepth = lowResVal;
+    // }
+    if(isCustomResolution){
+        mipWidth = customResolution;
+        mipHeight = customResolution;
+        mipDepth = customResolution;
     }
     else {
         mipWidth = volumeRender->getDicomTags().voxelResolution[0];
@@ -1894,16 +1937,21 @@ void VulkanApplication::recordGenGaussianMipmaps() {
     vkQueueWaitIdle(computeResources.queue);
 
     int32_t mipWidth, mipHeight, mipDepth;
-    if (isHighResolution) {
-        mipWidth = 512;
-        mipHeight = 512;
-        mipDepth = 512;
-    }
-    else if (isLowResolution) {
-        mipWidth = lowResVal;
-        mipHeight = lowResVal;
-        mipDepth = lowResVal;
-    }
+    // if (isHighResolution) {
+    //     mipWidth = 512;
+    //     mipHeight = 512;
+    //     mipDepth = 512;
+    // }
+    // else if (isLowResolution) {
+    //     mipWidth = lowResVal;
+    //     mipHeight = lowResVal;
+    //     mipDepth = lowResVal;
+    // }
+    if(isCustomResolution){
+        mipWidth = customResolution;
+        mipHeight = customResolution;
+        mipDepth = customResolution;
+    }    
     else {
         mipWidth = volumeRender->getDicomTags().voxelResolution[0];
         mipHeight = volumeRender->getDicomTags().voxelResolution[1];
@@ -2024,11 +2072,13 @@ void VulkanApplication::recordGenGaussianMipmaps() {
         // upload push constants
         GenGaussianMMPushConstants pushConstants{};
         pushConstants.currentLevel = static_cast<glm::vec1>(currentLevel);
+        pushConstants.isCustomResolution = isCustomResolution;
+        pushConstants.customResolution = customResolution;
 
         vkCmdPushConstants(gaussianComputeResources.commandBuffer, gaussianComputeResources.pipelineLayout, VK_SHADER_STAGE_COMPUTE_BIT, 0, sizeof(GenGaussianMMPushConstants), &pushConstants);
 
         // Dispatch compute shader
-        vkCmdDispatch(gaussianComputeResources.commandBuffer, mipWidth / 2, mipHeight / 2, mipDepth / 2);
+        vkCmdDispatch(gaussianComputeResources.commandBuffer, mipWidth / 4, mipHeight / 4, mipDepth / 4);
 
         // End recording command buffer
         if (vkEndCommandBuffer(gaussianComputeResources.commandBuffer) != VK_SUCCESS) { // 结束记录命令缓冲区

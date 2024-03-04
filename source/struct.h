@@ -126,6 +126,8 @@ struct TextureTarget {
 // 生成高斯滤波的计算着色器所需的推送常量
 struct GenGaussianMMPushConstants {
     glm::vec1 currentLevel;
+    bool isCustomResolution;
+    int customResolution;
 };
 
 struct ExampleConfig {
@@ -228,7 +230,7 @@ static inline ExampleConfig mouse = {
 // };
 
 static inline ExampleConfig brain ={
-    "brain",
+    "brain192*192*47",
     "C:\\Users\\Dream\\Documents\\00.Dicom\\brain\\",
     glm::vec3(1.58988, -0.58501, -0.778855),
     glm::vec3(-0.544902, 0.542467, 0.639383),
@@ -241,16 +243,16 @@ static inline ExampleConfig brain ={
 };
 
 static inline ExampleConfig whole_body = {
-    "whole body",
+    "wholeBody250*250*756",
     "C:\\Users\\Dream\\Documents\\00.Dicom\\zzw_wholebodyls_756\\",
-    glm::vec3(0.940602, 1.83424, 0.504027),
-    glm::vec3(-0.313571, -0.949561, -0.00286614),
-    glm::vec3(-0.030254, 0.0130074, -0.999458),
-    6000.0f,
-    1600.0f,
+    glm::vec3(-1.03452, 1.3814, 0.204739),
+    glm::vec3(0.855314, -0.491278, 0.164574),
+    glm::vec3(0.1547, -0.0609937, -0.986077),
+    1025.0f,
+    575.0f,
     0.001f,
-    100.0f,
-    1.5f
+    93.75f,
+    8.75f
 };
 
 static inline ExampleConfig frog = {
@@ -259,11 +261,11 @@ static inline ExampleConfig frog = {
     glm::vec3(1.47557, 0.912226, -1.19671),
     glm::vec3(-0.487754, -0.206101, 0.848303),
     glm::vec3(-0.769853, -0.35662, -0.52929),
-    180.0f,
-    150.0f,
+    105.0f,
+    100.0f,
     0.001f,
-    9.0f,
-    10.5f
+    500.0f,
+    1.25f
 };
 
 static inline ExampleConfig tooth = {
@@ -272,11 +274,11 @@ static inline ExampleConfig tooth = {
     glm::vec3(0.189795, 1.87083, 1.92314),
     glm::vec3(0.155088, -0.685352, -0.711505),
     glm::vec3(0.0876571, -0.707832, 0.700921),
-    175.0f,
+    125.0f,
     175.0f,
     0.001f,
-    8.5f,
-    10.5f
+    500.0f,
+    2.0f
 };
 
 // static inline ExampleConfig vertebra={
@@ -322,14 +324,14 @@ static inline ExampleConfig stage_beetle = {
 static inline ExampleConfig prone = {
     "prone_512x512x463_uint16",
     "C:\\Users\\Dream\\Documents\\00.NRRD\\prone_512x512x463_uint16",
-    glm::vec3(-0.180568, -1.38087, 0.502245),
-    glm::vec3(0.340248, 0.940335, -0.00112224),
-    glm::vec3(0.138838, -0.0514169, -0.98898),
-    650.0f,
-    1475.0f,
+    glm::vec3(0.237374, -1.47586, 0.332677),
+    glm::vec3(0.131297, 0.987808, 0.0836511),
+    glm::vec3( -0.00399074, -0.0838542, 0.99647),
+    225.0f,
+    1300.0f,
     0.001f,
-    130.0f,
-    2.5f
+    500.0f,
+    1.375f
 };
 
 // 数据读取错误
@@ -365,8 +367,7 @@ const std::string lutPath = "D:\\00.CG_project\\00.VulkanTutorial\\textures\\";
 static inline std::unordered_map<int, std::string> lookUpTables = {
     {0,"cm_viridis"},
     {1,"pet"},
-    {2,"spectral"},
-    {3,"NIH"},
-    {4,"normal2"},
+    {2,"normal"},
+    {3,"cm_gray"}
 };
 
