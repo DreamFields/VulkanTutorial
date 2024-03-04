@@ -1198,9 +1198,13 @@ void VulkanApplication::drawImGui() {
         ImGui::SliderFloat("alphaCorrection", &volumeRender->dicomParamControl.alphaCorrection, 0.0f, 1000.0f);
         ImGui::SliderFloat("glow", &volumeRender->dicomParamControl.glow, 0.0f, 30.0f);
 
-        ImGui::SliderInt("steps", &volumeRender->dicomParamControl.steps, 0, 1500);
+        // ImGui::SliderInt("steps", &volumeRender->dicomParamControl.steps, 0, 1500);
+        ImGui::InputInt("Method", &volumeRender->dicomParamControl.steps,100);
 
-        ImGui::SliderFloat("stepLength", &volumeRender->dicomParamControl.stepLength, 0.0f, 0.01f);
+        // ImGui::SliderFloat("stepLength", &volumeRender->dicomParamControl.stepLength, 0.0f, 0.01f);
+        ImGui::InputFloat("stepLength", &volumeRender->dicomParamControl.stepLength,0.0005f,0.01f,"%.4f");
+        // ImGui::InputFloat显示4位小数
+        // ImGui::SliderFloat("stepLength", &volumeRender->dicomParamControl.stepLength, 0.0f, 0.01f, "%.4f");
 
         // add button ,once clicked, add the counter
         // if (ImGui::Button("Capture Image")) {

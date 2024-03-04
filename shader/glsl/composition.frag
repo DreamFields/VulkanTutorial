@@ -155,8 +155,8 @@ float last_amptau[7];
 float OccInitialStep=3.;
 float OccRay7AdjWeight=.972955;
 // vec4 OccConeRayAxes[10];
-int OccConeIntegrationSamples[3]=int[](1,10,0);// mouse
-// int OccConeIntegrationSamples[3]=int[](1,14,0);// head
+// int OccConeIntegrationSamples[3]=int[](1,10,0);// mouse
+int OccConeIntegrationSamples[3]=int[](1,14,0);// head
 
 vec4 GetOcclusionSectionInfo(int id)
 {
@@ -473,8 +473,8 @@ vec4 ShadeSample(vec3 worldPos,vec3 dir,vec3 v_up,vec3 v_right){
     if(ApplyOcclusion==1)
     {
         ka=.5f;
-        IOcclusion=Cone1RayOcclusion(worldPos2VolumePos(worldPos),-dir,v_up,v_right); // cone trace
-        // IOcclusion=SingleScatterPathTracing(worldPos2VolumePos(worldPos),-dir,v_up,v_right); // single scatter path tracing
+        if(int(dicomUbo.steps/100.)<3) IOcclusion=Cone1RayOcclusion(worldPos2VolumePos(worldPos),-dir,v_up,v_right); // cone trace
+        else IOcclusion=SingleScatterPathTracing(worldPos2VolumePos(worldPos),-dir,v_up,v_right); // single scatter path tracing
         
         // test 加深阴影的颜色
         // IOcclusion=pow(IOcclusion,6.);
@@ -514,8 +514,19 @@ vec4 absorptionMethod(float stepLength,float rayLength,vec3 dir,vec3 currentPos)
         vec3 pos=currentPos+dir*(s+h*.5);
         // Get the sampleColor from the 3D texture
         // vec4 sampleColor=get3DTextureColor(pos);
-        vec4 sampleColor=getExtCoeff(pos);
+        // vec4 sampleColor=getExtCoeff(pos);
         // vec4 sampleColor=ShadeSample(pos,dir,normalize(fragCameraUp),normalize(fragCameraRight));
+
+        vec4 sampleColor=vec4(0.);
+        if(int(dicomUbo.steps/100.)<1){
+            sampleColor=get3DTextureColor(pos);
+        }
+        else if(int(dicomUbo.steps/100.)<2){
+            sampleColor=getExtCoeff(pos);
+        }
+        else{
+            sampleColor=ShadeSample(pos,dir,normalize(fragCameraUp),normalize(fragCameraRight));
+        }
         
         // Go to the next interval
         s=s+h;

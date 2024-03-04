@@ -42,7 +42,7 @@ struct DicomParamControl {
     float windowCenter;
     float windowWidth;
     float alphaCorrection;
-    int steps;
+    int steps = 0;
     float stepLength;
     float glow;
     // int renderMethod;

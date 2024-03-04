@@ -218,10 +218,10 @@ private:
 	// begin test
 	// bool isHighResolution = false; // *是否使用高分辨率,同时需要设置generateExtinctionCoefMipmap.comp和generateExtinctionCoef.comp中的高分辨率宏	
 	// bool isLowResolution = false; // *是否使用低分辨率,同时需要设置generateExtinctionCoefMipmap.comp和generateExtinctionCoef.comp中的低分辨率宏
-	bool isCustomResolution = true; // *是否使用自定义分辨率
-	int customResolution = 128; // *自定义分辨率
+	bool isCustomResolution = false; // *是否使用自定义分辨率
+	int customResolution = 256; // *自定义分辨率
 	int currentExampleID = 0; // * 当前的示例ID
-	int lowResVal=128; // *低分辨率值
+	// int lowResVal=128; // *低分辨率值
 	int currentLUTID = 0; // *当前的LUT ID
 	double preComputeTime = 0.0; // *预计算的时间
 	// end test

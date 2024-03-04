@@ -220,7 +220,7 @@ bool VolumeRender::loadDicom(std::string path)
 	dicomParamControl.windowCenter = static_cast<float>(dicomTags.windowCenter);
 	dicomParamControl.windowWidth = static_cast<float>(dicomTags.windowWidth);
 	dicomParamControl.alphaCorrection = dicomExamples[currentExampleID].alphaCorrection;
-	dicomParamControl.steps = 130;
+	// dicomParamControl.steps = 130;
 	dicomParamControl.stepLength = dicomExamples[currentExampleID].stepLength;
 	dicomParamControl.glow = dicomExamples[currentExampleID].glow;
 
@@ -330,7 +330,7 @@ bool VolumeRender::loadNRRD(std::string path) {
 	dicomParamControl.windowCenter = static_cast<float>(dicomExamples[currentExampleID].windowCenter);
 	dicomParamControl.windowWidth = static_cast<float>(dicomExamples[currentExampleID].windowWidth);
 	dicomParamControl.alphaCorrection = dicomExamples[currentExampleID].alphaCorrection;
-	dicomParamControl.steps = 130;
+	// dicomParamControl.steps = 130;
 	dicomParamControl.stepLength = dicomExamples[currentExampleID].stepLength;
 	dicomParamControl.glow = dicomExamples[currentExampleID].glow;
 
@@ -482,7 +482,7 @@ bool VolumeRender::loadDICOM(std::string path) {
 	dicomParamControl.windowCenter = static_cast<float>(dicomExamples[currentExampleID].windowCenter);
 	dicomParamControl.windowWidth = static_cast<float>(dicomExamples[currentExampleID].windowWidth);
 	dicomParamControl.alphaCorrection = dicomExamples[currentExampleID].alphaCorrection;
-	dicomParamControl.steps = 130;
+	// dicomParamControl.steps = 130;
 	dicomParamControl.stepLength = dicomExamples[currentExampleID].stepLength;
 	dicomParamControl.glow = dicomExamples[currentExampleID].glow;
 
