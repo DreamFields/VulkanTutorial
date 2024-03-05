@@ -1189,6 +1189,15 @@ void VulkanApplication::drawImGui() {
             if(isCustomResolution) changeExample();
         }
 
+        const int fallofFuncNum = 5;
+        const char* fallofFuncItems[fallofFuncNum];
+        for (int i = 0; i < fallofFuncNum; i++) {
+            fallofFuncItems[i] = static_cast<const char*>(fallofFuncName[i].c_str());
+        }
+        if (ImGui::Combo("Falloff Func", &volumeRender->dicomParamControl.falloffID, fallofFuncItems, IM_ARRAYSIZE(fallofFuncItems))) {
+            std::cout << "falloffID: " << volumeRender->dicomParamControl.falloffID << std::endl;
+        }
+
         if (ImGui::SliderFloat("WinWidth", &volumeRender->dicomParamControl.windowWidth, 0.0f, 6000.0f)) {
             computeResources.isComplete = false;
         }
@@ -1198,6 +1207,7 @@ void VulkanApplication::drawImGui() {
 
         ImGui::SliderFloat("alphaCorrection", &volumeRender->dicomParamControl.alphaCorrection, 0.0f, 1000.0f);
         ImGui::SliderFloat("glow", &volumeRender->dicomParamControl.glow, 0.0f, 30.0f);
+        ImGui::InputFloat("attenuation", &volumeRender->dicomParamControl.attenuation, 0.1f);
 
         // ImGui::SliderInt("steps", &volumeRender->dicomParamControl.steps, 0, 1500);
         ImGui::InputInt("Method", &volumeRender->dicomParamControl.steps,100);

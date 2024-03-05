@@ -69,8 +69,9 @@ struct DicomUniformBufferObject {
     glm::vec1 alphaCorrection;
     glm::vec1 stepLength;
     glm::vec1 glow;
+    glm::vec1 attenuation;
     glm::int32 steps;
-    //glm::int32 renderMethod;
+    glm::int32 falloffID;
 };
 
 // 环境光遮蔽的uniform
@@ -83,7 +84,7 @@ struct OcclusionUniformBufferObject {
 
 // ground truth uniform
 struct GroundTruthUBO {
-    alignas(16) glm::vec4 raySampleVec[10]; // todo 如果使用vec3，在着色器中会出现对齐错误，why？
+    alignas(16) glm::vec4 raySampleVec[30]; // todo 如果使用vec3，在着色器中会出现对齐错误，why？
 };
 
 struct Compute {
@@ -227,7 +228,7 @@ static inline ExampleConfig mouse = {
     glm::vec3( -0.293191, -0.747069, 0.596596),
     2000.0f, // windowCenter
     50.0f, // windowWidth
-    0.01f, // stepLength
+    0.001f, // stepLength
     25.0f,  // alphaCorrection
     2.5f // glow
 };
@@ -410,3 +411,10 @@ static inline std::unordered_map<int, std::string> lookUpTables = {
     {6,"hot_metal_blue"}
 };
 
+static inline std::vector<std::string> fallofFuncName = {
+    "linearFalloff",
+    "exponentialFalloff",
+    "logarithmicFalloff",
+    "quadraticFalloff",
+    "squareRootFalloff"
+};

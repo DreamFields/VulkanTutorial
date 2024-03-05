@@ -218,7 +218,7 @@ private:
 	// begin test
 	// bool isHighResolution = false; // *是否使用高分辨率,同时需要设置generateExtinctionCoefMipmap.comp和generateExtinctionCoef.comp中的高分辨率宏	
 	// bool isLowResolution = false; // *是否使用低分辨率,同时需要设置generateExtinctionCoefMipmap.comp和generateExtinctionCoef.comp中的低分辨率宏
-	bool isCustomResolution = false; // *是否使用自定义分辨率
+	bool isCustomResolution = true; // *是否使用自定义分辨率
 	int customResolution = 256; // *自定义分辨率
 	int currentExampleID = 7; // * 当前的示例ID
 	// int lowResVal=128; // *低分辨率值
@@ -1718,6 +1718,8 @@ private:
 		dicomUbo.steps = static_cast<glm::int16>(volumeRender->dicomParamControl.steps);
 		dicomUbo.stepLength = static_cast<glm::vec1>(volumeRender->dicomParamControl.stepLength);
 		dicomUbo.glow = static_cast<glm::vec1>(volumeRender->dicomParamControl.glow);
+		dicomUbo.attenuation = static_cast<glm::vec1>(volumeRender->dicomParamControl.attenuation);
+		dicomUbo.falloffID = static_cast<glm::int16>(volumeRender->dicomParamControl.falloffID);
 		memcpy(dicomUniformBuffersMapped[currentFrame], &dicomUbo, sizeof(dicomUbo));
 
 		// 更新occlusionUniformBuffer
@@ -1750,7 +1752,7 @@ private:
 		GroundTruthUBO gtUbo{};
 		// std::vector<glm::vec4> testGtUbo(10);
 		// std::vector<float> testGtUbo2(10);
-		for (int i = 0; i < 10; i++)
+		for (int i = 0; i < 30; i++)
 		{
 			gtUbo.raySampleVec[i] = glm::vec4(volumeRender->occ_kernel_vectors[i], 1.0f);
 			// testGtUbo[i] = (gtUbo.raySampleVec[i] + glm::vec4(1.0f)) / 2.0f * 255.0f;
@@ -1808,7 +1810,9 @@ private:
 		uint32_t imageIndex;
 		VkResult result = vkAcquireNextImageKHR(device, swapChain, UINT64_MAX, imageAvailableSemaphores[currentFrame], VK_NULL_HANDLE, &imageIndex);
 		VkResult waitRes = vkWaitForFences(device, 1, &inFlightFences[currentFrame], VK_TRUE, UINT64_MAX);
-		if (waitRes != VK_SUCCESS) {
+		if (waitRes == VK_TIMEOUT) {
+			throw std::runtime_error("Timeout while waiting for inFlightFences[currentFrame]!");
+		} else if(waitRes != VK_SUCCESS) {
 			throw std::runtime_error("failed to wait for inFlightFences[currentFrame]!");
 		}
 
@@ -1878,11 +1882,11 @@ private:
 		// }
 
 		// --------------------捕获图片--------------------
-		if (isNeedCapture)
-		{
-			captureImage();
-			isNeedCapture = false;
-		}
+		//if (isNeedCapture)
+		//{
+		//	captureImage();
+		//	isNeedCapture = false;
+		//}
 
 
 		// --------------------ImGui submission-----------------

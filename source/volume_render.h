@@ -45,7 +45,8 @@ struct DicomParamControl {
     int steps = 0;
     float stepLength;
     float glow;
-    // int renderMethod;
+    float attenuation=1.0f;
+    int falloffID=0;
 };
 
 

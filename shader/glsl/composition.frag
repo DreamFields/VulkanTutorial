@@ -26,7 +26,9 @@ layout(binding=3)uniform DicomUniformBufferObject{
     float alphaCorrection;// 作为透明度的矫正系数
     float stepLength;
     float glow;
+    float attenuation;
     int steps;
+    int falloffID;
 }dicomUbo;
 layout(binding=4)uniform sampler1D lutTexSampler;
 layout(binding=5)uniform sampler3D extCoeffSampler;
@@ -38,7 +40,7 @@ layout(std140,binding=7)uniform OcclusionUniformBufferObject{
     // int OccConeIntegrationSamples[3];
 }occlusionUbo;
 layout(std140,binding=8)uniform GroundTruthUBO{
-    vec4 raySampleVec[10];
+    vec4 raySampleVec[30];
 }gtRayUbo;
 
 layout(location=0)in vec3 inColor;
@@ -52,7 +54,7 @@ layout(location=0)out vec4 outColor;
 #define CONSIDER_BORDERS
 // #define USE_EARLY_TERMINATION
 //#define ALWAYS_SPLIT_CONES
-// #define USE_FALLOFF_FUNCTION
+#define USE_FALLOFF_FUNCTION
 
 #define USE_INTENSITY
 
@@ -60,15 +62,33 @@ layout(location=0)out vec4 outColor;
 const float max_ext=log(1./.05);
 #endif
 
-float falloffunction(float d)
-{
-    float lmb=0.f;
-    
-    float p0=1.f;
-    float p1=d/512.f;
-    float p2=1.f-exp(-d/512.f);
-    float p3=sqrt(d/512.f);
-    return 2.04f*p3;
+// 衰减函数测试
+float linearFalloff(float _distance, float k) {
+    return (_distance / k);
+}
+
+float exponentialFalloff(float _distance, float k) {
+    return exp(-k * _distance);
+}
+
+float logarithmicFalloff(float _distance, float k) {
+    return 1.0 / log(k * _distance + 1.0);
+}
+
+float quadraticFalloff(float _distance,float k) {
+    return 1.0 / (_distance * _distance * k + 1.0);
+}
+
+float squareRootFalloff(float _distance, float k) {
+    return 1.0 / sqrt(k * _distance + 1.0);
+}
+
+float falloffControl(float _distance, float k) {
+    if(dicomUbo.falloffID==0)return linearFalloff(_distance,k);
+    else if(dicomUbo.falloffID==1)return exponentialFalloff(_distance,k);
+    else if(dicomUbo.falloffID==2)return logarithmicFalloff(_distance,k);
+    else if(dicomUbo.falloffID==3)return quadraticFalloff(_distance,k);
+    else if(dicomUbo.falloffID==4)return squareRootFalloff(_distance,k);
 }
 
 // volume的真实最大边
@@ -157,7 +177,15 @@ float OccRay7AdjWeight=.972955;
 // vec4 OccConeRayAxes[10];
 // int OccConeIntegrationSamples[3]=int[](1,14,0);// head
 // int OccConeIntegrationSamples[3]=int[](1,10,0);// mouse
-int OccConeIntegrationSamples[3]=int[](1,16,0);// prone
+// int OccConeIntegrationSamples[3]=int[](1,16,0);// prone
+int OccConeIntegrationSamples[3]=int[](1,10,0);
+
+// 控制阴影的衰减因子
+float shadowAttenuation(float shadowValue, float k) {
+    if (k == 0.0) return shadowValue;
+    return exp(-k * shadowValue);
+}
+
 
 vec4 GetOcclusionSectionInfo(int id)
 {
@@ -231,7 +259,8 @@ float Cone7RayOcclusion(vec3 volume_pos_from_zero,float track_distance,vec3 cone
             float amptau=gaussian_amp*Tau_s;
             
             #ifdef USE_FALLOFF_FUNCTION
-            occ_rays[i]+=(last_amptau[i]+amptau)*d_integral*falloffunction(track_distance);
+            // occ_rays[i]+=(last_amptau[i]+amptau)*d_integral*falloffunction(track_distance);
+            occ_rays[i]+=(last_amptau[i]+amptau)*d_integral*falloffControl(track_distance,dicomUbo.attenuation);
             #else
             occ_rays[i]+=(last_amptau[i]+amptau)*d_integral/* *OccUIWeight */;
             #endif
@@ -305,7 +334,8 @@ float Cone3RayOcclusion(vec3 volume_pos_from_zero,float track_distance,vec3 cone
             float amptau=Tau_s*gaussian_amp;
             
             #ifdef USE_FALLOFF_FUNCTION
-            occ_rays[i]+=(last_amptau[i]+amptau)*d_integral*falloffunction(track_distance);
+            // occ_rays[i]+=(last_amptau[i]+amptau)*d_integral*falloffunction(track_distance);
+            occ_rays[i]+=(last_amptau[i]+amptau)*d_integral*falloffControl(track_distance,dicomUbo.attenuation); 
             #else
             occ_rays[i]+=(last_amptau[i]+amptau)*d_integral/* *OccUIWeight */;
             #endif
@@ -373,7 +403,8 @@ float Cone1RayOcclusion(vec3 volume_pos_from_zero,vec3 coneDir,vec3 cameraUp,vec
         float amptau=Tau_s*gaussian_amp;
         
         #ifdef USE_FALLOFF_FUNCTION
-        occ_rays[0]+=(last_amptau[0]+amptau)*d_integral*falloffunction(track_distance);
+        // occ_rays[0]+=(last_amptau[0]+amptau)*d_integral*falloffunction(track_distance);
+        occ_rays[0]+=(last_amptau[0]+amptau)*d_integral*falloffControl(track_distance,dicomUbo.attenuation);
         #else
         occ_rays[0]+=(last_amptau[0]+amptau)*d_integral/* *OccUIWeight */;
         #endif
@@ -406,7 +437,7 @@ float Cone1RayOcclusion(vec3 volume_pos_from_zero,vec3 coneDir,vec3 cameraUp,vec
 
 ///////////////////////////////////////////////////////////
 // ground truth(single scattering path tracing)
-int OccNumberOfSampledRays=10;
+int OccNumberOfSampledRays=30;
 float LightRayInitialGap=3.;
 float OccConeDistanceEvaluation=length(dicomUbo.realSize)*0.5;
 float LightRayStepSize=0.5;
@@ -474,11 +505,15 @@ vec4 ShadeSample(vec3 worldPos,vec3 dir,vec3 v_up,vec3 v_right){
     if(ApplyOcclusion==1)
     {
         ka=.5f;
-        if(int(dicomUbo.steps/100.)<3) IOcclusion=Cone1RayOcclusion(worldPos2VolumePos(worldPos),-dir,v_up,v_right); // cone trace
+        if(int(dicomUbo.steps/100.)<3) {
+            IOcclusion=Cone1RayOcclusion(worldPos2VolumePos(worldPos),-dir,v_up,v_right);
+            // IOcclusion = shadowAttenuation(IOcclusion, dicomUbo.attenuation);
+        } // cone trace
         else IOcclusion=SingleScatterPathTracing(worldPos2VolumePos(worldPos),-dir,v_up,v_right); // single scatter path tracing
+        // IOcclusion=SingleScatterPathTracing(worldPos2VolumePos(worldPos),-dir,v_up,v_right);
         
         // test 加深阴影的颜色
-        // IOcclusion=pow(IOcclusion,6.);
+        // IOcclusion=pow(IOcclusion,dicomUbo.attenuation);
     }
     
     // Shadows

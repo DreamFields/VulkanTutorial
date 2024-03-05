@@ -19,7 +19,9 @@ layout(binding=2)uniform DicomUniformBufferObject{
     float alphaCorrection;// 作为透明度的矫正系数
     float stepLength;
     float glow;
+    float attenuation;
     int steps;
+    int falloffID;
 }dicomUbo;
 layout(push_constant)uniform GenGaussianMMPushConstants
 {
