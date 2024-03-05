@@ -272,12 +272,22 @@ static inline ExampleConfig whole_body = {
     8.75f
 };
 
-static inline ExampleConfig frog = {
-    "frog_256x256x44_uint8",
-    "C:\\Users\\Dream\\Documents\\00.NRRD\\frog_256x256x44_uint8",
+/* -----------------配置1-----------------
     glm::vec3(1.47557, 0.912226, -1.19671),
     glm::vec3(-0.487754, -0.206101, 0.848303),
     glm::vec3(-0.769853, -0.35662, -0.52929),
+
+-----------------配置2-----------------
+    glm::vec3(0.505927, -0.315873, -1.32619),
+    glm::vec3(-0.00296309, 0.407902, 0.913021),
+    glm::vec3(0.0660834, 0.911109, -0.406834),
+*/
+static inline ExampleConfig frog = {
+    "frog_256x256x44_uint8",
+    "C:\\Users\\Dream\\Documents\\00.NRRD\\frog_256x256x44_uint8",
+    glm::vec3(0.505927, -0.315873, -1.32619),
+    glm::vec3(-0.00296309, 0.407902, 0.913021),
+    glm::vec3(0.0660834, 0.911109, -0.406834),
     105.0f,
     100.0f,
     0.001f,

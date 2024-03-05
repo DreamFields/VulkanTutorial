@@ -367,10 +367,12 @@ if __name__ == '__main__':
     #     print("=====================example"+str(i)+"=======================")
     #     mainTestAllExample(i) # 测试所有的测试用例 
 
+    mainTestAllExample(4)
+
     # 测试attenuation
     # mainTestAttenuation(7)
 
     # 测试falloffFunc
-    for i in range(5):
-        print("=====================func"+str(i)+"=======================")
-        mainTestFalloffFunc(7,i)
+    # for i in range(5):
+    #     print("=====================func"+str(i)+"=======================")
+    #     mainTestFalloffFunc(7,i)
