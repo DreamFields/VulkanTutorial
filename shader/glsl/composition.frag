@@ -155,8 +155,9 @@ float last_amptau[7];
 float OccInitialStep=3.;
 float OccRay7AdjWeight=.972955;
 // vec4 OccConeRayAxes[10];
+// int OccConeIntegrationSamples[3]=int[](1,14,0);// head
 // int OccConeIntegrationSamples[3]=int[](1,10,0);// mouse
-int OccConeIntegrationSamples[3]=int[](1,14,0);// head
+int OccConeIntegrationSamples[3]=int[](1,16,0);// prone
 
 vec4 GetOcclusionSectionInfo(int id)
 {

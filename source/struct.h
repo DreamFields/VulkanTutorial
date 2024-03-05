@@ -266,7 +266,7 @@ static inline ExampleConfig whole_body = {
     glm::vec3(0.1547, -0.0609937, -0.986077),
     1025.0f,
     575.0f,
-    0.001f,
+    0.0001f,
     93.75f,
     8.75f
 };
@@ -337,6 +337,26 @@ static inline ExampleConfig stage_beetle = {
 //     1.5f
 // };
 
+/* -----------------配置1-----------------
+    glm::vec3(0.237374, -1.47586, 0.332677),
+    glm::vec3(0.131297, 0.987808, 0.0836511),
+    glm::vec3( -0.00399074, -0.0838542, 0.99647),
+    225.0f,
+    1300.0f,
+    0.001f,
+    500.0f,
+    1.375f
+-----------------配置2-----------------
+    glm::vec3(-0.469145, -0.642887, 1.82505),
+    glm::vec3(0.484501, 0.571359, -0.662425),
+    glm::vec3(0.481504, -0.806387, -0.343356),
+    2515.0f,
+    1725.0f,
+    0.001f,
+    1000.0f,
+    1.8f
+ 
+*/
 static inline ExampleConfig prone = {
     "prone_512x512x463_uint16",
     "C:\\Users\\Dream\\Documents\\00.NRRD\\prone_512x512x463_uint16",
@@ -384,6 +404,9 @@ static inline std::unordered_map<int, std::string> lookUpTables = {
     {0,"cm_viridis"},
     {1,"pet"},
     {2,"normal"},
-    {3,"cm_gray"}
+    {3,"cm_gray"},
+    {4,"spectral"},
+    {5,"hot_iron"},
+    {6,"hot_metal_blue"}
 };
 

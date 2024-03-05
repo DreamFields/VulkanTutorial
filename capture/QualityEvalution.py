@@ -230,6 +230,27 @@ def mainTestMouse(curExampleID, angleID, wlwwID):
     # print(LPIPS(PT, ours256)) #
     # print(LPIPS(PT, ours256_detail)) #
 
+def mainTestAllExample(exampleID):
+    basePath = 'capture/allExample/example'+str(exampleID)+'/'
+    PT = basePath+'PT.png'
+    IDAO = basePath+'IDAO.png'
+    Ours = basePath+'Ours.png'
+
+    print("----------psnr-----------")
+    print(psnr(PT, IDAO)) #
+    print(psnr(PT, Ours)) #
+    print("----------ssim-----------")
+    print(ssim(PT, IDAO)) #
+    print(ssim(PT, Ours)) #
+    print("----------LPIPS-----------")
+    print(LPIPS(PT, IDAO)) #
+    print(LPIPS(PT, Ours)) #
+
 if __name__ == '__main__':
     # mainTestHead(1,0,0)
-    mainTestMouse(1,1,1)
+    # mainTestMouse(1,1,1)
+
+    # 测试用例的id从0到7
+    for i in range(8):
+        print("=====================example"+str(i)+"=======================")
+        mainTestAllExample(i) # 测试所有的测试用例 

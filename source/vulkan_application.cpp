@@ -1144,8 +1144,9 @@ void VulkanApplication::drawImGui() {
         }
 
         // 添加下拉框，用于选择不同的currentLUTID，然后根据currentLUTID的值来进行不同的操作
-        const char* lutItems[5];
-        for (int i = 0; i < 5; i++) {
+        const int lutSize = 7;
+        const char* lutItems[lutSize];
+        for (int i = 0; i < lutSize; i++) {
             lutItems[i] = static_cast<const char*>(lookUpTables[i].c_str());
         }
         if (ImGui::Combo("LUT Type", &currentLUTID, lutItems, IM_ARRAYSIZE(lutItems))) {
