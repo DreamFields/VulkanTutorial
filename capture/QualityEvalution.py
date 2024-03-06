@@ -283,12 +283,13 @@ def mainTestAttenuation(exampleID):
     print(LPIPS(PT, at_8)) #
     print(LPIPS(PT, at_10)) #
 
-def mainTestFalloffFunc(exampleID,falloffFuncID):
+# exampleID=7
+def mainTestFalloffFuncEx7(exampleID,falloffFuncID):
     basePath = 'capture/allExample/example'+str(exampleID)+'/'
     PT = basePath+'PT.png'
     IDAO = basePath+'IDAO.png'
     Ours = basePath+'Ours.png'
-    falloffFuncPath = 'capture/falloffFunc/func'+str(falloffFuncID)+'/'
+    falloffFuncPath = 'capture/falloffFunc/example'+str(exampleID)+'/func'+str(falloffFuncID)+'/'
 
     test0=''
     test1=''
@@ -357,6 +358,82 @@ def mainTestFalloffFunc(exampleID,falloffFuncID):
     print(LPIPS(PT, test3)) #
     print(LPIPS(PT, test4)) #
 
+# exampleID=6
+def mainTestFalloffFuncEx6(exampleID,falloffFuncID):
+    basePath = 'capture/allExample/example'+str(exampleID)+'/'
+    PT = basePath+'PT.png'
+    IDAO = basePath+'IDAO.png'
+    Ours = basePath+'Ours.png'
+    falloffFuncPath = 'capture/falloffFunc/example'+str(exampleID)+'/func'+str(falloffFuncID)+'/'
+
+    test0=''
+    test1=''
+    test2=''
+    test3=''
+    test4=''
+
+    if falloffFuncID==0:
+        test0 = falloffFuncPath+'10.png'
+        test1 = falloffFuncPath+'15.png'
+        test2 = falloffFuncPath+'20.png'
+        test3 = falloffFuncPath+'25.png'
+        test4 = falloffFuncPath+'30.png'
+    elif falloffFuncID==1:
+        test0 = falloffFuncPath+'0.01.png'
+        test1 = falloffFuncPath+'0.02.png'
+        test2 = falloffFuncPath+'0.03.png' # 好 39.26987423738397 0.9908747488322646 0.012129709124565125
+        test3 = falloffFuncPath+'0.04.png' # 好 38.21336107904241 0.9906498341689867 0.011850327253341675
+        test4 = falloffFuncPath+'0.05.png'
+    elif falloffFuncID==2:
+        test0 = falloffFuncPath+'0.4.png' # 好 39.539622059697514 0.9906919071056501 0.01236618310213089
+        test1 = falloffFuncPath+'0.6.png' # 好 37.80811168136171 0.9907939878209141 0.011783579364418983
+        test2 = falloffFuncPath+'0.8.png'
+        test3 = falloffFuncPath+'1.0.png'
+        test4 = falloffFuncPath+'1.2.png'
+    elif falloffFuncID==3: 
+        test0 = falloffFuncPath+'0.001.png' # 好 39.02081208468582 0.9900313124578364 0.013549860566854477
+        test1 = falloffFuncPath+'0.002.png' # 好 39.47977196985502 0.9905413724772758 0.012616868130862713
+        test2 = falloffFuncPath+'0.003.png' # 好 39.25127281196921 0.9905647429956845 0.012288231402635574
+        test3 = falloffFuncPath+'0.004.png'
+        test4 = falloffFuncPath+'0.005.png'
+    elif falloffFuncID==4:
+        test0 = falloffFuncPath+'0.1.png' # 好 38.976310044151525 0.9906733903617395 0.012755008414387703
+        test1 = falloffFuncPath+'0.2.png' # 好 37.332291189281165 0.990600233490724 0.012212437577545643
+        test2 = falloffFuncPath+'0.3.png'
+        test3 = falloffFuncPath+'0.4.png'
+        test4 = falloffFuncPath+'0.5.png'
+    # print(test0)
+    # print(test1)
+    # print(test2)
+    # print(test3)
+    # print(test4)
+    
+    print("----------psnr-----------")
+    print(psnr(PT, IDAO)) #
+    print(psnr(PT, Ours)) #
+    print(psnr(PT, test0)) #
+    print(psnr(PT, test1)) #
+    print(psnr(PT, test2)) #
+    print(psnr(PT, test3)) #
+    print(psnr(PT, test4)) #
+    print("----------ssim-----------")
+    print(ssim(PT, IDAO)) #
+    print(ssim(PT, Ours)) #
+    print(ssim(PT, test0)) #
+    print(ssim(PT, test1)) #
+    print(ssim(PT, test2)) #
+    print(ssim(PT, test3)) #
+    print(ssim(PT, test4)) #
+    print("----------LPIPS-----------")
+    print(LPIPS(PT, IDAO)) #
+    print(LPIPS(PT, Ours)) #
+    print(LPIPS(PT, test0)) #
+    print(LPIPS(PT, test1)) #
+    print(LPIPS(PT, test2)) #
+    print(LPIPS(PT, test3)) #
+    print(LPIPS(PT, test4)) #
+
+
 
 if __name__ == '__main__':
     # mainTestHead(1,0,0)
@@ -367,12 +444,13 @@ if __name__ == '__main__':
     #     print("=====================example"+str(i)+"=======================")
     #     mainTestAllExample(i) # 测试所有的测试用例 
 
-    mainTestAllExample(4)
+    # mainTestAllExample(6)
 
     # 测试attenuation
     # mainTestAttenuation(7)
 
     # 测试falloffFunc
-    # for i in range(5):
-    #     print("=====================func"+str(i)+"=======================")
-    #     mainTestFalloffFunc(7,i)
+    for i in range(5):
+        print("=====================func"+str(i)+"=======================")
+        # mainTestFalloffFuncEx7(7,i)
+        mainTestFalloffFuncEx6(6,i)

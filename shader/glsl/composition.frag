@@ -54,7 +54,7 @@ layout(location=0)out vec4 outColor;
 #define CONSIDER_BORDERS
 // #define USE_EARLY_TERMINATION
 //#define ALWAYS_SPLIT_CONES
-// #define USE_FALLOFF_FUNCTION
+#define USE_FALLOFF_FUNCTION
 
 #define USE_INTENSITY
 
