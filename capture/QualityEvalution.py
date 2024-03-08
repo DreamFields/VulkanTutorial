@@ -284,12 +284,12 @@ def mainTestAttenuation(exampleID):
     print(LPIPS(PT, at_10)) #
 
 # exampleID=7
-def mainTestFalloffFuncEx7(exampleID,falloffFuncID):
+def mainTestFalloffFuncEx7_old(exampleID,falloffFuncID):
     basePath = 'capture/allExample/example'+str(exampleID)+'/'
     PT = basePath+'PT.png'
     IDAO = basePath+'IDAO.png'
     Ours = basePath+'Ours.png'
-    falloffFuncPath = 'capture/falloffFunc/example'+str(exampleID)+'/func'+str(falloffFuncID)+'/'
+    falloffFuncPath = 'capture/falloffFunc_old/example'+str(exampleID)+'/func'+str(falloffFuncID)+'/'
 
     test0=''
     test1=''
@@ -371,12 +371,12 @@ def mainTestFalloffFuncEx7(exampleID,falloffFuncID):
     print(LPIPS(PT, test4)) #
 
 # exampleID=6
-def mainTestFalloffFuncEx6(exampleID,falloffFuncID):
+def mainTestFalloffFuncEx6_old(exampleID,falloffFuncID):
     basePath = 'capture/allExample/example'+str(exampleID)+'/'
     PT = basePath+'PT.png'
     IDAO = basePath+'IDAO.png'
     Ours = basePath+'Ours.png'
-    falloffFuncPath = 'capture/falloffFunc/example'+str(exampleID)+'/func'+str(falloffFuncID)+'/'
+    falloffFuncPath = 'capture/falloffFunc_old/example'+str(exampleID)+'/func'+str(falloffFuncID)+'/'
 
     test0=''
     test1=''
@@ -462,6 +462,6 @@ if __name__ == '__main__':
     # 测试falloffFunc
     # for i in range(5):
     #     print("=====================func"+str(i)+"=======================")
-    #     # mainTestFalloffFuncEx7(7,i)
-    #     mainTestFalloffFuncEx6(6,i)
-    mainTestFalloffFuncEx7(7,6)
+    #     # mainTestFalloffFuncEx7_old(7,i)
+    #     mainTestFalloffFuncEx6_old(6,i)
+    # mainTestFalloffFuncEx7_old(7,6)
