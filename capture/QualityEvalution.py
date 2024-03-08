@@ -327,6 +327,18 @@ def mainTestFalloffFuncEx7(exampleID,falloffFuncID):
         test2 = falloffFuncPath+'0.15.png'
         test3 = falloffFuncPath+'0.20.png'
         test4 = falloffFuncPath+'0.25.png' # 好 31.72809632497495 0.9826095879148253 0.028057480230927467
+    elif falloffFuncID==5:
+        test0 = falloffFuncPath+'0.11.png'
+        test1 = falloffFuncPath+'0.12.png'
+        test2 = falloffFuncPath+'0.13.png'
+        test3 = falloffFuncPath+'0.14.png'
+        test4 = falloffFuncPath+'0.15.png'
+    elif falloffFuncID==6:
+        test0 = falloffFuncPath+'0.1.png'
+        test1 = falloffFuncPath+'0.2.png'
+        test2 = falloffFuncPath+'0.3.png'
+        test3 = falloffFuncPath+'0.4.png'
+        test4 = falloffFuncPath+'0.5.png'
     # print(test0)
     # print(test1)
     # print(test2)
@@ -433,8 +445,6 @@ def mainTestFalloffFuncEx6(exampleID,falloffFuncID):
     print(LPIPS(PT, test3)) #
     print(LPIPS(PT, test4)) #
 
-
-
 if __name__ == '__main__':
     # mainTestHead(1,0,0)
     # mainTestMouse(1,1,1)
@@ -450,7 +460,8 @@ if __name__ == '__main__':
     # mainTestAttenuation(7)
 
     # 测试falloffFunc
-    for i in range(5):
-        print("=====================func"+str(i)+"=======================")
-        # mainTestFalloffFuncEx7(7,i)
-        mainTestFalloffFuncEx6(6,i)
+    # for i in range(5):
+    #     print("=====================func"+str(i)+"=======================")
+    #     # mainTestFalloffFuncEx7(7,i)
+    #     mainTestFalloffFuncEx6(6,i)
+    mainTestFalloffFuncEx7(7,6)

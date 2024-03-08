@@ -63,32 +63,42 @@ const float max_ext=log(1./.05);
 #endif
 
 // 衰减函数测试
-float linearFalloff(float _distance, float k) {
-    return (_distance / k);
+float linearFalloff(float _distance,float k){
+    return(_distance/k);
 }
 
-float exponentialFalloff(float _distance, float k) {
-    return exp(-k * _distance);
+float exponentialFalloff(float _distance,float k){
+    return exp(-k*_distance);
 }
 
-float logarithmicFalloff(float _distance, float k) {
-    return 1.0 / log(k * _distance + 1.0);
+float logarithmicFalloff(float _distance,float k){
+    return 1./(log(k*_distance+1.)+1.);
 }
 
-float quadraticFalloff(float _distance,float k) {
-    return 1.0 / (_distance * _distance * k + 1.0);
+float quadraticFalloff(float _distance,float k){
+    return 1./(_distance*_distance*k+1.);
 }
 
-float squareRootFalloff(float _distance, float k) {
-    return 1.0 / sqrt(k * _distance + 1.0);
+float squareRootFalloff(float _distance,float k){
+    return 1./sqrt(k*_distance+1.);
 }
 
-float falloffControl(float _distance, float k) {
+float reciprocalFalloff(float _distance,float k){
+    return(1./(k*_distance+1.));
+}
+
+float arctanFalloff(float _distance,float k){
+    return 1.-3.141593/2.*atan(k*_distance);
+}
+
+float falloffControl(float _distance,float k){
     if(dicomUbo.falloffID==0)return linearFalloff(_distance,k);
     else if(dicomUbo.falloffID==1)return exponentialFalloff(_distance,k);
     else if(dicomUbo.falloffID==2)return logarithmicFalloff(_distance,k);
     else if(dicomUbo.falloffID==3)return quadraticFalloff(_distance,k);
     else if(dicomUbo.falloffID==4)return squareRootFalloff(_distance,k);
+    else if(dicomUbo.falloffID==5)return reciprocalFalloff(_distance,k);
+    else if(dicomUbo.falloffID==6)return arctanFalloff(_distance,k);
 }
 
 // volume的真实最大边
@@ -181,11 +191,10 @@ float OccRay7AdjWeight=.972955;
 int OccConeIntegrationSamples[3]=int[](1,10,0);
 
 // 控制阴影的衰减因子
-float shadowAttenuation(float shadowValue, float k) {
-    if (k == 0.0) return shadowValue;
-    return exp(-k * shadowValue);
+float shadowAttenuation(float shadowValue,float k){
+    if(k==0.)return shadowValue;
+    return exp(-k*shadowValue);
 }
-
 
 vec4 GetOcclusionSectionInfo(int id)
 {
@@ -335,7 +344,7 @@ float Cone3RayOcclusion(vec3 volume_pos_from_zero,float track_distance,vec3 cone
             
             #ifdef USE_FALLOFF_FUNCTION
             // occ_rays[i]+=(last_amptau[i]+amptau)*d_integral*falloffunction(track_distance);
-            occ_rays[i]+=(last_amptau[i]+amptau)*d_integral*falloffControl(track_distance,dicomUbo.attenuation); 
+            occ_rays[i]+=(last_amptau[i]+amptau)*d_integral*falloffControl(track_distance,dicomUbo.attenuation);
             #else
             occ_rays[i]+=(last_amptau[i]+amptau)*d_integral/* *OccUIWeight */;
             #endif
@@ -552,7 +561,7 @@ vec4 absorptionMethod(float stepLength,float rayLength,vec3 dir,vec3 currentPos)
         // vec4 sampleColor=get3DTextureColor(pos);
         // vec4 sampleColor=getExtCoeff(pos);
         // vec4 sampleColor=ShadeSample(pos,dir,normalize(fragCameraUp),normalize(fragCameraRight));
-
+        
         vec4 sampleColor=vec4(0.);
         if(int(dicomUbo.steps/100.)<1){
             sampleColor=get3DTextureColor(pos);
@@ -696,7 +705,7 @@ void main(){
     mouse的用例ww=600，wc=250左右时明显。
     */
     // outColor=vec4(insideEmpty,insideEmpty,insideEmpty,1.);
-
+    
     // outColor = vec4(get3DTextureColor(vec3(inTexCoord.x,inTexCoord.y,0.5)).rgb,1.0);
     
     // vec2 texCoord=vec2(inTexCoord.x,inTexCoord.y);

@@ -426,5 +426,7 @@ static inline std::vector<std::string> fallofFuncName = {
     "exponentialFalloff",
     "logarithmicFalloff",
     "quadraticFalloff",
-    "squareRootFalloff"
+    "squareRootFalloff",
+    "reciprocalFalloff",
+    "arctanFalloff"
 };

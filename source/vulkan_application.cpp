@@ -1189,7 +1189,7 @@ void VulkanApplication::drawImGui() {
             if(isCustomResolution) changeExample();
         }
 
-        const int fallofFuncNum = 5;
+        const int fallofFuncNum = 7;
         const char* fallofFuncItems[fallofFuncNum];
         for (int i = 0; i < fallofFuncNum; i++) {
             fallofFuncItems[i] = static_cast<const char*>(fallofFuncName[i].c_str());
