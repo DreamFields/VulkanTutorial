@@ -376,7 +376,7 @@ static inline ExampleConfig prone = {
     glm::vec3( -0.00399074, -0.0838542, 0.99647),
     225.0f,
     1300.0f,
-    0.001f,
+    0.0003f,
     500.0f,
     1.375f
 };

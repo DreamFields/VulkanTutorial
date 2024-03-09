@@ -42,10 +42,10 @@ struct DicomParamControl {
     float windowCenter;
     float windowWidth;
     float alphaCorrection;
-    int steps = 0;
+    int steps = 200;
     float stepLength;
     float glow;
-    float attenuation=1.0f;
+    float attenuation=0.0f;
     int falloffID=1;
 };
 

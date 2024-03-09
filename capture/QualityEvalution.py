@@ -24,6 +24,8 @@ def setConfig(curID, angleID, wlwwID):
 其中，第二和第三种方法比较常见。 
 """
 def psnr(image1_path, image2_path):
+    if image1_path == '' or image2_path == '':
+        return 0
     img1 = cv2.imread(image1_path, cv2.IMREAD_UNCHANGED)
     img2 = cv2.imread(image2_path, cv2.IMREAD_UNCHANGED)
 
@@ -58,12 +60,16 @@ def psnr(image1_path, image2_path):
 
 # 测试两张图片的SSIM值，值越大，表示两张图片越相似
 def ssim(image1_path, image2_path):
+    if image1_path == '' or image2_path == '':
+        return 0
     img1 = cv2.imread(image1_path, cv2.IMREAD_UNCHANGED)
     img2 = cv2.imread(image2_path, cv2.IMREAD_UNCHANGED)
     return structural_similarity(img1, img2,channel_axis=2) #channel_axis参数指定了颜色通道在图像数组中的位置。在这个函数中，channel_axis=2表示颜色通道是图像数组的第三个维度。
 
 # 测试两张图片的LPIPS值，值越小，表示两张图片越相似
 def LPIPS(image1_path, image2_path):
+    if image1_path == '' or image2_path == '':
+        return 0
     img1 = lpips.im2tensor(lpips.load_image(image1_path)) # RGB image from [-1,1]
     img2 = lpips.im2tensor(lpips.load_image(image2_path))
 
@@ -73,6 +79,8 @@ def LPIPS(image1_path, image2_path):
 
     # Compute distance
     dist01 = loss_fn(img1, img2)
+    # 禁止输出warning
+    torch.autograd.set_detect_anomaly(True)
     return dist01.item()
 
 # 创建一张新的图片，大小与img1和img2相同，显示的是两张图片的差异，差异越大，颜色越红，差异越小，颜色越蓝
@@ -384,6 +392,10 @@ def mainTestFalloffFuncEx6_old(exampleID,falloffFuncID):
     test3=''
     test4=''
 
+    other0=''
+    other1=''
+    other2=''
+
     if falloffFuncID==0:
         test0 = falloffFuncPath+'10.png'
         test1 = falloffFuncPath+'15.png'
@@ -402,6 +414,9 @@ def mainTestFalloffFuncEx6_old(exampleID,falloffFuncID):
         test2 = falloffFuncPath+'0.8.png'
         test3 = falloffFuncPath+'1.0.png'
         test4 = falloffFuncPath+'1.2.png'
+        other0 = falloffFuncPath+'0.1.png'
+        other1 = falloffFuncPath+'0.2.png'
+        other2 = falloffFuncPath+'0.3.png'
     elif falloffFuncID==3: 
         test0 = falloffFuncPath+'0.001.png' # 好 39.02081208468582 0.9900313124578364 0.013549860566854477
         test1 = falloffFuncPath+'0.002.png' # 好 39.47977196985502 0.9905413724772758 0.012616868130862713
@@ -428,6 +443,10 @@ def mainTestFalloffFuncEx6_old(exampleID,falloffFuncID):
     print(psnr(PT, test2)) #
     print(psnr(PT, test3)) #
     print(psnr(PT, test4)) #
+    print("-")
+    print(psnr(PT, other0)) #
+    print(psnr(PT, other1)) #
+    print(psnr(PT, other2)) #
     print("----------ssim-----------")
     print(ssim(PT, IDAO)) #
     print(ssim(PT, Ours)) #
@@ -436,6 +455,10 @@ def mainTestFalloffFuncEx6_old(exampleID,falloffFuncID):
     print(ssim(PT, test2)) #
     print(ssim(PT, test3)) #
     print(ssim(PT, test4)) #
+    print("-")
+    print(ssim(PT, other0)) #
+    print(ssim(PT, other1)) #
+    print(ssim(PT, other2)) #
     print("----------LPIPS-----------")
     print(LPIPS(PT, IDAO)) #
     print(LPIPS(PT, Ours)) #
@@ -444,6 +467,160 @@ def mainTestFalloffFuncEx6_old(exampleID,falloffFuncID):
     print(LPIPS(PT, test2)) #
     print(LPIPS(PT, test3)) #
     print(LPIPS(PT, test4)) #
+    print("-")
+    print(LPIPS(PT, other0)) #
+    print(LPIPS(PT, other1)) #
+    print(LPIPS(PT, other2)) #
+
+# exampleID=7
+def mainTestFalloffFuncEx7(exampleID,falloffFuncID):
+    basePath = 'capture/allExample/example'+str(exampleID)+'/'
+    PT = basePath+'PT.png'
+    IDAO = basePath+'IDAO0.0003.png'
+    Ours = basePath+'Ours0.0003.png'
+    falloffFuncPath = 'capture/falloffFunc/example'+str(exampleID)+'/func'+str(falloffFuncID)+'/'
+
+    test0=''
+    test1=''
+    test2=''
+    test3=''
+    test4=''
+
+    other0=''
+    other1=''
+    other2=''
+
+    if falloffFuncID==0:
+        test0 = falloffFuncPath+'10.png'
+        test1 = falloffFuncPath+'15.png'
+        test2 = falloffFuncPath+'20.png'
+        test3 = falloffFuncPath+'25.png'
+        test4 = falloffFuncPath+'30.png'
+    elif falloffFuncID==1:
+        test0 = falloffFuncPath+'0.02.png'
+        test1 = falloffFuncPath+'0.04.png'
+        test2 = falloffFuncPath+'0.06.png'
+        test3 = falloffFuncPath+'0.08.png'
+        test4 = falloffFuncPath+'0.10.png'
+        other0 = falloffFuncPath+'0.001.png'
+        other1 = falloffFuncPath+'0.003.png'
+        other2 = falloffFuncPath+'0.005.png'
+    elif falloffFuncID==2:
+        test0 = falloffFuncPath+'0.2.png'
+        test1 = falloffFuncPath+'0.4.png'
+        test2 = falloffFuncPath+'0.6.png'
+        test3 = falloffFuncPath+'0.8.png'
+        test4 = falloffFuncPath+'1.0.png' 
+        other0 = falloffFuncPath+'0.10.png'
+        other1 = falloffFuncPath+'0.2.png' 
+        other2 = falloffFuncPath+'0.3.png'
+    elif falloffFuncID==3: 
+        test0 = falloffFuncPath+'0.002.png' #
+        test1 = falloffFuncPath+'0.004.png'
+        test2 = falloffFuncPath+'0.006.png'
+        test3 = falloffFuncPath+'0.008.png'
+        test4 = falloffFuncPath+'0.010.png'
+        other0 = falloffFuncPath+'0.001.png' #
+        other1 = falloffFuncPath+'0.002.png'
+        other2 = falloffFuncPath+'0.003.png'
+    elif falloffFuncID==4:
+        test0 = falloffFuncPath+'0.02.png'
+        test1 = falloffFuncPath+'0.04.png'
+        test2 = falloffFuncPath+'0.06.png'
+        test3 = falloffFuncPath+'0.08.png'
+        test4 = falloffFuncPath+'0.10.png'
+        other0 = falloffFuncPath+'0.10.png'
+        other1 = falloffFuncPath+'0.15.png'
+        other2 = falloffFuncPath+'0.20.png'
+    elif falloffFuncID==5:
+        test0 = falloffFuncPath+'0.02.png'
+        test1 = falloffFuncPath+'0.04.png'
+        test2 = falloffFuncPath+'0.06.png'
+        test3 = falloffFuncPath+'0.08.png'
+        test4 = falloffFuncPath+'0.10.png'
+        other0 = falloffFuncPath+'0.04.png'
+        other1 = falloffFuncPath+'0.06.png'
+        other2 = falloffFuncPath+'0.08.png'
+    elif falloffFuncID==6:
+        test0 = falloffFuncPath+'0.002.png'
+        test1 = falloffFuncPath+'0.004.png'
+        test2 = falloffFuncPath+'0.006.png'
+        test3 = falloffFuncPath+'0.008.png'
+        test4 = falloffFuncPath+'0.010.png'
+        other0 = falloffFuncPath+'0.001.png'
+        other1 = falloffFuncPath+'0.0015.png'
+        other2 = falloffFuncPath+'0.002.png'
+    # print(test0)
+    # print(test1)
+    # print(test2)
+    # print(test3)
+    # print(test4)
+    
+    print("----------psnr-----------")
+    print(psnr(PT, IDAO)) #
+    print(psnr(PT, Ours)) #
+    print("-")
+    print(psnr(PT, test0)) #
+    print(psnr(PT, test1)) #
+    print(psnr(PT, test2)) #
+    print(psnr(PT, test3)) #
+    print(psnr(PT, test4)) #
+    print("-")
+    print(psnr(PT, other0)) #
+    print(psnr(PT, other1)) #
+    print(psnr(PT, other2)) #
+    print("----------ssim-----------")
+    print(ssim(PT, IDAO)) #
+    print(ssim(PT, Ours)) #
+    print("-")
+    print(ssim(PT, test0)) #
+    print(ssim(PT, test1)) #
+    print(ssim(PT, test2)) #
+    print(ssim(PT, test3)) #
+    print(ssim(PT, test4)) #
+    print("-")
+    print(ssim(PT, other0)) #
+    print(ssim(PT, other1)) #
+    print(ssim(PT, other2)) #
+    print("----------LPIPS-----------")
+    print(LPIPS(PT, IDAO)) #
+    print(LPIPS(PT, Ours)) #
+    print("-")
+    print(LPIPS(PT, test0)) #
+    print(LPIPS(PT, test1)) #
+    print(LPIPS(PT, test2)) #
+    print(LPIPS(PT, test3)) #
+    print(LPIPS(PT, test4)) #
+    print("-")
+    print(LPIPS(PT, other0)) #
+    print(LPIPS(PT, other1)) #
+    print(LPIPS(PT, other2)) #
+
+   
+def test():
+    basePath = 'capture/allExample/example7/'
+    PT = basePath+'PT.png'
+    IDAO5 = basePath+'IDAO0.0005.png'
+    IDAO3 = basePath+'IDAO0.0003.png'
+    Ours5 = basePath+'Ours0.0005.png'
+    Ours3 = basePath+'Ours0.0003.png'
+
+    print("----------psnr-----------")
+    print(psnr(PT, IDAO5)) #
+    print(psnr(PT, IDAO3)) #
+    print(psnr(PT, Ours5)) #
+    print(psnr(PT, Ours3)) #
+    print("----------ssim-----------")
+    print(ssim(PT, IDAO5)) #
+    print(ssim(PT, IDAO3)) #
+    print(ssim(PT, Ours5)) #
+    print(ssim(PT, Ours3)) #
+    print("----------LPIPS-----------")
+    print(LPIPS(PT, IDAO5)) #
+    print(LPIPS(PT, IDAO3)) #
+    print(LPIPS(PT, Ours5)) #
+    print(LPIPS(PT, Ours3)) #
+
 
 if __name__ == '__main__':
     # mainTestHead(1,0,0)
@@ -454,14 +631,26 @@ if __name__ == '__main__':
     #     print("=====================example"+str(i)+"=======================")
     #     mainTestAllExample(i) # 测试所有的测试用例 
 
-    # mainTestAllExample(6)
+    mainTestAllExample(6)
 
     # 测试attenuation
     # mainTestAttenuation(7)
 
+    # test()
+
     # 测试falloffFunc
-    # for i in range(5):
+    # for i in range(7):
+    #     if i==0:
+    #         continue
     #     print("=====================func"+str(i)+"=======================")
-    #     # mainTestFalloffFuncEx7_old(7,i)
+    #     mainTestFalloffFuncEx7(7,i)
+     # 打印黄色字体
+    # print("\033[1;33m"+"hello world"+"\033[0m")
+    # mainTestFalloffFuncEx7(7,6)
+        
+    # for i in range(5):
+    #     if i==0:
+    #         continue
+    #     print("=====================func"+str(i)+"=======================")
     #     mainTestFalloffFuncEx6_old(6,i)
-    # mainTestFalloffFuncEx7_old(7,6)
+    # mainTestFalloffFuncEx6_old(6,2)
