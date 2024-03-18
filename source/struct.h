@@ -159,6 +159,10 @@ struct ExampleConfig {
     glm::vec3(1.8618, 1.31775, 1.71523),
     glm::vec3(-0.6809, -0.408873, -0.607617),
     glm::vec3(-0.274107, 0.911624, -0.306278),
+-------------三视图角度----------
+    glm::vec3(0.5f, 0.5f, 2.5f),
+    glm::vec3(0.0f, 0.0f, -1.0f),
+    glm::vec3(0.0f, 1.0f, 0.0f),
 -------------nrrd angle 0-------------
     glm::vec3(0.0292941, 2.44313, 0.553435),
     glm::vec3(0.235348, -0.971544, -0.0267169),
@@ -181,13 +185,13 @@ struct ExampleConfig {
 static inline ExampleConfig head = {
     "head512*512*41",
     "C:\\Users\\Dream\\Documents\\00.Dicom\\ede6fe9eda6e44a98b3ad20da6f9116a Anonymized29\\Unknown Study\\CT Head 5.0000\\",
-    glm::vec3(0.0292941, 2.44313, 0.553435),
-    glm::vec3(0.235348, -0.971544, -0.0267169),
-    glm::vec3(-0.016332, 0.0235319, -0.99959),
-    250.0f, // windowCenter
-    250.0f, // windowWidth
+    glm::vec3(-1.36239, 1.2285, 0.530957),
+    glm::vec3(0.931176, -0.364242, -0.0154783),
+    glm::vec3(-0.0159918, 0.00160645, -0.999871),
+    1500.0f, // windowCenter
+    50.0f, // windowWidth
     0.001f, // stepLength
-    100.0f, // alphaCorrection
+    200.0f, // alphaCorrection
     1.5f // glow
 };
 

@@ -67,10 +67,10 @@ def setConfig(curID, angleID, wlwwID):
 
 # 主函数
 # for head
-folderPath = setConfig(0, 0, 0)
+folderPath = setConfig(0, 1, 1)
 savePath = 'capture/paper_res'
-padding = (330,650)
-size = (600, 600)
+padding = (250,540)
+size = (625, 700)
 
 # for mouse
 # folderPath = setConfig(1, 0, 0)

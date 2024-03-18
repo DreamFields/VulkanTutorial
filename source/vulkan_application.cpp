@@ -1198,10 +1198,12 @@ void VulkanApplication::drawImGui() {
             std::cout << "falloffID: " << volumeRender->dicomParamControl.falloffID << std::endl;
         }
 
-        if (ImGui::SliderFloat("WinWidth", &volumeRender->dicomParamControl.windowWidth, 0.0f, 6000.0f)) {
+        // if (ImGui::SliderFloat("WinWidth", &volumeRender->dicomParamControl.windowWidth, 0.0f, 6000.0f)) {
+        if (ImGui::InputFloat("WinWidth", &volumeRender->dicomParamControl.windowWidth, 0.1f, 1.0f, "%.1f")) {
             computeResources.isComplete = false;
         }
-        if (ImGui::SliderFloat("WinCenter", &volumeRender->dicomParamControl.windowCenter, 0.0f, 6000.0f)) {
+        // if (ImGui::SliderFloat("WinCenter", &volumeRender->dicomParamControl.windowCenter, 0.0f, 6000.0f)) {
+        if (ImGui::InputFloat("WinCenter", &volumeRender->dicomParamControl.windowCenter, 0.1f, 1.0f, "%.1f")) {
             computeResources.isComplete = false;
         }
 
